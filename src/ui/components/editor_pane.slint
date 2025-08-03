@@ -1,0 +1,113 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { ScrollView, TextEdit } from "std-widgets.slint";
+import { ProfessionalEditor, TextOperation } from "enhanced_text_editor.slint";
+
+// Language components moved to enhanced_text_editor.slint
+
+// Old toolbar and editor components moved to enhanced_text_editor.slint
+
+export component EditorPane inherits Rectangle {
+    // Editor properties
+    in property <string> content: "";
+    in property <string> mode: "markdown"; // "markdown" or "presentation"
+    in property <string> language: "en";
+    in property <bool> read-only: false;
+    
+    // Callbacks for basic operations
+    callback content-changed(string);
+    callback mode-changed(string);
+    callback language-changed(string);
+    callback text-operation(TextOperation);
+    
+    // Enhanced formatting callbacks
+    callback format-bold();
+    callback format-italic();
+    callback format-underline();
+    callback format-heading(int);
+    callback format-code();
+    callback format-quote();
+    
+    // List callbacks
+    callback insert-bullet-list();
+    callback insert-numbered-list();
+    callback insert-checklist();
+    
+    // Insert callbacks
+    callback insert-link();
+    callback insert-image();
+    callback insert-table();
+    callback insert-code-block();
+    
+    // Text manipulation callbacks
+    callback increase-indent();
+    callback decrease-indent();
+    callback align-left();
+    callback align-center();
+    callback align-right();
+    
+    // Undo/Redo callbacks
+    callback undo();
+    callback redo();
+    
+    // Legacy callbacks for compatibility
+    callback insert-list();
+    
+    background: Colors.editor-background;
+    
+    // Use the new professional editor
+    professional-editor := ProfessionalEditor {
+        content: root.content;
+        mode: root.mode;
+        language: root.language;
+        read-only: root.read-only;
+        
+        content-changed(text) => {
+            root.content-changed(text);
+        }
+        
+        language-changed(lang) => {
+            root.language-changed(lang);
+        }
+        
+        text-operation(op) => {
+            root.text-operation(op);
+        }
+        
+        // Enhanced formatting callbacks
+        format-bold => { root.format-bold(); }
+        format-italic => { root.format-italic(); }
+        format-underline => { root.format-underline(); }
+        format-heading(level) => { root.format-heading(level); }
+        format-code => { root.format-code(); }
+        format-quote => { root.format-quote(); }
+        
+        // List callbacks
+        insert-bullet-list => { 
+            root.insert-bullet-list();
+            root.insert-list(); // Legacy compatibility
+        }
+        insert-numbered-list => { 
+            root.insert-numbered-list();
+            root.insert-list(); // Legacy compatibility
+        }
+        insert-checklist => { root.insert-checklist(); }
+        
+        // Insert callbacks
+        insert-link => { root.insert-link(); }
+        insert-image => { root.insert-image(); }
+        insert-table => { root.insert-table(); }
+        insert-code-block => { root.insert-code-block(); }
+        
+        // Text manipulation callbacks
+        increase-indent => { root.increase-indent(); }
+        decrease-indent => { root.decrease-indent(); }
+        align-left => { root.align-left(); }
+        align-center => { root.align-center(); }
+        align-right => { root.align-right(); }
+        
+        // Undo/Redo callbacks
+        undo => { root.undo(); }
+        redo => { root.redo(); }
+    }
+}

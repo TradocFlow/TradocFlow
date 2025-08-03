@@ -1,0 +1,372 @@
+# Italian translations for Tradocument Reviewer
+# Publication-focused localization system
+
+# Application metadata
+app:
+  name: "Sistema di Pubblicazione"
+  version: "Versione 1.0"
+  copyright: "© 2025 Sistema di Pubblicazione"
+  description: "Sistema collaborativo di revisione documenti con supporto multilingue"
+
+# Navigation
+nav:
+  dashboard: "Dashboard"
+  documents: "Documenti"
+  reviews: "Revisioni"
+  translation: "Traduzione"
+  kanban: "Kanban"
+  manuals: "Manuali"
+  account: "Account"
+  profile: "Profilo"
+  settings: "Impostazioni"
+  logout: "Disconnetti"
+  notifications: "Notifiche"
+  notification_settings: "Impostazioni notifiche"
+
+# Document Management
+documents:
+  title: "Documenti"
+  all_documents: "Tutti i documenti"
+  create_document: "Crea documento"
+  create_new: "Crea nuovo documento"
+  import_document: "Importa documento"
+  edit_document: "Modifica documento"
+  delete_document: "Elimina documento"
+  view_document: "Visualizza documento"
+  save_document: "Salva documento"
+  save_draft: "Salva come bozza"
+  publish: "Pubblica"
+  unpublish: "Annulla pubblicazione"
+  duplicate: "Duplica"
+  export: "Esporta"
+  document_title: "Titolo documento"
+  document_content: "Contenuto documento"
+  document_status: "Stato"
+  document_language: "Lingua"
+  document_tags: "Tag"
+  document_created: "Creato"
+  document_updated: "Aggiornato"
+  document_version: "Versione"
+  empty_state: "Nessun documento trovato. Crea il tuo primo documento per iniziare."
+  
+  # Document Status
+  status:
+    draft: "Bozza"
+    in_review: "In revisione"
+    approved: "Approvato"
+    published: "Pubblicato"
+    
+  # Document Actions
+  actions:
+    create: "Crea"
+    save: "Salva"
+    cancel: "Annulla"
+    delete: "Elimina"
+    edit: "Modifica"
+    preview: "Anteprima"
+    download: "Scarica"
+    share: "Condividi"
+
+# Project Management
+projects:
+  title: "Progetti"
+  create_project: "Crea progetto"
+  project_name: "Nome progetto"
+  project_description: "Descrizione"
+  project_status: "Stato progetto"
+  project_members: "Membri del team"
+  project_deadline: "Scadenza"
+  assign_to: "Assegna a"
+  due_date: "Data di scadenza"
+  priority: "Priorità"
+  
+  # Project Status
+  status:
+    active: "Attivo"
+    completed: "Completato"
+    on_hold: "In pausa"
+    cancelled: "Annullato"
+    
+  # Priority Levels
+  priority:
+    low: "Bassa"
+    medium: "Media"
+    high: "Alta"
+    urgent: "Urgente"
+
+# Kanban Board
+kanban:
+  personal_board: "Bacheca personale"
+  team_board: "Bacheca del team"
+  add_task: "Aggiungi task"
+  add_column: "Aggiungi colonna"
+  task_title: "Titolo task"
+  task_description: "Descrizione"
+  move_to: "Sposta in"
+  
+  # Default Columns
+  columns:
+    todo: "Da fare"
+    in_progress: "In corso"
+    review: "Revisione"
+    done: "Fatto"
+    backlog: "Backlog"
+
+# Translation Workflows
+translation:
+  dashboard: "Dashboard traduzione"
+  editor: "Editor traduzione"
+  source_language: "Lingua di origine"
+  target_language: "Lingua di destinazione"
+  translate: "Traduci"
+  translation_progress: "Progresso traduzione"
+  quality_check: "Controllo qualità"
+  translation_status: "Stato traduzione"
+  translator: "Traduttore"
+  translation_memory: "Memoria di traduzione"
+  glossary: "Glossario"
+  
+  # Translation Status
+  status:
+    not_started: "Non iniziato"
+    in_progress: "In corso"
+    completed: "Completato"
+    reviewed: "Revisionato"
+    approved: "Approvato"
+    
+  # Translation Actions
+  actions:
+    start_translation: "Inizia traduzione"
+    save_translation: "Salva traduzione"
+    submit_for_review: "Invia per revisione"
+    approve_translation: "Approva traduzione"
+    reject_translation: "Rifiuta traduzione"
+
+# Review System
+reviews:
+  dashboard: "Dashboard revisioni"
+  pending_reviews: "Revisioni in attesa"
+  completed_reviews: "Revisioni completate"
+  my_reviews: "Le mie revisioni"
+  add_comment: "Aggiungi commento"
+  approve: "Approva"
+  reject: "Rifiuta"
+  request_changes: "Richiedi modifiche"
+  reviewer: "Revisore"
+  review_status: "Stato revisione"
+  review_comments: "Commenti"
+  review_history: "Cronologia revisioni"
+  
+  # Review Status
+  status:
+    pending: "In attesa"
+    in_progress: "In corso"
+    approved: "Approvato"
+    rejected: "Rifiutato"
+    changes_requested: "Modifiche richieste"
+    
+  # Review Actions
+  actions:
+    start_review: "Inizia revisione"
+    submit_review: "Invia revisione"
+    add_reviewer: "Aggiungi revisore"
+    remove_reviewer: "Rimuovi revisore"
+
+# UI Elements
+ui:
+  save: "Salva"
+  cancel: "Annulla"
+  delete: "Elimina"
+  edit: "Modifica"
+  create: "Crea"
+  update: "Aggiorna"
+  search: "Cerca"
+  filter: "Filtra"
+  sort: "Ordina"
+  export: "Esporta"
+  import: "Importa"
+  upload: "Carica"
+  download: "Scarica"
+  copy: "Copia"
+  paste: "Incolla"
+  cut: "Taglia"
+  undo: "Annulla"
+  redo: "Ripeti"
+  select_all: "Seleziona tutto"
+  clear: "Pulisci"
+  reset: "Reimposta"
+  refresh: "Aggiorna"
+  loading: "Caricamento..."
+  submit: "Invia"
+  close: "Chiudi"
+  open: "Apri"
+  view: "Visualizza"
+  preview: "Anteprima"
+  print: "Stampa"
+  help: "Aiuto"
+  next: "Successivo"
+  previous: "Precedente"
+  back: "Indietro"
+  forward: "Avanti"
+  yes: "Sì"
+  no: "No"
+  ok: "OK"
+  apply: "Applica"
+  confirm: "Conferma"
+  
+  # Form Elements
+  form:
+    required_field: "Questo campo è obbligatorio"
+    invalid_email: "Inserisci un indirizzo email valido"
+    password_mismatch: "Le password non corrispondono"
+    file_too_large: "La dimensione del file supera il limite"
+    unsupported_format: "Formato file non supportato"
+    
+  # Messages
+  messages:
+    success: "Operazione completata con successo"
+    error: "Si è verificato un errore"
+    warning: "Avvertimento"
+    info: "Informazione"
+    saved: "Modifiche salvate con successo"
+    deleted: "Elemento eliminato con successo"
+    updated: "Elemento aggiornato con successo"
+    created: "Elemento creato con successo"
+    
+  # Pagination
+  pagination:
+    page: "Pagina"
+    of: "di"
+    showing: "Mostrando"
+    to: "a"
+    entries: "voci"
+    first: "Prima"
+    last: "Ultima"
+
+# User Management
+users:
+  title: "Utenti"
+  user_name: "Nome"
+  user_email: "Email"
+  user_role: "Ruolo"
+  user_status: "Stato"
+  user_created: "Creato"
+  user_last_login: "Ultimo accesso"
+  
+  # User Roles
+  roles:
+    admin: "Amministratore"
+    reviewer: "Revisore"
+    translator: "Traduttore"
+    viewer: "Osservatore"
+    
+  # User Status
+  status:
+    active: "Attivo"
+    inactive: "Inattivo"
+    suspended: "Sospeso"
+
+# Language Selection
+language:
+  select_language: "Seleziona lingua"
+  current_language: "Lingua corrente"
+  switch_language: "Cambia lingua"
+  
+  # Language Names
+  names:
+    en: "English"
+    de: "Deutsch"
+    fr: "Français"
+    es: "Español"
+    it: "Italiano"
+    nl: "Nederlands"
+
+# Date and Time
+datetime:
+  today: "Oggi"
+  yesterday: "Ieri"
+  tomorrow: "Domani"
+  this_week: "Questa settimana"
+  last_week: "La settimana scorsa"
+  this_month: "Questo mese"
+  last_month: "Il mese scorso"
+  
+  # Time Units
+  time:
+    just_now: "Proprio ora"
+    minutes_ago: "{count} minuti fa"
+    hours_ago: "{count} ore fa"
+    days_ago: "{count} giorni fa"
+    weeks_ago: "{count} settimane fa"
+    months_ago: "{count} mesi fa"
+
+# Error Messages
+errors:
+  not_found: "La risorsa richiesta non è stata trovata"
+  access_denied: "Accesso negato"
+  server_error: "Errore interno del server"
+  network_error: "Errore di connessione di rete"
+  validation_error: "Errore di validazione"
+  file_upload_error: "Caricamento file fallito"
+  database_error: "Errore del database"
+  authentication_required: "Autenticazione richiesta"
+  session_expired: "La sessione è scaduta"
+
+# Success Messages
+success:
+  document_created: "Documento creato con successo"
+  document_updated: "Documento aggiornato con successo"
+  document_deleted: "Documento eliminato con successo"
+  document_published: "Documento pubblicato con successo"
+  review_submitted: "Revisione inviata con successo"
+  translation_completed: "Traduzione completata con successo"
+  user_created: "Utente creato con successo"
+  settings_saved: "Impostazioni salvate con successo"
+
+# Notifications
+notifications:
+  no_notifications: "Nessuna notifica"
+  mark_as_read: "Segna come letto"
+  mark_all_read: "Segna tutto come letto"
+  
+  # Notification Types
+  types:
+    document_assigned: "Documento assegnato a te"
+    review_requested: "Revisione richiesta"
+    translation_ready: "Traduzione pronta per revisione"
+    deadline_approaching: "Scadenza in avvicinamento"
+    comment_added: "Nuovo commento aggiunto"
+    status_changed: "Stato modificato"
+
+# Manuals
+manuals:
+  title: "Manuali"
+  create_manual: "Crea manuale"
+  manual_title: "Titolo manuale"
+  manual_description: "Descrizione"
+  manual_version: "Versione"
+  manual_language: "Lingua"
+  manual_sections: "Sezioni"
+  add_section: "Aggiungi sezione"
+  section_title: "Titolo sezione"
+  section_content: "Contenuto sezione"
+  section_order: "Ordine"
+  
+  # Manual Templates
+  templates:
+    technical_manual: "Manuale tecnico"
+    user_guide: "Guida utente"
+    installation_guide: "Guida di installazione"
+    bell_tower_controller: "Controller campanile"
+    custom: "Personalizzato"
+    
+  # Section Types
+  section_types:
+    introduction: "Introduzione"
+    installation: "Installazione"
+    configuration: "Configurazione"
+    user_guide: "Guida utente"
+    troubleshooting: "Risoluzione problemi"
+    reference: "Riferimento"
+    appendix: "Appendice"
+    custom: "Personalizzato"

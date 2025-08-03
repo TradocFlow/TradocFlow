@@ -1,0 +1,372 @@
+# English translations for Tradocument Reviewer
+# Publication-focused localization system
+
+# Application metadata
+app:
+  name: "Publication System"
+  version: "Version 1.0"
+  copyright: "© 2025 Publication System"
+  description: "Collaborative document review system with multi-language support"
+
+# Navigation
+nav:
+  dashboard: "Dashboard"
+  documents: "Documents"
+  reviews: "Reviews" 
+  translation: "Translation"
+  kanban: "Kanban"
+  manuals: "Manuals"
+  account: "Account"
+  profile: "Profile"
+  settings: "Settings"
+  logout: "Logout"
+  notifications: "Notifications"
+  notification_settings: "Notification Settings"
+
+# Document Management
+documents:
+  title: "Documents"
+  all_documents: "All Documents"
+  create_document: "Create Document"
+  create_new: "Create New Document"
+  import_document: "Import Document"
+  edit_document: "Edit Document"
+  delete_document: "Delete Document"
+  view_document: "View Document"
+  save_document: "Save Document"
+  save_draft: "Save as Draft"
+  publish: "Publish"
+  unpublish: "Unpublish"
+  duplicate: "Duplicate"
+  export: "Export"
+  document_title: "Document Title"
+  document_content: "Document Content"
+  document_status: "Status"
+  document_language: "Language"
+  document_tags: "Tags"
+  document_created: "Created"
+  document_updated: "Updated"
+  document_version: "Version"
+  empty_state: "No documents found. Create your first document to get started."
+  
+  # Document Status
+  status:
+    draft: "Draft"
+    in_review: "In Review"
+    approved: "Approved"
+    published: "Published"
+    
+  # Document Actions
+  actions:
+    create: "Create"
+    save: "Save"
+    cancel: "Cancel"
+    delete: "Delete"
+    edit: "Edit"
+    preview: "Preview"
+    download: "Download"
+    share: "Share"
+
+# Project Management
+projects:
+  title: "Projects"
+  create_project: "Create Project"
+  project_name: "Project Name"
+  project_description: "Description"
+  project_status: "Project Status"
+  project_members: "Team Members"
+  project_deadline: "Deadline"
+  assign_to: "Assign to"
+  due_date: "Due Date"
+  priority: "Priority"
+  
+  # Project Status
+  status:
+    active: "Active"
+    completed: "Completed"
+    on_hold: "On Hold"
+    cancelled: "Cancelled"
+    
+  # Priority Levels
+  priority:
+    low: "Low"
+    medium: "Medium"
+    high: "High"
+    urgent: "Urgent"
+
+# Kanban Board
+kanban:
+  personal_board: "Personal Board"
+  team_board: "Team Board"
+  add_task: "Add Task"
+  add_column: "Add Column" 
+  task_title: "Task Title"
+  task_description: "Description"
+  move_to: "Move to"
+  
+  # Default Columns
+  columns:
+    todo: "To Do"
+    in_progress: "In Progress"
+    review: "Review"
+    done: "Done"
+    backlog: "Backlog"
+
+# Translation Workflows
+translation:
+  dashboard: "Translation Dashboard"
+  editor: "Translation Editor"
+  source_language: "Source Language"
+  target_language: "Target Language"
+  translate: "Translate"
+  translation_progress: "Translation Progress"
+  quality_check: "Quality Check"
+  translation_status: "Translation Status"
+  translator: "Translator"
+  translation_memory: "Translation Memory"
+  glossary: "Glossary"
+  
+  # Translation Status
+  status:
+    not_started: "Not Started"
+    in_progress: "In Progress"
+    completed: "Completed"
+    reviewed: "Reviewed"
+    approved: "Approved"
+    
+  # Translation Actions
+  actions:
+    start_translation: "Start Translation"
+    save_translation: "Save Translation"
+    submit_for_review: "Submit for Review"
+    approve_translation: "Approve Translation"
+    reject_translation: "Reject Translation"
+
+# Review System
+reviews:
+  dashboard: "Review Dashboard"
+  pending_reviews: "Pending Reviews"
+  completed_reviews: "Completed Reviews"
+  my_reviews: "My Reviews"
+  add_comment: "Add Comment"
+  approve: "Approve"
+  reject: "Reject"
+  request_changes: "Request Changes"
+  reviewer: "Reviewer"
+  review_status: "Review Status"
+  review_comments: "Comments"
+  review_history: "Review History"
+  
+  # Review Status
+  status:
+    pending: "Pending"
+    in_progress: "In Progress"
+    approved: "Approved"
+    rejected: "Rejected"
+    changes_requested: "Changes Requested"
+    
+  # Review Actions
+  actions:
+    start_review: "Start Review"
+    submit_review: "Submit Review"
+    add_reviewer: "Add Reviewer"
+    remove_reviewer: "Remove Reviewer"
+
+# UI Elements
+ui:
+  save: "Save"
+  cancel: "Cancel"
+  delete: "Delete"
+  edit: "Edit"
+  create: "Create"
+  update: "Update"
+  search: "Search"
+  filter: "Filter"
+  sort: "Sort"
+  export: "Export"
+  import: "Import"
+  upload: "Upload"
+  download: "Download"
+  copy: "Copy"
+  paste: "Paste"
+  cut: "Cut"
+  undo: "Undo"
+  redo: "Redo"
+  select_all: "Select All"
+  clear: "Clear"
+  reset: "Reset"
+  refresh: "Refresh"
+  loading: "Loading..."
+  submit: "Submit"
+  close: "Close"
+  open: "Open"
+  view: "View"
+  preview: "Preview"
+  print: "Print"
+  help: "Help"
+  next: "Next"
+  previous: "Previous"
+  back: "Back"
+  forward: "Forward"
+  yes: "Yes"
+  no: "No"
+  ok: "OK"
+  apply: "Apply"
+  confirm: "Confirm"
+  
+  # Form Elements
+  form:
+    required_field: "This field is required"
+    invalid_email: "Please enter a valid email address"
+    password_mismatch: "Passwords do not match"
+    file_too_large: "File size exceeds limit"
+    unsupported_format: "Unsupported file format"
+    
+  # Messages
+  messages:
+    success: "Operation completed successfully"
+    error: "An error occurred"
+    warning: "Warning"
+    info: "Information"
+    saved: "Changes saved successfully"
+    deleted: "Item deleted successfully"
+    updated: "Item updated successfully"
+    created: "Item created successfully"
+    
+  # Pagination
+  pagination:
+    page: "Page"
+    of: "of"
+    showing: "Showing"
+    to: "to"
+    entries: "entries"
+    first: "First"
+    last: "Last"
+    
+# User Management  
+users:
+  title: "Users"
+  user_name: "Name"
+  user_email: "Email"
+  user_role: "Role"
+  user_status: "Status"
+  user_created: "Created"
+  user_last_login: "Last Login"
+  
+  # User Roles
+  roles:
+    admin: "Administrator"
+    reviewer: "Reviewer"
+    translator: "Translator"
+    viewer: "Viewer"
+    
+  # User Status
+  status:
+    active: "Active"
+    inactive: "Inactive"
+    suspended: "Suspended"
+
+# Language Selection
+language:
+  select_language: "Select Language"
+  current_language: "Current Language"
+  switch_language: "Switch Language"
+  
+  # Language Names
+  names:
+    en: "English"
+    de: "Deutsch"
+    fr: "Français"
+    es: "Español"
+    it: "Italiano"
+    nl: "Nederlands"
+
+# Date and Time
+datetime:
+  today: "Today"
+  yesterday: "Yesterday"
+  tomorrow: "Tomorrow"
+  this_week: "This Week"
+  last_week: "Last Week"
+  this_month: "This Month"
+  last_month: "Last Month"
+  
+  # Time Units
+  time:
+    just_now: "Just now"
+    minutes_ago: "{count} minutes ago"
+    hours_ago: "{count} hours ago"
+    days_ago: "{count} days ago"
+    weeks_ago: "{count} weeks ago"
+    months_ago: "{count} months ago"
+
+# Error Messages
+errors:
+  not_found: "The requested resource was not found"
+  access_denied: "Access denied"
+  server_error: "Internal server error"
+  network_error: "Network connection error"
+  validation_error: "Validation error"
+  file_upload_error: "File upload failed"
+  database_error: "Database error"
+  authentication_required: "Authentication required"
+  session_expired: "Session has expired"
+
+# Success Messages
+success:
+  document_created: "Document created successfully"
+  document_updated: "Document updated successfully"
+  document_deleted: "Document deleted successfully"
+  document_published: "Document published successfully"
+  review_submitted: "Review submitted successfully"
+  translation_completed: "Translation completed successfully"
+  user_created: "User created successfully"
+  settings_saved: "Settings saved successfully"
+
+# Notifications
+notifications:
+  no_notifications: "No notifications"
+  mark_as_read: "Mark as read"
+  mark_all_read: "Mark all as read"
+  
+  # Notification Types
+  types:
+    document_assigned: "Document assigned to you"
+    review_requested: "Review requested"
+    translation_ready: "Translation ready for review"
+    deadline_approaching: "Deadline approaching"
+    comment_added: "New comment added"
+    status_changed: "Status changed"
+
+# Manuals
+manuals:
+  title: "Manuals"
+  create_manual: "Create Manual"
+  manual_title: "Manual Title"
+  manual_description: "Description"
+  manual_version: "Version"
+  manual_language: "Language"
+  manual_sections: "Sections"
+  add_section: "Add Section"
+  section_title: "Section Title"
+  section_content: "Section Content"
+  section_order: "Order"
+  
+  # Manual Templates
+  templates:
+    technical_manual: "Technical Manual"
+    user_guide: "User Guide"
+    installation_guide: "Installation Guide"
+    bell_tower_controller: "Bell Tower Controller"
+    custom: "Custom"
+    
+  # Section Types
+  section_types:
+    introduction: "Introduction"
+    installation: "Installation"
+    configuration: "Configuration"
+    user_guide: "User Guide"
+    troubleshooting: "Troubleshooting"
+    reference: "Reference"
+    appendix: "Appendix"
+    custom: "Custom"

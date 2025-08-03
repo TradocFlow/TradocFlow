@@ -1,0 +1,716 @@
+import { Colors } from "styles/colors.slint";
+import { Theme } from "styles/default.slint";
+import { MenuBar } from "components/menubar.slint";
+import { Sidebar } from "components/sidebar.slint";
+import { EditorPane } from "components/editor_pane.slint";
+import { TextOperation } from "components/enhanced_text_editor.slint";
+import { ProjectCreationWizard } from "components/project_creation_wizard.slint";
+import { SimpleProjectBrowser, SimpleProjectData } from "components/simple_project_browser.slint";
+
+export component MainWindow inherits Window {
+    // Window properties
+    title: "Tradocument Reviewer";
+    width: 1400px;
+    height: 900px;
+    
+    // Application state
+    in-out property <string> current-mode: "markdown";
+    in-out property <string> current-layout: "single";
+    in-out property <string> current-language: "en";
+    in-out property <string> document-content: "# Welcome to Tradocument Reviewer\n\nStart editing your multilingual document here...";
+    in-out property <string> translation-content: "";
+    in-out property <string> status-message: "Ready";
+    in-out property <string> status-type: "info"; // "info", "success", "warning", "error"
+    
+    // Callbacks for application logic
+    callback file-new();
+    callback file-open();
+    callback file-save();
+    callback file-save-as();
+    callback file-import();
+    callback file-export();
+    callback file-print();
+    callback file-exit();
+    
+    callback edit-undo();
+    callback edit-redo();
+    callback edit-cut();
+    callback edit-copy();
+    callback edit-paste();
+    callback edit-find();
+    callback edit-replace();
+    callback edit-preferences();
+    
+    callback view-fullscreen();
+    callback view-zoom-in();
+    callback view-zoom-out();
+    callback view-show-sidebar();
+    
+    callback project-new();
+    callback project-open();
+    callback project-save();
+    callback project-close();
+    callback project-properties();
+    
+    callback translation-add-language();
+    callback translation-manage();
+    callback translation-export();
+    callback translation-import();
+    callback translation-validate();
+    
+    callback tools-screenshot();
+    callback tools-spell-check();
+    callback tools-word-count();
+    callback tools-export-pdf();
+    callback tools-export-html();
+    
+    callback help-about();
+    callback help-shortcuts();
+    callback help-documentation();
+    callback help-support();
+    
+    callback show-projects();
+    callback show-kanban();
+    callback show-reviews();
+    
+    // Enhanced sidebar callbacks
+    callback new-chapter();
+    callback new-translation();
+    callback tree-item-clicked(string /* item-id */);
+    callback tree-item-expanded(string /* item-id */, bool /* expanded */);
+    callback tree-item-context-menu(string /* item-id */, length /* x */, length /* y */);
+    callback search-documents(string /* query */);
+    callback clear-search();
+    callback recent-document-clicked(string /* document-id */);
+    callback quick-action-triggered(string /* action-id */);
+    
+    // Project state properties for sidebar
+    in-out property <bool> has-project-loaded: false;
+    in-out property <string> current-project-name: "";
+    in-out property <string> search-text: "";
+    in-out property <string> selected-tree-item: "";
+    in-out property <bool> project-tree-collapsed: false;
+    in-out property <bool> quick-actions-collapsed: false;
+    in-out property <bool> recent-docs-collapsed: false;
+    
+    // Project wizard state
+    in-out property <bool> show-project-wizard: false;
+    
+    // Project browser state
+    in-out property <bool> show-project-browser: false;
+    in-out property <[SimpleProjectData]> browser-projects: [];
+    in-out property <string> browser-search-query: "";
+    in-out property <bool> browser-is-loading: false;
+    
+    callback toggle-mode();
+    callback set-layout(string);
+    callback content-changed(string, string); // content, language
+    callback language-changed(string);
+    
+    // Enhanced formatting callbacks
+    callback format-bold();
+    callback format-italic();
+    callback format-underline();
+    callback format-heading(int);
+    callback format-code();
+    callback format-quote();
+    
+    // List callbacks
+    callback insert-bullet-list();
+    callback insert-numbered-list();
+    callback insert-checklist();
+    
+    // Insert callbacks
+    callback insert-link();
+    callback insert-image();
+    callback insert-table();
+    callback insert-code-block();
+    
+    // Text manipulation callbacks
+    callback increase-indent();
+    callback decrease-indent();
+    callback align-left();
+    callback align-center();
+    callback align-right();
+    
+    // Undo/Redo callbacks
+    callback undo();
+    callback redo();
+    
+    // Text operation callback
+    callback text-operation(TextOperation);
+    
+    // Legacy callbacks for compatibility
+    callback insert-list();
+    
+    callback update-status(string, string); // message, type
+    
+    // Project wizard callbacks
+    callback start-project-wizard();
+    callback wizard-step-changed(int /* step */);
+    callback wizard-back();
+    callback wizard-next();
+    callback wizard-cancel();
+    callback wizard-finish();
+    callback template-selected(string /* template-id */);
+    callback language-toggled(string /* language-code */, bool /* enabled */);
+    callback source-language-changed(string /* language-code */);
+    
+    // Project browser callbacks
+    callback open-project-browser();
+    callback close-project-browser();
+    callback browser-search-changed(string /* query */);
+    callback browser-filter-changed();
+    callback browser-sort-changed(string /* field */, string /* direction */);
+    callback browser-view-mode-changed(string /* mode */);
+    callback browser-page-changed(int /* page */);
+    callback browser-project-selected(SimpleProjectData /* project */);
+    callback browser-project-opened(SimpleProjectData /* project */);
+    callback browser-refresh-projects();
+    callback team-member-added(string /* name */, string /* email */, string /* role */);
+    callback team-member-removed(string /* member-id */);
+    callback validate-current-step() -> bool;
+    
+    // Keyboard shortcuts
+    forward-focus: key-handler;
+    
+    key-handler := FocusScope {
+        key-pressed(event) => {
+            if (event.modifiers.control) {
+                if (event.text == "n") {
+                    root.file-new();
+                    return accept;
+                } else if (event.text == "o") {
+                    root.file-open();
+                    return accept;
+                } else if (event.text == "s") {
+                    root.file-save();
+                    return accept;
+                } else if (event.text == "e") {
+                    root.file-export();
+                    return accept;
+                } else if (event.text == "m") {
+                    root.toggle-mode();
+                    return accept;
+                } else if (event.text == "1") {
+                    root.set-layout("single");
+                    return accept;
+                } else if (event.text == "2") {
+                    root.set-layout("horizontal");
+                    return accept;
+                } else if (event.text == "3") {
+                    root.set-layout("vertical");
+                    return accept;
+                } else if (event.text == "z") {
+                    root.undo();
+                    return accept;
+                } else if (event.text == "y") {
+                    root.redo();
+                    return accept;
+                } else if (event.text == "b") {
+                    root.format-bold();
+                    return accept;
+                } else if (event.text == "i") {
+                    root.format-italic();
+                    return accept;
+                } else if (event.text == "u") {
+                    root.format-underline();
+                    return accept;
+                } else if (event.text == "k") {
+                    root.insert-link();
+                    return accept;
+                } else if (event.text == "p") {
+                    root.open-project-browser();
+                    return accept;
+                }
+            } else if (event.text == Key.F11) {
+                // Toggle fullscreen
+                return accept;
+            }
+            return reject;
+        }
+    }
+    
+    VerticalLayout {
+        spacing: 0px;
+        
+        // Top menu bar
+        menu-bar := MenuBar {
+            // File menu callbacks
+            file-new => { root.file-new(); }
+            file-open => { root.file-open(); }
+            file-save => { root.file-save(); }
+            file-save-as => { root.file-save-as(); }
+            file-import => { root.file-import(); }
+            file-export => { root.file-export(); }
+            file-print => { root.file-print(); }
+            file-exit => { root.file-exit(); }
+            
+            // Edit menu callbacks
+            edit-undo => { root.edit-undo(); }
+            edit-redo => { root.edit-redo(); }
+            edit-cut => { root.edit-cut(); }
+            edit-copy => { root.edit-copy(); }
+            edit-paste => { root.edit-paste(); }
+            edit-find => { root.edit-find(); }
+            edit-replace => { root.edit-replace(); }
+            edit-preferences => { root.edit-preferences(); }
+            
+            // View menu callbacks
+            view-toggle-mode => { root.toggle-mode(); }
+            view-single-pane => { root.set-layout("single"); }
+            view-horizontal-split => { root.set-layout("horizontal"); }
+            view-vertical-split => { root.set-layout("vertical"); }
+            view-fullscreen => { root.view-fullscreen(); }
+            view-zoom-in => { root.view-zoom-in(); }
+            view-zoom-out => { root.view-zoom-out(); }
+            view-show-sidebar => { root.view-show-sidebar(); }
+            
+            // Project menu callbacks
+            project-new => { root.project-new(); }
+            project-open => { root.project-open(); }
+            project-save => { root.project-save(); }
+            project-close => { root.project-close(); }
+            project-properties => { root.project-properties(); }
+            
+            // Translation menu callbacks
+            translation-add-language => { root.translation-add-language(); }
+            translation-manage => { root.translation-manage(); }
+            translation-export => { root.translation-export(); }
+            translation-import => { root.translation-import(); }
+            translation-validate => { root.translation-validate(); }
+            
+            // Tools menu callbacks
+            tools-screenshot => { root.tools-screenshot(); }
+            tools-spell-check => { root.tools-spell-check(); }
+            tools-word-count => { root.tools-word-count(); }
+            tools-export-pdf => { root.tools-export-pdf(); }
+            tools-export-html => { root.tools-export-html(); }
+            
+            // Help menu callbacks
+            help-about => { root.help-about(); }
+            help-shortcuts => { root.help-shortcuts(); }
+            help-documentation => { root.help-documentation(); }
+            help-support => { root.help-support(); }
+        }
+        
+        // Main content area
+        HorizontalLayout {
+            spacing: 0px;
+            
+            // Left sidebar
+            sidebar := Sidebar {
+                current-mode: root.current-mode;
+                current-layout: root.current-layout;
+                has-project-loaded: root.has-project-loaded;
+                current-project-name: root.current-project-name;
+                search-text: root.search-text;
+                selected-tree-item: root.selected-tree-item;
+                project-tree-collapsed: root.project-tree-collapsed;
+                quick-actions-collapsed: root.quick-actions-collapsed;
+                recent-docs-collapsed: root.recent-docs-collapsed;
+                
+                // Enhanced document actions
+                new-document => { root.file-new(); }
+                new-chapter => { root.new-chapter(); }
+                new-translation => { root.new-translation(); }
+                open-document => { root.file-open(); }
+                save-document => { root.file-save(); }
+                show-projects => { root.show-projects(); }
+                show-kanban => { root.show-kanban(); }
+                show-reviews => { root.show-reviews(); }
+                export-document => { root.file-export(); }
+                
+                // Project tree callbacks
+                tree-item-clicked(item-id) => { 
+                    root.selected-tree-item = item-id;
+                    root.tree-item-clicked(item-id); 
+                }
+                tree-item-expanded(item-id, expanded) => { 
+                    root.tree-item-expanded(item-id, expanded); 
+                }
+                tree-item-context-menu(item-id, x, y) => { 
+                    root.tree-item-context-menu(item-id, x, y); 
+                }
+                
+                // Search callbacks
+                search-documents(query) => { 
+                    root.search-text = query;
+                    root.search-documents(query); 
+                }
+                clear-search => { 
+                    root.search-text = "";
+                    root.clear-search(); 
+                }
+                
+                // Recent documents and quick actions
+                recent-document-clicked(doc-id) => { 
+                    root.recent-document-clicked(doc-id); 
+                }
+                quick-action-triggered(action-id) => { 
+                    root.quick-action-triggered(action-id); 
+                }
+                
+                // Mode toggle
+                toggle-mode => { root.toggle-mode(); }
+                
+                // Layout controls
+                set-single-pane => { root.set-layout("single"); }
+                set-horizontal-split => { root.set-layout("horizontal"); }
+                set-vertical-split => { root.set-layout("vertical"); }
+            }
+            
+            // Main editor area
+            editor-container := Rectangle {
+                background: Colors.editor-background;
+                
+                if root.current-layout == "single": VerticalLayout {
+                    EditorPane {
+                        content: root.document-content;
+                        mode: root.current-mode;
+                        language: root.current-language;
+                        
+                        content-changed(text) => {
+                            root.content-changed(text, root.current-language);
+                        }
+                        
+                        language-changed(lang) => {
+                            root.language-changed(lang);
+                        }
+                        
+                        text-operation(op) => { root.text-operation(op); }
+                        
+                        // Enhanced formatting callbacks
+                        format-bold => { root.format-bold(); }
+                        format-italic => { root.format-italic(); }
+                        format-underline => { root.format-underline(); }
+                        format-heading(level) => { root.format-heading(level); }
+                        format-code => { root.format-code(); }
+                        format-quote => { root.format-quote(); }
+                        
+                        // List callbacks
+                        insert-bullet-list => { root.insert-bullet-list(); }
+                        insert-numbered-list => { root.insert-numbered-list(); }
+                        insert-checklist => { root.insert-checklist(); }
+                        insert-list => { root.insert-list(); }
+                        
+                        // Insert callbacks
+                        insert-link => { root.insert-link(); }
+                        insert-image => { root.insert-image(); }
+                        insert-table => { root.insert-table(); }
+                        insert-code-block => { root.insert-code-block(); }
+                        
+                        // Text manipulation callbacks
+                        increase-indent => { root.increase-indent(); }
+                        decrease-indent => { root.decrease-indent(); }
+                        align-left => { root.align-left(); }
+                        align-center => { root.align-center(); }
+                        align-right => { root.align-right(); }
+                        
+                        // Undo/Redo callbacks
+                        undo => { root.undo(); }
+                        redo => { root.redo(); }
+                    }
+                }
+                
+                if root.current-layout == "horizontal": VerticalLayout {
+                    EditorPane {
+                        content: root.document-content;
+                        mode: root.current-mode;
+                        language: root.current-language;
+                        
+                        content-changed(text) => {
+                            root.content-changed(text, root.current-language);
+                        }
+                        
+                        language-changed(lang) => {
+                            root.language-changed(lang);
+                        }
+                        
+                        text-operation(op) => { root.text-operation(op); }
+                        
+                        // Enhanced formatting callbacks
+                        format-bold => { root.format-bold(); }
+                        format-italic => { root.format-italic(); }
+                        format-underline => { root.format-underline(); }
+                        format-heading(level) => { root.format-heading(level); }
+                        format-code => { root.format-code(); }
+                        format-quote => { root.format-quote(); }
+                        
+                        // List callbacks
+                        insert-bullet-list => { root.insert-bullet-list(); }
+                        insert-numbered-list => { root.insert-numbered-list(); }
+                        insert-checklist => { root.insert-checklist(); }
+                        insert-list => { root.insert-list(); }
+                        
+                        // Insert callbacks
+                        insert-link => { root.insert-link(); }
+                        insert-image => { root.insert-image(); }
+                        insert-table => { root.insert-table(); }
+                        insert-code-block => { root.insert-code-block(); }
+                        
+                        // Text manipulation callbacks
+                        increase-indent => { root.increase-indent(); }
+                        decrease-indent => { root.decrease-indent(); }
+                        align-left => { root.align-left(); }
+                        align-center => { root.align-center(); }
+                        align-right => { root.align-right(); }
+                        
+                        // Undo/Redo callbacks
+                        undo => { root.undo(); }
+                        redo => { root.redo(); }
+                    }
+                    
+                    Rectangle {
+                        height: 4px;
+                        background: Colors.border;
+                    }
+                    
+                    EditorPane {
+                        content: root.translation-content;
+                        mode: root.current-mode;
+                        language: "de";
+                        
+                        content-changed(text) => {
+                            root.content-changed(text, "de");
+                        }
+                        
+                        language-changed(lang) => {
+                            root.language-changed(lang);
+                        }
+                        
+                        text-operation(op) => { root.text-operation(op); }
+                        
+                        // Enhanced formatting callbacks
+                        format-bold => { root.format-bold(); }
+                        format-italic => { root.format-italic(); }
+                        format-underline => { root.format-underline(); }
+                        format-heading(level) => { root.format-heading(level); }
+                        format-code => { root.format-code(); }
+                        format-quote => { root.format-quote(); }
+                        
+                        // List callbacks
+                        insert-bullet-list => { root.insert-bullet-list(); }
+                        insert-numbered-list => { root.insert-numbered-list(); }
+                        insert-checklist => { root.insert-checklist(); }
+                        insert-list => { root.insert-list(); }
+                        
+                        // Insert callbacks
+                        insert-link => { root.insert-link(); }
+                        insert-image => { root.insert-image(); }
+                        insert-table => { root.insert-table(); }
+                        insert-code-block => { root.insert-code-block(); }
+                        
+                        // Text manipulation callbacks
+                        increase-indent => { root.increase-indent(); }
+                        decrease-indent => { root.decrease-indent(); }
+                        align-left => { root.align-left(); }
+                        align-center => { root.align-center(); }
+                        align-right => { root.align-right(); }
+                        
+                        // Undo/Redo callbacks
+                        undo => { root.undo(); }
+                        redo => { root.redo(); }
+                    }
+                }
+                
+                if root.current-layout == "vertical": HorizontalLayout {
+                    EditorPane {
+                        content: root.document-content;
+                        mode: root.current-mode;
+                        language: root.current-language;
+                        
+                        content-changed(text) => {
+                            root.content-changed(text, root.current-language);
+                        }
+                        
+                        language-changed(lang) => {
+                            root.language-changed(lang);
+                        }
+                        
+                        text-operation(op) => { root.text-operation(op); }
+                        
+                        // Enhanced formatting callbacks
+                        format-bold => { root.format-bold(); }
+                        format-italic => { root.format-italic(); }
+                        format-underline => { root.format-underline(); }
+                        format-heading(level) => { root.format-heading(level); }
+                        format-code => { root.format-code(); }
+                        format-quote => { root.format-quote(); }
+                        
+                        // List callbacks
+                        insert-bullet-list => { root.insert-bullet-list(); }
+                        insert-numbered-list => { root.insert-numbered-list(); }
+                        insert-checklist => { root.insert-checklist(); }
+                        insert-list => { root.insert-list(); }
+                        
+                        // Insert callbacks
+                        insert-link => { root.insert-link(); }
+                        insert-image => { root.insert-image(); }
+                        insert-table => { root.insert-table(); }
+                        insert-code-block => { root.insert-code-block(); }
+                        
+                        // Text manipulation callbacks
+                        increase-indent => { root.increase-indent(); }
+                        decrease-indent => { root.decrease-indent(); }
+                        align-left => { root.align-left(); }
+                        align-center => { root.align-center(); }
+                        align-right => { root.align-right(); }
+                        
+                        // Undo/Redo callbacks
+                        undo => { root.undo(); }
+                        redo => { root.redo(); }
+                    }
+                    
+                    Rectangle {
+                        width: 4px;
+                        background: Colors.border;
+                    }
+                    
+                    EditorPane {
+                        content: root.translation-content;
+                        mode: root.current-mode;
+                        language: "de";
+                        
+                        content-changed(text) => {
+                            root.content-changed(text, "de");
+                        }
+                        
+                        language-changed(lang) => {
+                            root.language-changed(lang);
+                        }
+                        
+                        text-operation(op) => { root.text-operation(op); }
+                        
+                        // Enhanced formatting callbacks
+                        format-bold => { root.format-bold(); }
+                        format-italic => { root.format-italic(); }
+                        format-underline => { root.format-underline(); }
+                        format-heading(level) => { root.format-heading(level); }
+                        format-code => { root.format-code(); }
+                        format-quote => { root.format-quote(); }
+                        
+                        // List callbacks
+                        insert-bullet-list => { root.insert-bullet-list(); }
+                        insert-numbered-list => { root.insert-numbered-list(); }
+                        insert-checklist => { root.insert-checklist(); }
+                        insert-list => { root.insert-list(); }
+                        
+                        // Insert callbacks
+                        insert-link => { root.insert-link(); }
+                        insert-image => { root.insert-image(); }
+                        insert-table => { root.insert-table(); }
+                        insert-code-block => { root.insert-code-block(); }
+                        
+                        // Text manipulation callbacks
+                        increase-indent => { root.increase-indent(); }
+                        decrease-indent => { root.decrease-indent(); }
+                        align-left => { root.align-left(); }
+                        align-center => { root.align-center(); }
+                        align-right => { root.align-right(); }
+                        
+                        // Undo/Redo callbacks
+                        undo => { root.undo(); }
+                        redo => { root.redo(); }
+                    }
+                }
+            }
+        }
+        
+        // Status bar
+        status-bar := Rectangle {
+            height: 24px;
+            background: Colors.surface;
+            border-width: 1px;
+            border-color: Colors.border;
+            
+            HorizontalLayout {
+                padding-left: Theme.spacing-sm;
+                padding-right: Theme.spacing-sm;
+                alignment: space-between;
+                
+                HorizontalLayout {
+                    spacing: Theme.spacing-lg;
+                    alignment: start;
+                    
+                    Text {
+                        text: "Mode: " + root.current-mode;
+                        font-size: Theme.font-size-small;
+                        color: Colors.text-secondary;
+                        vertical-alignment: center;
+                    }
+                    
+                    Text {
+                        text: "Layout: " + root.current-layout;
+                        font-size: Theme.font-size-small;
+                        color: Colors.text-secondary;
+                        vertical-alignment: center;
+                    }
+                    
+                    Text {
+                        text: "Language: " + root.current-language;
+                        font-size: Theme.font-size-small;
+                        color: Colors.text-secondary;
+                        vertical-alignment: center;
+                    }
+                }
+                
+                HorizontalLayout {
+                    spacing: Theme.spacing-md;
+                    alignment: end;
+                    
+                    Text {
+                        text: root.status-message;
+                        font-size: Theme.font-size-small;
+                        color: root.status-type == "success" ? Colors.success : 
+                               root.status-type == "warning" ? Colors.warning :
+                               root.status-type == "error" ? Colors.error :
+                               Colors.text-secondary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+        
+        // Project Creation Wizard (modal dialog)
+        if show-project-wizard: project-wizard := ProjectCreationWizard {
+            wizard-step-changed(step) => { root.wizard-step-changed(step); }
+            wizard-back => { root.wizard-back(); }
+            wizard-next => { root.wizard-next(); }
+            wizard-cancel => { 
+                root.show-project-wizard = false;
+                root.wizard-cancel(); 
+            }
+            wizard-finish => { 
+                root.wizard-finish();
+                root.show-project-wizard = false;
+            }
+            template-selected(template-id) => { root.template-selected(template-id); }
+            language-toggled(code, enabled) => { root.language-toggled(code, enabled); }
+            source-language-changed(code) => { root.source-language-changed(code); }
+            team-member-added(name, email, role) => { root.team-member-added(name, email, role); }
+            team-member-removed(id) => { root.team-member-removed(id); }
+            validate-current-step() => { return root.validate-current-step(); }
+        }
+        
+        // Project Browser (modal dialog)
+        if show-project-browser: simple-project-browser := SimpleProjectBrowser {
+            projects: root.browser-projects;
+            search-query: root.browser-search-query;
+            is-loading: root.browser-is-loading;
+            
+            search-changed(query) => { 
+                root.browser-search-query = query;
+                root.browser-search-changed(query); 
+            }
+            project-selected(project) => { 
+                root.show-project-browser = false;
+                root.browser-project-opened(project); 
+            }
+            close-dialog => { 
+                root.show-project-browser = false;
+                root.close-project-browser(); 
+            }
+        }
+    }
+}

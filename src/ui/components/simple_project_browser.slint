@@ -1,0 +1,263 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+
+export struct SimpleProjectData {
+    id: string,
+    name: string,
+    description: string,
+    status: string,
+    owner: string,
+    created: string,
+}
+
+export component SimpleProjectBrowser inherits Dialog {
+    in property <[SimpleProjectData]> projects: [];
+    in property <string> search-query: "";
+    in property <bool> is-loading: false;
+    
+    callback project-selected(SimpleProjectData);
+    callback search-changed(string);
+    callback close-dialog();
+    
+    width: 800px;
+    height: 600px;
+    
+    VerticalLayout {
+        spacing: 8px;
+        padding: 16px;
+        
+        // Header
+        HorizontalLayout {
+            spacing: 16px;
+            alignment: center;
+            
+            Text {
+                text: "Select Project";
+                font-size: 20px;
+                font-weight: 700;
+                color: Colors.text-primary;
+            }
+            
+            Rectangle { } // Spacer
+            
+            Rectangle {
+                width: 32px;
+                height: 32px;
+                border-radius: 16px;
+                background: Colors.surface-hover;
+                
+                Text {
+                    text: "✕";
+                    color: Colors.text-secondary;
+                    font-size: 16px;
+                }
+                
+                TouchArea {
+                    clicked => { root.close-dialog(); }
+                }
+            }
+        }
+        
+        // Search box
+        Rectangle {
+            height: 40px;
+            border-radius: 8px;
+            background: Colors.surface;
+            border-width: 1px;
+            border-color: Colors.border;
+            
+            HorizontalLayout {
+                padding: 8px;
+                spacing: 8px;
+                alignment: center;
+                
+                Text {
+                    text: "🔍";
+                    color: Colors.text-secondary;
+                    font-size: 16px;
+                }
+                
+                TextInput {
+                    text: search-query;
+                    font-size: 14px;
+                    color: Colors.text-primary;
+                    
+                    edited => {
+                        root.search-changed(self.text);
+                    }
+                }
+            }
+        }
+        
+        // Project list
+        if is-loading: Rectangle {
+            VerticalLayout {
+                alignment: center;
+                
+                Text {
+                    text: "Loading projects...";
+                    font-size: 16px;
+                    color: Colors.text-secondary;
+                }
+            }
+        }
+        
+        if !is-loading && projects.length == 0: Rectangle {
+            VerticalLayout {
+                alignment: center;
+                spacing: 8px;
+                
+                Text {
+                    text: "No projects found";
+                    font-size: 16px;
+                    color: Colors.text-secondary;
+                }
+                
+                if search-query != "": Text {
+                    text: "Try adjusting your search terms";
+                    font-size: 14px;
+                    color: Colors.text-muted;
+                }
+            }
+        }
+        
+        if !is-loading && projects.length > 0: VerticalLayout {
+            spacing: 4px;
+            
+            for project[index] in projects: Rectangle {
+                height: 80px;
+                border-radius: 8px;
+                background: Colors.surface;
+                border-width: 1px;
+                border-color: Colors.border;
+                
+                HorizontalLayout {
+                    padding: 16px;
+                    spacing: 16px;
+                    alignment: center;
+                    
+                    // Project icon
+                    Rectangle {
+                        width: 48px;
+                        height: 48px;
+                        border-radius: 24px;
+                        background: Colors.primary-light;
+                        
+                        Text {
+                            text: project.name != "" ? project.name : "?";
+                            font-size: 20px;
+                            font-weight: 600;
+                            color: Colors.primary;
+                        }
+                    }
+                    
+                    // Project info
+                    VerticalLayout {
+                        spacing: 4px;
+                        
+                        Text {
+                            text: project.name;
+                            font-size: 16px;
+                            font-weight: 600;
+                            color: Colors.text-primary;
+                        }
+                        
+                        Text {
+                            text: project.description;
+                            font-size: 14px;
+                            color: Colors.text-secondary;
+                        }
+                        
+                        HorizontalLayout {
+                            spacing: 16px;
+                            
+                            Text {
+                                text: "Status: " + project.status;
+                                font-size: 12px;
+                                color: Colors.text-muted;
+                            }
+                            
+                            Text {
+                                text: "Owner: " + project.owner;
+                                font-size: 12px;
+                                color: Colors.text-muted;
+                            }
+                            
+                            Text {
+                                text: "Created: " + project.created;
+                                font-size: 12px;
+                                color: Colors.text-muted;
+                            }
+                        }
+                    }
+                    
+                    Rectangle { } // Spacer
+                    
+                    // Select button
+                    Rectangle {
+                        width: 80px;
+                        height: 32px;
+                        border-radius: 16px;
+                        background: Colors.primary;
+                        
+                        Text {
+                            text: "Open";
+                            color: Colors.background;
+                            font-size: 14px;
+                            font-weight: 500;
+                        }
+                        
+                        TouchArea {
+                            clicked => {
+                                root.project-selected(project);
+                            }
+                        }
+                    }
+                }
+                
+                touch-area := TouchArea {
+                    clicked => {
+                        root.project-selected(project);
+                    }
+                }
+                
+                states [
+                    hover when touch-area.has-hover: {
+                        background: Colors.surface-hover;
+                    }
+                ]
+            }
+        }
+        
+        // Footer
+        Rectangle {
+            height: 48px;
+            
+            HorizontalLayout {
+                spacing: 12px;
+                alignment: end;
+                
+                Rectangle {
+                    width: 80px;
+                    height: 32px;
+                    border-radius: 16px;
+                    background: transparent;
+                    border-width: 1px;
+                    border-color: Colors.border;
+                    
+                    Text {
+                        text: "Cancel";
+                        color: Colors.text-primary;
+                        font-size: 14px;
+                    }
+                    
+                    TouchArea {
+                        clicked => {
+                            root.close-dialog();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

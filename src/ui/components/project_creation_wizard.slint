@@ -1,0 +1,582 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { LineEdit, TextEdit, ComboBox, Button } from "std-widgets.slint";
+
+export struct WizardStep {
+    id: string,
+    title: string,
+    description: string,
+    is-completed: bool,
+    is-current: bool,
+    is-accessible: bool,
+}
+
+export struct ProjectDetails {
+    name: string,
+    description: string,
+    due-date: string,
+    priority: string,
+}
+
+export struct ValidationError {
+    field: string,
+    message: string,
+    severity: string, // "error", "warning", "info"
+}
+
+export component ProjectCreationWizard inherits Dialog {
+    // Dialog properties
+    title: "Create New Project";
+    width: 900px;
+    height: 700px;
+    
+    // Wizard state
+    in-out property <int> current-step: 1;
+    in-out property <int> total-steps: 6;
+    in-out property <bool> can-go-back: current-step > 1;
+    in-out property <bool> can-go-next: current-step < total-steps && !has-validation-errors;
+    in-out property <bool> can-finish: current-step == total-steps && !has-validation-errors;
+    in-out property <bool> has-unsaved-changes: false;
+    in-out property <bool> has-validation-errors: validation-errors.length > 0;
+    
+    // Data properties
+    in-out property <ProjectDetails> project-details: {
+        name: "",
+        description: "",
+        due-date: "",
+        priority: "medium"
+    };
+    in-out property <string> selected-template-id: "blank";
+    in-out property <[ValidationError]> validation-errors;
+    
+    // Callbacks
+    callback wizard-step-changed(int /* step */);
+    callback wizard-back();
+    callback wizard-next();
+    callback wizard-cancel();
+    callback wizard-finish();
+    callback template-selected(string /* template-id */);
+    callback language-toggled(string /* language-code */, bool /* enabled */);
+    callback source-language-changed(string /* language-code */);
+    callback team-member-added(string /* name */, string /* email */, string /* role */);
+    callback team-member-removed(string /* member-id */);
+    callback validate-current-step() -> bool;
+    
+    // Keyboard handling
+    // forward-focus: step-content;
+    
+    // Main layout
+    VerticalLayout {
+        spacing: 0px;
+        
+        // Header with step indicator
+        wizard-header := Rectangle {
+            height: 80px;
+            background: Colors.surface;
+            drop-shadow-blur: 1px;
+            drop-shadow-color: Colors.border;
+            drop-shadow-offset-y: 1px;
+            
+            HorizontalLayout {
+                padding: Theme.spacing-lg;
+                alignment: space-between;
+                
+                // Title and description
+                VerticalLayout {
+                    alignment: start;
+                    spacing: 4px;
+                    
+                    Text {
+                        text: current-step == 1 ? "Project Details" :
+                              current-step == 2 ? "Template Selection" :
+                              current-step == 3 ? "Language Configuration" :
+                              current-step == 4 ? "Team Setup" :
+                              current-step == 5 ? "Project Structure" :
+                              "Review & Create";
+                        font-size: Theme.font-size-large;
+                        font-weight: 600;
+                        color: Colors.text-primary;
+                    }
+                    
+                    Text {
+                        text: current-step == 1 ? "Basic project information" :
+                              current-step == 2 ? "Choose a project template" :
+                              current-step == 3 ? "Setup source and target languages" :
+                              current-step == 4 ? "Add team members and roles" :
+                              current-step == 5 ? "Configure initial chapters" :
+                              "Review and confirm settings";
+                        font-size: Theme.font-size-small;
+                        color: Colors.text-secondary;
+                    }
+                }
+                
+                // Step progress indicator
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+                    
+                    for step in 6: Rectangle {
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 16px;
+                        background: step < current-step ? Colors.success : 
+                                   step == current-step - 1 ? Colors.primary : Colors.surface-variant;
+                        border-width: step == current-step - 1 ? 2px : 1px;
+                        border-color: step == current-step - 1 ? Colors.primary : Colors.border;
+                        
+                        Text {
+                            text: (step + 1);
+                            font-size: Theme.font-size-small;
+                            font-weight: step == current-step - 1 ? 600 : 400;
+                            color: step < current-step || step == current-step - 1 ? Colors.on-primary : Colors.text-secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Main content area
+        step-content := Rectangle {
+            background: Colors.background;
+            
+            VerticalLayout {
+                padding: Theme.spacing-xl;
+                spacing: Theme.spacing-lg;
+                alignment: start;
+                
+                // Validation errors panel
+                if has-validation-errors: validation-panel := Rectangle {
+                    background: #fef2f2;
+                    border-radius: Theme.border-radius-md;
+                    border-width: 1px;
+                    border-color: Colors.error;
+                    
+                    VerticalLayout {
+                        padding: Theme.spacing-md;
+                        spacing: 8px;
+                        
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+                            
+                            Text {
+                                text: "⚠️";
+                                font-size: Theme.font-size-large;
+                            }
+                            
+                            Text {
+                                text: "Please fix the following issues:";
+                                font-weight: 600;
+                                color: Colors.error;
+                                font-size: Theme.font-size-small;
+                            }
+                        }
+                        
+                        for error in validation-errors: Text {
+                            text: "• " + error.message;
+                            color: Colors.error;
+                            font-size: Theme.font-size-small;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+                
+                // Step 1: Project Details
+                if current-step == 1: step1-content := VerticalLayout {
+                    spacing: Theme.spacing-lg;
+                    alignment: start;
+                    
+                    // Project name
+                    VerticalLayout {
+                        spacing: 8px;
+                        
+                        Text {
+                            text: "Project Name *";
+                            font-weight: 600;
+                            color: Colors.text-primary;
+                        }
+                        
+                        project-name-input := LineEdit {
+                            text: project-details.name;
+                            placeholder-text: "Enter a descriptive project name";
+                            font-size: Theme.font-size-base;
+                            
+                            edited(text) => {
+                                project-details.name = text;
+                                has-unsaved-changes = true;
+                            }
+                        }
+                        
+                        Text {
+                            text: "Choose a clear, descriptive name for your project";
+                            font-size: Theme.font-size-small;
+                            color: Colors.text-secondary;
+                        }
+                    }
+                    
+                    // Project description
+                    VerticalLayout {
+                        spacing: 8px;
+                        
+                        Text {
+                            text: "Description";
+                            font-weight: 600;
+                            color: Colors.text-primary;
+                        }
+                        
+                        project-description-input := TextEdit {
+                            text: project-details.description;
+                            placeholder-text: "Provide a brief description of your project goals and scope";
+                            font-size: Theme.font-size-base;
+                            preferred-height: 80px;
+                            wrap: word-wrap;
+                            
+                            edited(text) => {
+                                project-details.description = text;
+                                has-unsaved-changes = true;
+                            }
+                        }
+                    }
+                    
+                    // Priority and due date
+                    HorizontalLayout {
+                        spacing: Theme.spacing-lg;
+                        
+                        // Priority selection
+                        VerticalLayout {
+                            spacing: 8px;
+                            
+                            Text {
+                                text: "Priority";
+                                font-weight: 600;
+                                color: Colors.text-primary;
+                            }
+                            
+                            priority-combo := ComboBox {
+                                model: ["Low", "Medium", "High", "Urgent"];
+                                current-value: project-details.priority == "low" ? "Low" :
+                                              project-details.priority == "medium" ? "Medium" :
+                                              project-details.priority == "high" ? "High" : "Urgent";
+                                
+                                selected(value) => {
+                                    project-details.priority = value == "Low" ? "low" :
+                                                               value == "Medium" ? "medium" :
+                                                               value == "High" ? "high" : "urgent";
+                                    has-unsaved-changes = true;
+                                }
+                            }
+                        }
+                        
+                        // Due date
+                        VerticalLayout {
+                            spacing: 8px;
+                            
+                            Text {
+                                text: "Due Date (Optional)";
+                                font-weight: 600;
+                                color: Colors.text-primary;
+                            }
+                            
+                            due-date-input := LineEdit {
+                                text: project-details.due-date;
+                                placeholder-text: "YYYY-MM-DD";
+                                font-size: Theme.font-size-base;
+                                
+                                edited(text) => {
+                                    project-details.due-date = text;
+                                    has-unsaved-changes = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Step 2: Template Selection
+                if current-step == 2: step2-content := VerticalLayout {
+                    spacing: Theme.spacing-lg;
+                    alignment: start;
+                    
+                    Text {
+                        text: "Choose a template to get started quickly, or start with a blank project for complete customization.";
+                        font-size: Theme.font-size-base;
+                        color: Colors.text-secondary;
+                        wrap: word-wrap;
+                    }
+                    
+                    // Template options
+                    VerticalLayout {
+                        spacing: Theme.spacing-md;
+                        
+                        // Technical Manual Template
+                        template-technical := Rectangle {
+                            background: selected-template-id == "technical_manual" ? Colors.primary-light : Colors.surface;
+                            border-radius: Theme.border-radius-md;
+                            border-width: selected-template-id == "technical_manual" ? 2px : 1px;
+                            border-color: selected-template-id == "technical_manual" ? Colors.primary : Colors.border;
+                            
+                            touch-area := TouchArea {
+                                clicked => {
+                                    root.selected-template-id = "technical_manual";
+                                    root.template-selected("technical_manual");
+                                }
+                            }
+                            
+                            VerticalLayout {
+                                padding: Theme.spacing-md;
+                                spacing: 8px;
+                                
+                                Text {
+                                    text: "Technical Manual";
+                                    font-weight: 600;
+                                    color: selected-template-id == "technical_manual" ? Colors.primary : Colors.text-primary;
+                                }
+                                
+                                Text {
+                                    text: "Comprehensive technical documentation with installation, configuration, and troubleshooting guides";
+                                    font-size: Theme.font-size-small;
+                                    color: Colors.text-secondary;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+                        
+                        // User Guide Template
+                        template-user-guide := Rectangle {
+                            background: selected-template-id == "user_guide" ? Colors.primary-light : Colors.surface;
+                            border-radius: Theme.border-radius-md;
+                            border-width: selected-template-id == "user_guide" ? 2px : 1px;
+                            border-color: selected-template-id == "user_guide" ? Colors.primary : Colors.border;
+                            
+                            TouchArea {
+                                clicked => {
+                                    root.selected-template-id = "user_guide";
+                                    root.template-selected("user_guide");
+                                }
+                            }
+                            
+                            VerticalLayout {
+                                padding: Theme.spacing-md;
+                                spacing: 8px;
+                                
+                                Text {
+                                    text: "User Guide";
+                                    font-weight: 600;
+                                    color: selected-template-id == "user_guide" ? Colors.primary : Colors.text-primary;
+                                }
+                                
+                                Text {
+                                    text: "End-user focused documentation with step-by-step instructions and tutorials";
+                                    font-size: Theme.font-size-small;
+                                    color: Colors.text-secondary;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+                        
+                        // Training Material Template
+                        template-training := Rectangle {
+                            background: selected-template-id == "training_material" ? Colors.primary-light : Colors.surface;
+                            border-radius: Theme.border-radius-md;
+                            border-width: selected-template-id == "training_material" ? 2px : 1px;
+                            border-color: selected-template-id == "training_material" ? Colors.primary : Colors.border;
+                            
+                            TouchArea {
+                                clicked => {
+                                    root.selected-template-id = "training_material";
+                                    root.template-selected("training_material");
+                                }
+                            }
+                            
+                            VerticalLayout {
+                                padding: Theme.spacing-md;
+                                spacing: 8px;
+                                
+                                Text {
+                                    text: "Training Material";
+                                    font-weight: 600;
+                                    color: selected-template-id == "training_material" ? Colors.primary : Colors.text-primary;
+                                }
+                                
+                                Text {
+                                    text: "Educational content with lessons, exercises, and assessments";
+                                    font-size: Theme.font-size-small;
+                                    color: Colors.text-secondary;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+                        
+                        // Blank Template
+                        template-blank := Rectangle {
+                            background: selected-template-id == "blank" ? Colors.primary-light : Colors.surface;
+                            border-radius: Theme.border-radius-md;
+                            border-width: selected-template-id == "blank" ? 2px : 1px;
+                            border-color: selected-template-id == "blank" ? Colors.primary : Colors.border;
+                            
+                            TouchArea {
+                                clicked => {
+                                    root.selected-template-id = "blank";
+                                    root.template-selected("blank");
+                                }
+                            }
+                            
+                            VerticalLayout {
+                                padding: Theme.spacing-md;
+                                spacing: 8px;
+                                
+                                Text {
+                                    text: "Blank Project";
+                                    font-weight: 600;
+                                    color: selected-template-id == "blank" ? Colors.primary : Colors.text-primary;
+                                }
+                                
+                                Text {
+                                    text: "Start with a clean slate and build your documentation structure from scratch";
+                                    font-size: Theme.font-size-small;
+                                    color: Colors.text-secondary;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Steps 3-6: Simplified placeholders
+                if current-step == 3: Text {
+                    text: "Language Configuration step will be implemented here.\nFor now, English will be the source language with Spanish, French, and German as targets.";
+                    font-size: Theme.font-size-base;
+                    color: Colors.text-secondary;
+                    wrap: word-wrap;
+                }
+                
+                if current-step == 4: Text {
+                    text: "Team Setup step will be implemented here.\nFor now, you'll be the project owner.";
+                    font-size: Theme.font-size-base;
+                    color: Colors.text-secondary;
+                    wrap: word-wrap;
+                }
+                
+                if current-step == 5: Text {
+                    text: "Project Structure step will be implemented here.\nChapters will be created based on the selected template.";
+                    font-size: Theme.font-size-base;
+                    color: Colors.text-secondary;
+                    wrap: word-wrap;
+                }
+                
+                if current-step == 6: VerticalLayout {
+                    spacing: Theme.spacing-lg;
+                    alignment: start;
+                    
+                    Text {
+                        text: "Please review your project configuration before creating the project.";
+                        font-size: Theme.font-size-base;
+                        color: Colors.text-secondary;
+                        wrap: word-wrap;
+                    }
+                    
+                    // Project summary
+                    Rectangle {
+                        background: Colors.surface-variant;
+                        border-radius: Theme.border-radius-md;
+                        
+                        VerticalLayout {
+                            padding: Theme.spacing-lg;
+                            spacing: Theme.spacing-md;
+                            
+                            Text {
+                                text: "Project Summary";
+                                font-size: Theme.font-size-large;
+                                font-weight: 600;
+                                color: Colors.text-primary;
+                            }
+                            
+                            Text {
+                                text: "Name: " + project-details.name;
+                                color: Colors.text-secondary;
+                            }
+                            
+                            if project-details.description != "": Text {
+                                text: "Description: " + project-details.description;
+                                color: Colors.text-secondary;
+                                wrap: word-wrap;
+                            }
+                            
+                            Text {
+                                text: "Priority: " + project-details.priority;
+                                color: Colors.text-secondary;
+                            }
+                            
+                            Text {
+                                text: "Template: " + selected-template-id;
+                                color: Colors.text-secondary;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Footer with navigation buttons
+        wizard-footer := Rectangle {
+            height: 60px;
+            background: Colors.surface;
+            drop-shadow-blur: 1px;
+            drop-shadow-color: Colors.border;
+            drop-shadow-offset-y: -1px;
+            
+            HorizontalLayout {
+                padding: Theme.spacing-lg;
+                alignment: space-between;
+                
+                // Cancel button
+                cancel-button := Button {
+                    text: "Cancel";
+                    
+                    clicked => {
+                        root.wizard-cancel();
+                    }
+                }
+                
+                // Navigation buttons
+                HorizontalLayout {
+                    spacing: Theme.spacing-md;
+                    
+                    back-button := Button {
+                        text: "← Back";
+                        enabled: can-go-back;
+                        
+                        clicked => {
+                            if current-step > 1 {
+                                current-step -= 1;
+                            }
+                            root.wizard-back();
+                        }
+                    }
+                    
+                    if !can-finish: next-button := Button {
+                        text: "Next →";
+                        enabled: can-go-next;
+                        
+                        clicked => {
+                            if current-step < total-steps {
+                                current-step += 1;
+                            }
+                            root.wizard-next();
+                        }
+                    }
+                    
+                    if can-finish: finish-button := Button {
+                        text: "Create Project";
+                        enabled: !has-validation-errors;
+                        
+                        clicked => {
+                            root.wizard-finish();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,372 @@
+# Dutch translations for Tradocument Reviewer
+# Publication-focused localization system
+
+# Application metadata
+app:
+  name: "Publicatiesysteem"
+  version: "Versie 1.0"
+  copyright: "© 2025 Publicatiesysteem"
+  description: "Collaboratief documentrevisiesysteem met meertalige ondersteuning"
+
+# Navigation
+nav:
+  dashboard: "Dashboard"
+  documents: "Documenten"
+  reviews: "Beoordelingen"
+  translation: "Vertaling"
+  kanban: "Kanban"
+  manuals: "Handleidingen"
+  account: "Account"
+  profile: "Profiel"
+  settings: "Instellingen"
+  logout: "Afmelden"
+  notifications: "Meldingen"
+  notification_settings: "Meldingsinstellingen"
+
+# Document Management
+documents:
+  title: "Documenten"
+  all_documents: "Alle documenten"
+  create_document: "Document maken"
+  create_new: "Nieuw document maken"
+  import_document: "Document importeren"
+  edit_document: "Document bewerken"
+  delete_document: "Document verwijderen"
+  view_document: "Document bekijken"
+  save_document: "Document opslaan"
+  save_draft: "Opslaan als concept"
+  publish: "Publiceren"
+  unpublish: "Publicatie ongedaan maken"
+  duplicate: "Dupliceren"
+  export: "Exporteren"
+  document_title: "Documenttitel"
+  document_content: "Documentinhoud"
+  document_status: "Status"
+  document_language: "Taal"
+  document_tags: "Tags"
+  document_created: "Gemaakt"
+  document_updated: "Bijgewerkt"
+  document_version: "Versie"
+  empty_state: "Geen documenten gevonden. Maak uw eerste document om te beginnen."
+  
+  # Document Status
+  status:
+    draft: "Concept"
+    in_review: "In beoordeling"
+    approved: "Goedgekeurd"
+    published: "Gepubliceerd"
+    
+  # Document Actions
+  actions:
+    create: "Maken"
+    save: "Opslaan"
+    cancel: "Annuleren"
+    delete: "Verwijderen"
+    edit: "Bewerken"
+    preview: "Voorbeeld"
+    download: "Downloaden"
+    share: "Delen"
+
+# Project Management
+projects:
+  title: "Projecten"
+  create_project: "Project maken"
+  project_name: "Projectnaam"
+  project_description: "Beschrijving"
+  project_status: "Projectstatus"
+  project_members: "Teamleden"
+  project_deadline: "Deadline"
+  assign_to: "Toewijzen aan"
+  due_date: "Vervaldatum"
+  priority: "Prioriteit"
+  
+  # Project Status
+  status:
+    active: "Actief"
+    completed: "Voltooid"
+    on_hold: "In de wacht"
+    cancelled: "Geannuleerd"
+    
+  # Priority Levels
+  priority:
+    low: "Laag"
+    medium: "Gemiddeld"
+    high: "Hoog"
+    urgent: "Urgent"
+
+# Kanban Board
+kanban:
+  personal_board: "Persoonlijk bord"
+  team_board: "Teambord"
+  add_task: "Taak toevoegen"
+  add_column: "Kolom toevoegen"
+  task_title: "Taaktitel"
+  task_description: "Beschrijving"
+  move_to: "Verplaatsen naar"
+  
+  # Default Columns
+  columns:
+    todo: "Te doen"
+    in_progress: "In uitvoering"
+    review: "Beoordeling"
+    done: "Klaar"
+    backlog: "Backlog"
+
+# Translation Workflows
+translation:
+  dashboard: "Vertalingsdashboard"
+  editor: "Vertalingseditor"
+  source_language: "Brontaal"
+  target_language: "Doeltaal"
+  translate: "Vertalen"
+  translation_progress: "Vertalingsvoortgang"
+  quality_check: "Kwaliteitscontrole"
+  translation_status: "Vertalingsstatus"
+  translator: "Vertaler"
+  translation_memory: "Vertalingsgeheugen"
+  glossary: "Woordenlijst"
+  
+  # Translation Status
+  status:
+    not_started: "Niet gestart"
+    in_progress: "In uitvoering"
+    completed: "Voltooid"
+    reviewed: "Beoordeeld"
+    approved: "Goedgekeurd"
+    
+  # Translation Actions
+  actions:
+    start_translation: "Vertaling starten"
+    save_translation: "Vertaling opslaan"
+    submit_for_review: "Indienen voor beoordeling"
+    approve_translation: "Vertaling goedkeuren"
+    reject_translation: "Vertaling afwijzen"
+
+# Review System
+reviews:
+  dashboard: "Beoordelingsdashboard"
+  pending_reviews: "Openstaande beoordelingen"
+  completed_reviews: "Voltooide beoordelingen"
+  my_reviews: "Mijn beoordelingen"
+  add_comment: "Opmerking toevoegen"
+  approve: "Goedkeuren"
+  reject: "Afwijzen"
+  request_changes: "Wijzigingen vragen"
+  reviewer: "Beoordelaar"
+  review_status: "Beoordelingsstatus"
+  review_comments: "Opmerkingen"
+  review_history: "Beoordelingsgeschiedenis"
+  
+  # Review Status
+  status:
+    pending: "In behandeling"
+    in_progress: "In uitvoering"
+    approved: "Goedgekeurd"
+    rejected: "Afgewezen"
+    changes_requested: "Wijzigingen gevraagd"
+    
+  # Review Actions
+  actions:
+    start_review: "Beoordeling starten"
+    submit_review: "Beoordeling indienen"
+    add_reviewer: "Beoordelaar toevoegen"
+    remove_reviewer: "Beoordelaar verwijderen"
+
+# UI Elements
+ui:
+  save: "Opslaan"
+  cancel: "Annuleren"
+  delete: "Verwijderen"
+  edit: "Bewerken"
+  create: "Maken"
+  update: "Bijwerken"
+  search: "Zoeken"
+  filter: "Filteren"
+  sort: "Sorteren"
+  export: "Exporteren"
+  import: "Importeren"
+  upload: "Uploaden"
+  download: "Downloaden"
+  copy: "Kopiëren"
+  paste: "Plakken"
+  cut: "Knippen"
+  undo: "Ongedaan maken"
+  redo: "Opnieuw doen"
+  select_all: "Alles selecteren"
+  clear: "Wissen"
+  reset: "Herstellen"
+  refresh: "Vernieuwen"
+  loading: "Laden..."
+  submit: "Verzenden"
+  close: "Sluiten"
+  open: "Openen"
+  view: "Bekijken"
+  preview: "Voorbeeld"
+  print: "Afdrukken"
+  help: "Help"
+  next: "Volgende"
+  previous: "Vorige"
+  back: "Terug"
+  forward: "Vooruit"
+  yes: "Ja"
+  no: "Nee"
+  ok: "OK"
+  apply: "Toepassen"
+  confirm: "Bevestigen"
+  
+  # Form Elements
+  form:
+    required_field: "Dit veld is verplicht"
+    invalid_email: "Voer een geldig e-mailadres in"
+    password_mismatch: "Wachtwoorden komen niet overeen"
+    file_too_large: "Bestandsgrootte overschrijdt limiet"
+    unsupported_format: "Niet-ondersteund bestandsformaat"
+    
+  # Messages
+  messages:
+    success: "Bewerking succesvol voltooid"
+    error: "Er is een fout opgetreden"
+    warning: "Waarschuwing"
+    info: "Informatie"
+    saved: "Wijzigingen succesvol opgeslagen"
+    deleted: "Item succesvol verwijderd"
+    updated: "Item succesvol bijgewerkt"
+    created: "Item succesvol gemaakt"
+    
+  # Pagination
+  pagination:
+    page: "Pagina"
+    of: "van"
+    showing: "Toont"
+    to: "tot"
+    entries: "items"
+    first: "Eerste"
+    last: "Laatste"
+
+# User Management
+users:
+  title: "Gebruikers"
+  user_name: "Naam"
+  user_email: "E-mail"
+  user_role: "Rol"
+  user_status: "Status"
+  user_created: "Gemaakt"
+  user_last_login: "Laatste login"
+  
+  # User Roles
+  roles:
+    admin: "Beheerder"
+    reviewer: "Beoordelaar"
+    translator: "Vertaler"
+    viewer: "Kijker"
+    
+  # User Status
+  status:
+    active: "Actief"
+    inactive: "Inactief"
+    suspended: "Opgeschort"
+
+# Language Selection
+language:
+  select_language: "Taal selecteren"
+  current_language: "Huidige taal"
+  switch_language: "Taal wijzigen"
+  
+  # Language Names
+  names:
+    en: "English"
+    de: "Deutsch"
+    fr: "Français"
+    es: "Español"
+    it: "Italiano"
+    nl: "Nederlands"
+
+# Date and Time
+datetime:
+  today: "Vandaag"
+  yesterday: "Gisteren"
+  tomorrow: "Morgen"
+  this_week: "Deze week"
+  last_week: "Vorige week"
+  this_month: "Deze maand"
+  last_month: "Vorige maand"
+  
+  # Time Units
+  time:
+    just_now: "Zojuist"
+    minutes_ago: "{count} minuten geleden"
+    hours_ago: "{count} uur geleden"
+    days_ago: "{count} dagen geleden"
+    weeks_ago: "{count} weken geleden"
+    months_ago: "{count} maanden geleden"
+
+# Error Messages
+errors:
+  not_found: "De gevraagde bron is niet gevonden"
+  access_denied: "Toegang geweigerd"
+  server_error: "Interne serverfout"
+  network_error: "Netwerkverbindingsfout"
+  validation_error: "Validatiefout"
+  file_upload_error: "Bestand uploaden mislukt"
+  database_error: "Databasefout"
+  authentication_required: "Authenticatie vereist"
+  session_expired: "Sessie is verlopen"
+
+# Success Messages
+success:
+  document_created: "Document succesvol gemaakt"
+  document_updated: "Document succesvol bijgewerkt"
+  document_deleted: "Document succesvol verwijderd"
+  document_published: "Document succesvol gepubliceerd"
+  review_submitted: "Beoordeling succesvol ingediend"
+  translation_completed: "Vertaling succesvol voltooid"
+  user_created: "Gebruiker succesvol gemaakt"
+  settings_saved: "Instellingen succesvol opgeslagen"
+
+# Notifications
+notifications:
+  no_notifications: "Geen meldingen"
+  mark_as_read: "Markeren als gelezen"
+  mark_all_read: "Alles markeren als gelezen"
+  
+  # Notification Types
+  types:
+    document_assigned: "Document aan u toegewezen"
+    review_requested: "Beoordeling gevraagd"
+    translation_ready: "Vertaling klaar voor beoordeling"
+    deadline_approaching: "Deadline nadert"
+    comment_added: "Nieuwe opmerking toegevoegd"
+    status_changed: "Status gewijzigd"
+
+# Manuals
+manuals:
+  title: "Handleidingen"
+  create_manual: "Handleiding maken"
+  manual_title: "Handleidingtitel"
+  manual_description: "Beschrijving"
+  manual_version: "Versie"
+  manual_language: "Taal"
+  manual_sections: "Secties"
+  add_section: "Sectie toevoegen"
+  section_title: "Sectietitel"
+  section_content: "Sectie-inhoud"
+  section_order: "Volgorde"
+  
+  # Manual Templates
+  templates:
+    technical_manual: "Technische handleiding"
+    user_guide: "Gebruikershandleiding"
+    installation_guide: "Installatiehandleiding"
+    bell_tower_controller: "Kloktoren controller"
+    custom: "Aangepast"
+    
+  # Section Types
+  section_types:
+    introduction: "Inleiding"
+    installation: "Installatie"
+    configuration: "Configuratie"
+    user_guide: "Gebruikershandleiding"
+    troubleshooting: "Probleemoplossing"
+    reference: "Referentie"
+    appendix: "Bijlage"
+    custom: "Aangepast"

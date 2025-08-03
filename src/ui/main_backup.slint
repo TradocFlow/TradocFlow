@@ -1,0 +1,402 @@
+import { Colors } from "styles/colors.slint";
+import { Theme } from "styles/default.slint";
+import { MenuBar } from "components/menubar.slint";
+import { Sidebar } from "components/sidebar.slint";
+import { EditorPane } from "components/editor_pane.slint";
+
+export component MainWindow inherits Window {
+    // Window properties
+    title: "Tradocument Reviewer";
+    width: 1400px;
+    height: 900px;
+    
+    // Application state
+    in-out property <string> current-mode: "markdown";
+    in-out property <string> current-layout: "single";
+    in-out property <string> current-language: "en";
+    in-out property <string> document-content: "# Welcome to Tradocument Reviewer\n\nStart editing your multilingual document here...";
+    in-out property <string> translation-content: "";
+    in-out property <string> status-message: "Ready";
+    in-out property <string> status-type: "info"; // "info", "success", "warning", "error"
+    
+    // Callbacks for application logic
+    callback file-new();
+    callback file-open();
+    callback file-save();
+    callback file-save-as();
+    callback file-import();
+    callback file-export();
+    callback file-print();
+    callback file-exit();
+    
+    callback edit-undo();
+    callback edit-redo();
+    callback edit-cut();
+    callback edit-copy();
+    callback edit-paste();
+    callback edit-find();
+    callback edit-replace();
+    callback edit-preferences();
+    
+    callback view-fullscreen();
+    callback view-zoom-in();
+    callback view-zoom-out();
+    callback view-show-sidebar();
+    
+    callback project-new();
+    callback project-open();
+    callback project-save();
+    callback project-close();
+    callback project-properties();
+    
+    callback translation-add-language();
+    callback translation-manage();
+    callback translation-export();
+    callback translation-import();
+    callback translation-validate();
+    
+    callback tools-screenshot();
+    callback tools-spell-check();
+    callback tools-word-count();
+    callback tools-export-pdf();
+    callback tools-export-html();
+    
+    callback help-about();
+    callback help-shortcuts();
+    callback help-documentation();
+    callback help-support();
+    
+    callback show-projects();
+    callback show-kanban();
+    callback show-reviews();
+    
+    callback toggle-mode();
+    callback set-layout(string);
+    callback content-changed(string, string); // content, language
+    callback language-changed(string);
+    callback format-bold();
+    callback format-italic();
+    callback format-underline();
+    callback format-heading(int);
+    callback insert-list();
+    callback insert-link();
+    callback insert-image();
+    callback update-status(string, string); // message, type
+    
+    // Keyboard shortcuts
+    forward-focus: key-handler;
+    
+    key-handler := FocusScope {
+        key-pressed(event) => {
+            if (event.modifiers.control) {
+                if (event.text == "n") {
+                    root.file-new();
+                    return accept;
+                } else if (event.text == "o") {
+                    root.file-open();
+                    return accept;
+                } else if (event.text == "s") {
+                    root.file-save();
+                    return accept;
+                } else if (event.text == "e") {
+                    root.file-export();
+                    return accept;
+                } else if (event.text == "m") {
+                    root.toggle-mode();
+                    return accept;
+                } else if (event.text == "1") {
+                    root.set-layout("single");
+                    return accept;
+                } else if (event.text == "2") {
+                    root.set-layout("horizontal");
+                    return accept;
+                } else if (event.text == "3") {
+                    root.set-layout("vertical");
+                    return accept;
+                }
+            } else if (event.text == Key.F11) {
+                // Toggle fullscreen
+                return accept;
+            }
+            return reject;
+        }
+    }
+    
+    VerticalLayout {
+        spacing: 0px;
+        
+        // Top menu bar
+        menu-bar := MenuBar {
+            // File menu callbacks
+            file-new => { root.file-new(); }
+            file-open => { root.file-open(); }
+            file-save => { root.file-save(); }
+            file-save-as => { root.file-save-as(); }
+            file-import => { root.file-import(); }
+            file-export => { root.file-export(); }
+            file-print => { root.file-print(); }
+            file-exit => { root.file-exit(); }
+            
+            // Edit menu callbacks
+            edit-undo => { root.edit-undo(); }
+            edit-redo => { root.edit-redo(); }
+            edit-cut => { root.edit-cut(); }
+            edit-copy => { root.edit-copy(); }
+            edit-paste => { root.edit-paste(); }
+            edit-find => { root.edit-find(); }
+            edit-replace => { root.edit-replace(); }
+            edit-preferences => { root.edit-preferences(); }
+            
+            // View menu callbacks
+            view-toggle-mode => { root.toggle-mode(); }
+            view-single-pane => { root.set-layout("single"); }
+            view-horizontal-split => { root.set-layout("horizontal"); }
+            view-vertical-split => { root.set-layout("vertical"); }
+            view-fullscreen => { root.view-fullscreen(); }
+            view-zoom-in => { root.view-zoom-in(); }
+            view-zoom-out => { root.view-zoom-out(); }
+            view-show-sidebar => { root.view-show-sidebar(); }
+            
+            // Project menu callbacks
+            project-new => { root.project-new(); }
+            project-open => { root.project-open(); }
+            project-save => { root.project-save(); }
+            project-close => { root.project-close(); }
+            project-properties => { root.project-properties(); }
+            
+            // Translation menu callbacks
+            translation-add-language => { root.translation-add-language(); }
+            translation-manage => { root.translation-manage(); }
+            translation-export => { root.translation-export(); }
+            translation-import => { root.translation-import(); }
+            translation-validate => { root.translation-validate(); }
+            
+            // Tools menu callbacks
+            tools-screenshot => { root.tools-screenshot(); }
+            tools-spell-check => { root.tools-spell-check(); }
+            tools-word-count => { root.tools-word-count(); }
+            tools-export-pdf => { root.tools-export-pdf(); }
+            tools-export-html => { root.tools-export-html(); }
+            
+            // Help menu callbacks
+            help-about => { root.help-about(); }
+            help-shortcuts => { root.help-shortcuts(); }
+            help-documentation => { root.help-documentation(); }
+            help-support => { root.help-support(); }
+        }
+        
+        // Main content area
+        HorizontalLayout {
+            spacing: 0px;
+            
+            // Left sidebar
+            sidebar := Sidebar {
+                current-mode: root.current-mode;
+                current-layout: root.current-layout;
+                
+                // Document actions
+                new-document => { root.file-new(); }
+                open-document => { root.file-open(); }
+                save-document => { root.file-save(); }
+                show-projects => { root.show-projects(); }
+                show-kanban => { root.show-kanban(); }
+                show-reviews => { root.show-reviews(); }
+                export-document => { root.file-export(); }
+                
+                // Mode toggle
+                toggle-mode => { root.toggle-mode(); }
+                
+                // Layout controls
+                set-single-pane => { root.set-layout("single"); }
+                set-horizontal-split => { root.set-layout("horizontal"); }
+                set-vertical-split => { root.set-layout("vertical"); }
+            }
+            
+            // Main editor area
+            editor-container := Rectangle {
+                background: Colors.editor-background;
+                
+                if root.current-layout == "single": VerticalLayout {
+                    EditorPane {
+                        content: root.document-content;
+                        mode: root.current-mode;
+                        language: root.current-language;
+                        
+                        content-changed(text) => {
+                            root.content-changed(text, root.current-language);
+                        }
+                        
+                        language-changed(lang) => {
+                            root.language-changed(lang);
+                        }
+                        
+                        format-bold => { root.format-bold(); }
+                        format-italic => { root.format-italic(); }
+                        format-underline => { root.format-underline(); }
+                        format-heading(level) => { root.format-heading(level); }
+                        insert-list => { root.insert-list(); }
+                        insert-link => { root.insert-link(); }
+                        insert-image => { root.insert-image(); }
+                    }
+                }
+                
+                if root.current-layout == "horizontal": VerticalLayout {
+                    EditorPane {
+                        content: root.document-content;
+                        mode: root.current-mode;
+                        language: root.current-language;
+                        
+                        content-changed(text) => {
+                            root.content-changed(text, root.current-language);
+                        }
+                        
+                        language-changed(lang) => {
+                            root.language-changed(lang);
+                        }
+                        
+                        format-bold => { root.format-bold(); }
+                        format-italic => { root.format-italic(); }
+                        format-underline => { root.format-underline(); }
+                        format-heading(level) => { root.format-heading(level); }
+                        insert-list => { root.insert-list(); }
+                        insert-link => { root.insert-link(); }
+                        insert-image => { root.insert-image(); }
+                    }
+                    
+                    Rectangle {
+                        height: 4px;
+                        background: Colors.border;
+                    }
+                    
+                    EditorPane {
+                        content: root.translation-content;
+                        mode: root.current-mode;
+                        language: "de";
+                        
+                        content-changed(text) => {
+                            root.content-changed(text, "de");
+                        }
+                        
+                        language-changed(lang) => {
+                            root.language-changed(lang);
+                        }
+                        
+                        format-bold => { root.format-bold(); }
+                        format-italic => { root.format-italic(); }
+                        format-underline => { root.format-underline(); }
+                        format-heading(level) => { root.format-heading(level); }
+                        insert-list => { root.insert-list(); }
+                        insert-link => { root.insert-link(); }
+                        insert-image => { root.insert-image(); }
+                    }
+                }
+                
+                if root.current-layout == "vertical": HorizontalLayout {
+                    EditorPane {
+                        content: root.document-content;
+                        mode: root.current-mode;
+                        language: root.current-language;
+                        
+                        content-changed(text) => {
+                            root.content-changed(text, root.current-language);
+                        }
+                        
+                        language-changed(lang) => {
+                            root.language-changed(lang);
+                        }
+                        
+                        format-bold => { root.format-bold(); }
+                        format-italic => { root.format-italic(); }
+                        format-underline => { root.format-underline(); }
+                        format-heading(level) => { root.format-heading(level); }
+                        insert-list => { root.insert-list(); }
+                        insert-link => { root.insert-link(); }
+                        insert-image => { root.insert-image(); }
+                    }
+                    
+                    Rectangle {
+                        width: 4px;
+                        background: Colors.border;
+                    }
+                    
+                    EditorPane {
+                        content: root.translation-content;
+                        mode: root.current-mode;
+                        language: "de";
+                        
+                        content-changed(text) => {
+                            root.content-changed(text, "de");
+                        }
+                        
+                        language-changed(lang) => {
+                            root.language-changed(lang);
+                        }
+                        
+                        format-bold => { root.format-bold(); }
+                        format-italic => { root.format-italic(); }
+                        format-underline => { root.format-underline(); }
+                        format-heading(level) => { root.format-heading(level); }
+                        insert-list => { root.insert-list(); }
+                        insert-link => { root.insert-link(); }
+                        insert-image => { root.insert-image(); }
+                    }
+                }
+            }
+        }
+        
+        // Status bar
+        status-bar := Rectangle {
+            height: 24px;
+            background: Colors.surface;
+            border-width: 1px;
+            border-color: Colors.border;
+            
+            HorizontalLayout {
+                padding-left: Theme.spacing-sm;
+                padding-right: Theme.spacing-sm;
+                alignment: space-between;
+                
+                HorizontalLayout {
+                    spacing: Theme.spacing-lg;
+                    alignment: start;
+                    
+                    Text {
+                        text: "Mode: " + root.current-mode;
+                        font-size: Theme.font-size-small;
+                        color: Colors.text-secondary;
+                        vertical-alignment: center;
+                    }
+                    
+                    Text {
+                        text: "Layout: " + root.current-layout;
+                        font-size: Theme.font-size-small;
+                        color: Colors.text-secondary;
+                        vertical-alignment: center;
+                    }
+                    
+                    Text {
+                        text: "Language: " + root.current-language;
+                        font-size: Theme.font-size-small;
+                        color: Colors.text-secondary;
+                        vertical-alignment: center;
+                    }
+                }
+                
+                HorizontalLayout {
+                    spacing: Theme.spacing-md;
+                    alignment: end;
+                    
+                    Text {
+                        text: root.status-message;
+                        font-size: Theme.font-size-small;
+                        color: root.status-type == "success" ? Colors.success : 
+                               root.status-type == "warning" ? Colors.warning :
+                               root.status-type == "error" ? Colors.error :
+                               Colors.text-secondary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}

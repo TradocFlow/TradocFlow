@@ -1,0 +1,989 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+
+// Data structures for enhanced sidebar
+struct TreeViewItem {
+    id: string,
+    name: string,
+    item_type: string, // "folder", "document", "chapter"
+    path: string,
+    status: string, // "draft", "in_translation", "under_review", "approved", "published"
+    language: string,
+    icon: string,
+    expanded: bool,
+    level: int,
+    parent_id: string,
+    has_children: bool,
+    word_count: int,
+    progress: float, // 0.0 - 1.0 for translation progress
+    last_modified: string,
+}
+
+struct RecentDocument {
+    id: string,
+    name: string,
+    path: string,
+    language: string,
+    thumbnail: string,
+    last_opened: string,
+}
+
+struct QuickAction {
+    id: string,
+    name: string,
+    icon: string,
+    shortcut: string,
+    category: string,
+}
+
+struct ProjectStats {
+    total_documents: int,
+    total_words: int,
+    completion_rate: float,
+    languages_count: int,
+    recent_activity: string,
+}
+
+component SectionHeader inherits Rectangle {
+    in property <string> text;
+    in property <bool> collapsible: false;
+    in property <bool> collapsed: false;
+    
+    callback toggle();
+    
+    height: 28px;
+    
+    HorizontalLayout {
+        spacing: Theme.spacing-xs;
+        alignment: start;
+        
+        if root.collapsible: Rectangle {
+            width: 16px;
+            height: 16px;
+            
+            Text {
+                text: root.collapsed ? "▶" : "▼";
+                font_size: Theme.font-size-small;
+                color: Colors.text-secondary;
+                horizontal_alignment: center;
+                vertical_alignment: center;
+            }
+            
+            TouchArea {
+                clicked => { root.toggle(); }
+            }
+        }
+        
+        Text {
+            text: root.text;
+            font_size: Theme.font-size-small;
+            font_weight: 600;
+            color: Colors.text-secondary;
+            vertical_alignment: center;
+        }
+    }
+}
+
+component SidebarButton inherits Rectangle {
+    in property <string> text;
+    in property <string> icon;
+    in property <bool> active: false;
+    in property <string> badge: "";
+    in property <bool> show_badge: false;
+    
+    callback clicked();
+    
+    height: Theme.button-height;
+    border_radius: Theme.border-radius-md;
+    background: root.active ? Colors.sidebar-button-active : transparent;
+    
+    states [
+        hover when touch-area.has-hover && !root.active: {
+            background: Colors.sidebar-button-hover;
+        }
+        pressed when touch-area.pressed: {
+            background: Colors.primary-light;
+        }
+    ]
+    
+    touch-area := TouchArea {
+        clicked => { root.clicked(); }
+        
+    }
+    
+    HorizontalLayout {
+        padding_left: Theme.spacing-sm;
+        padding_right: Theme.spacing-sm;
+        spacing: Theme.spacing-sm;
+        alignment: space-between;
+        
+        HorizontalLayout {
+            spacing: Theme.spacing-sm;
+            alignment: start;
+            
+            Text {
+                text: root.icon;
+                font_size: Theme.font-size-base;
+                vertical_alignment: center;
+            }
+            
+            Text {
+                text: root.text;
+                font_size: Theme.font-size-base;
+                color: root.active ? Colors.primary : Colors.text-primary;
+                font_weight: root.active ? 600 : 400;
+                vertical_alignment: center;
+            }
+        }
+        
+        if root.show_badge: Rectangle {
+            width: 20px;
+            height: 16px;
+            border_radius: 8px;
+            background: Colors.primary;
+            
+            Text {
+                text: root.badge;
+                font_size: Theme.font-size-small;
+                color: Colors.on-primary;
+                horizontal_alignment: center;
+                vertical_alignment: center;
+            }
+        }
+    }
+}
+
+component ModeToggleButton inherits Rectangle {
+    in property <string> text;
+    in property <string> shortcut;
+    in property <bool> active;
+    
+    callback clicked();
+    
+    height: Theme.button-height;
+    border_radius: Theme.border-radius-md;
+    background: root.active ? Colors.sidebar-button-active : transparent;
+    
+    states [
+        hover when touch-area.has-hover && !root.active: {
+            background: Colors.sidebar-button-hover;
+        }
+        pressed when touch-area.pressed: {
+            background: Colors.primary-light;
+        }
+    ]
+    
+    touch-area := TouchArea {
+        clicked => { root.clicked(); }
+        
+    }
+    
+    VerticalLayout {
+        padding: Theme.spacing-xs;
+        alignment: center;
+        
+        Text {
+            text: root.text;
+            font_size: Theme.font-size-base;
+            font_weight: root.active ? 600 : 400;
+            color: root.active ? Colors.primary : Colors.text-primary;
+            horizontal_alignment: center;
+        }
+        
+        if root.shortcut != "": Text {
+            text: root.shortcut;
+            font_size: Theme.font-size-small;
+            color: Colors.text-muted;
+            horizontal_alignment: center;
+        }
+    }
+}
+
+component LayoutButton inherits Rectangle {
+    in property <string> text;
+    in property <string> shortcut;
+    in property <bool> active;
+    
+    callback clicked();
+    
+    height: Theme.button-height;
+    border_radius: Theme.border-radius-md;
+    background: root.active ? Colors.sidebar-button-active : transparent;
+    
+    states [
+        hover when touch-area.has-hover && !root.active: {
+            background: Colors.sidebar-button-hover;
+        }
+        pressed when touch-area.pressed: {
+            background: Colors.primary-light;
+        }
+    ]
+    
+    touch-area := TouchArea {
+        clicked => { root.clicked(); }
+        
+    }
+    
+    VerticalLayout {
+        padding: Theme.spacing-xs;
+        alignment: center;
+        
+        Text {
+            text: root.text;
+            font_size: Theme.font-size-base;
+            font_weight: root.active ? 600 : 400;
+            color: root.active ? Colors.primary : Colors.text-primary;
+            horizontal_alignment: center;
+        }
+        
+        Text {
+            text: root.shortcut;
+            font_size: Theme.font-size-small;
+            color: Colors.text-muted;
+            horizontal_alignment: center;
+        }
+    }
+}
+
+component TreeViewNode inherits Rectangle {
+    in property <TreeViewItem> item;
+    in property <bool> selected: false;
+    
+    callback clicked();
+    callback toggle_expanded();
+    callback context_menu();
+    
+    height: 24px;
+    background: root.selected ? Colors.sidebar-button-active : transparent;
+    border_radius: Theme.border-radius-sm;
+    
+    states [
+        hover when touch-area.has-hover: {
+            background: root.selected ? Colors.sidebar-button-active : Colors.sidebar-button-hover;
+        }
+    ]
+    
+    touch-area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+        pointer_event(event) => {
+            if (event.kind == PointerEventKind.down && event.button == PointerEventButton.right) {
+                root.context_menu();
+            }
+        }
+    }
+    
+    HorizontalLayout {
+        padding_left: Theme.spacing-xs + (root.item.level * 16px);
+        padding_right: Theme.spacing-xs;
+        spacing: Theme.spacing-xs;
+        alignment: start;
+        
+        // Expand/collapse button
+        Rectangle {
+            width: 12px;
+            height: 12px;
+            
+            if root.item.has_children: Text {
+                text: root.item.expanded ? "▼" : "▶";
+                font_size: 10px;
+                color: Colors.text-secondary;
+                horizontal_alignment: center;
+                vertical_alignment: center;
+            }
+            
+            if root.item.has_children: TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.toggle_expanded(); }
+                
+            }
+        }
+        
+        // Icon
+        Text {
+            text: root.item.icon;
+            font_size: Theme.font-size-small;
+            vertical_alignment: center;
+        }
+        
+        // Name
+        Text {
+            text: root.item.name;
+            font_size: Theme.font-size-small;
+            color: root.selected ? Colors.primary : Colors.text-primary;
+            font_weight: root.selected ? 600 : 400;
+            vertical_alignment: center;
+            overflow: elide;
+            horizontal-stretch: 1;
+        }
+        
+        // Status indicator
+        if root.item.status != "": Rectangle {
+            width: 8px;
+            height: 8px;
+            border_radius: 4px;
+            background: root.item.status == "draft" ? Colors.warning : 
+                       root.item.status == "in_translation" ? Colors.info :
+                       root.item.status == "under_review" ? Colors.warning :
+                       root.item.status == "approved" ? Colors.success :
+                       root.item.status == "published" ? Colors.primary : Colors.text-muted;
+        }
+        
+        // Progress bar for translations
+        if root.item.progress > 0.0 && root.item.progress < 1.0: Rectangle {
+            width: 40px;
+            height: 4px;
+            border_radius: 2px;
+            background: Colors.surface;
+            
+            Rectangle {
+                width: parent.width * root.item.progress;
+                height: parent.height;
+                border_radius: parent.border_radius;
+                background: Colors.primary;
+            }
+        }
+    }
+}
+
+component SearchBox inherits Rectangle {
+    in property <string> placeholder_text: "Search documents...";
+    in-out property <string> text;
+    
+    callback search(string);
+    callback clear();
+    
+    height: 32px;
+    border_width: 1px;
+    border_color: Colors.border;
+    border_radius: Theme.border-radius-md;
+    background: Colors.surface;
+    
+    states [
+        focused when text-input.has-focus: {
+            border_color: Colors.primary;
+        }
+    ]
+    
+    HorizontalLayout {
+        padding_left: Theme.spacing-sm;
+        padding_right: Theme.spacing-sm;
+        spacing: Theme.spacing-xs;
+        alignment: space-between;
+        
+        HorizontalLayout {
+            spacing: Theme.spacing-xs;
+            alignment: start;
+            horizontal-stretch: 1;
+            
+            Text {
+                text: "🔍";
+                font_size: Theme.font-size-small;
+                color: Colors.text-muted;
+                vertical_alignment: center;
+            }
+            
+            text-input := TextInput {
+                text: root.text;
+                font_size: Theme.font-size-base;
+                color: Colors.text-primary;
+                selection_background_color: Colors.primary-light;
+                selection_foreground_color: Colors.text-primary;
+                horizontal-stretch: 1;
+                
+                edited => {
+                    root.text = self.text;
+                    root.search(self.text);
+                }
+            }
+
+            if root.text == "" && !text-input.has-focus: Text {
+                text: root.placeholder_text;
+                font_size: Theme.font-size-base;
+                color: Colors.text-muted;
+                vertical_alignment: center;
+                horizontal_alignment: left;
+            }
+        }
+        
+        if root.text != "": TouchArea {
+            width: 16px;
+            height: 16px;
+            mouse-cursor: pointer;
+            clicked => {
+                root.text = "";
+                root.clear();
+            }
+            
+            
+            Text {
+                text: "✕";
+                font_size: Theme.font-size-small;
+                color: Colors.text-muted;
+                horizontal_alignment: center;
+                vertical_alignment: center;
+            }
+        }
+    }
+}
+
+component QuickActionButton inherits Rectangle {
+    in property <QuickAction> action;
+    
+    callback clicked();
+    
+    width: 100%;
+    height: 28px;
+    border_radius: Theme.border-radius-sm;
+    
+    states [
+        hover when touch-area.has-hover: {
+            background: Colors.sidebar-button-hover;
+        }
+        pressed when touch-area.pressed: {
+            background: Colors.primary-light;
+        }
+    ]
+    
+    touch-area := TouchArea {
+        clicked => { root.clicked(); }
+        
+    }
+    
+    HorizontalLayout {
+        padding_left: Theme.spacing-sm;
+        padding_right: Theme.spacing-sm;
+        spacing: Theme.spacing-sm;
+        alignment: space-between;
+        
+        HorizontalLayout {
+            spacing: Theme.spacing-sm;
+            alignment: start;
+            
+            Text {
+                text: root.action.icon;
+                font_size: Theme.font-size-small;
+                vertical_alignment: center;
+            }
+            
+            Text {
+                text: root.action.name;
+                font_size: Theme.font-size-small;
+                color: Colors.text-primary;
+                vertical_alignment: center;
+            }
+        }
+        
+        if root.action.shortcut != "": Text {
+            text: root.action.shortcut;
+            font_size: Theme.font-size-small;
+            color: Colors.text-muted;
+            vertical_alignment: center;
+        }
+    }
+}
+
+component RecentDocumentItem inherits Rectangle {
+    in property <RecentDocument> document;
+    
+    callback clicked();
+    
+    width: 100%;
+    height: 40px;
+    border_radius: Theme.border-radius-sm;
+    
+    states [
+        hover when touch-area.has-hover: {
+            background: Colors.sidebar-button-hover;
+        }
+    ]
+    
+    touch-area := TouchArea {
+        clicked => { root.clicked(); }
+        
+    }
+    
+    HorizontalLayout {
+        padding_left: Theme.spacing-sm;
+        padding_right: Theme.spacing-sm;
+        spacing: Theme.spacing-sm;
+        alignment: start;
+        
+        // Thumbnail placeholder
+        Rectangle {
+            width: 32px;
+            height: 32px;
+            border_radius: Theme.border-radius-sm;
+            background: Colors.surface;
+            
+            Text {
+                text: "📄";
+                font_size: Theme.font-size-base;
+                horizontal_alignment: center;
+                vertical_alignment: center;
+            }
+        }
+        
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: start;
+            
+            Text {
+                text: root.document.name;
+                font_size: Theme.font-size-small;
+                color: Colors.text-primary;
+                font_weight: 600;
+                overflow: elide;
+            }
+            
+            Text {
+                text: root.document.last_opened;
+                font_size: Theme.font-size-small;
+                color: Colors.text-muted;
+                overflow: elide;
+            }
+        }
+        
+        // Language indicator
+        Rectangle {
+            width: 24px;
+            height: 16px;
+            border_radius: Theme.border-radius-sm;
+            background: Colors.surface;
+            
+            Text {
+                text: root.document.language.to-uppercase();
+                font_size: 10px;
+                color: Colors.text-secondary;
+                font_weight: 600;
+                horizontal_alignment: center;
+                vertical_alignment: center;
+            }
+        }
+    }
+}
+
+component StatsPanel inherits Rectangle {
+    in property <ProjectStats> stats;
+    
+    background: Colors.surface;
+    border_radius: Theme.border-radius-md;
+    
+    VerticalLayout {
+        padding: Theme.spacing-sm;
+        spacing: Theme.spacing-xs;
+        
+        Text {
+            text: "Project Statistics";
+            font_size: Theme.font-size-small;
+            font_weight: 600;
+            color: Colors.text-secondary;
+        }
+        
+        GridLayout {
+            spacing: Theme.spacing-xs;
+            
+            Row {
+                Text {
+                    text: "Documents:";
+                    font_size: Theme.font-size-small;
+                    color: Colors.text-muted;
+                }
+                
+                Text {
+                    text: root.stats.total_documents;
+                    font_size: Theme.font-size-small;
+                    color: Colors.text-primary;
+                    font_weight: 600;
+                    horizontal_alignment: right;
+                }
+            }
+            
+            Row {
+                Text {
+                    text: "Words:";
+                    font_size: Theme.font-size-small;
+                    color: Colors.text-muted;
+                }
+                
+                Text {
+                    text: root.stats.total_words;
+                    font_size: Theme.font-size-small;
+                    color: Colors.text-primary;
+                    font_weight: 600;
+                    horizontal_alignment: right;
+                }
+            }
+            
+            Row {
+                Text {
+                    text: "Languages:";
+                    font_size: Theme.font-size-small;
+                    color: Colors.text-muted;
+                }
+                
+                Text {
+                    text: root.stats.languages_count;
+                    font_size: Theme.font-size-small;
+                    color: Colors.text-primary;
+                    font_weight: 600;
+                    horizontal_alignment: right;
+                }
+            }
+            
+            Row {
+                Text {
+                    text: "Progress:";
+                    font_size: Theme.font-size-small;
+                    color: Colors.text-muted;
+                }
+                
+                HorizontalLayout {
+                    spacing: Theme.spacing-xs;
+                    alignment: end;
+                    
+                    Rectangle {
+                        width: 40px;
+                        height: 4px;
+                        border_radius: 2px;
+                        background: Colors.surface;
+                        
+                        Rectangle {
+                            width: parent.width * root.stats.completion_rate;
+                            height: parent.height;
+                            border_radius: parent.border_radius;
+                            background: Colors.primary;
+                        }
+                    }
+                    
+                    Text {
+                        text: round(root.stats.completion_rate * 100) + "%";
+                        font_size: Theme.font-size-small;
+                        color: Colors.text-primary;
+                        font_weight: 600;
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component Sidebar inherits Rectangle {
+    // Enhanced callbacks for sidebar actions
+    callback new_document();
+    callback new_chapter();
+    callback new_translation();
+    callback open_document();
+    callback save_document();
+    callback show_projects();
+    callback show_kanban();
+    callback show_reviews();
+    callback export_document();
+    
+    // Project tree callbacks
+    callback tree_item_clicked(string /* item-id */);
+    callback tree_item_expanded(string /* item-id */, bool /* expanded */);
+    callback tree_item_context_menu(string /* item-id */, length /* x */, length /* y */);
+    
+    // Search callbacks
+    callback search_documents(string /* query */);
+    callback clear_search();
+    
+    // Recent documents callbacks
+    callback recent_document_clicked(string /* document-id */);
+    
+    // Quick action callbacks
+    callback quick_action_triggered(string /* action-id */);
+    
+    // Mode callbacks
+    callback toggle_mode();
+    callback set_single_pane();
+    callback set_horizontal_split();
+    callback set_vertical_split();
+    
+    // Properties for current state
+    in property <string> current_mode: "markdown"; // "markdown" or "presentation"
+    in property <string> current_layout: "single"; // "single", "horizontal", "vertical"
+    in property <bool> has_project_loaded: false;
+    in property <string> current_project_name: "";
+    
+    // Project data properties
+    in property <[TreeViewItem]> tree_items: [];
+    in property <[RecentDocument]> recent_documents: [];
+    in property <ProjectStats> project_stats: {
+        total_documents: 0,
+        total_words: 0,
+        completion_rate: 0.0,
+        languages_count: 0,
+        recent_activity: "No recent activity"
+    };
+    
+    // UI state properties
+    in-out property <string> search_text: "";
+    in-out property <string> selected_tree_item: "";
+    in-out property <bool> project_tree_collapsed: false;
+    in-out property <bool> quick_actions_collapsed: false;
+    in-out property <bool> recent_docs_collapsed: false;
+    
+    // Responsive design: Adjust width based on available space
+    min_width: max(Theme.sidebar-width, 200px);
+    max_width: 400px;
+    background: Colors.sidebar-background;
+    border_width: 1px;
+    border_color: Colors.border;
+    
+    // Accessibility: Focus handling
+    forward-focus: key-handler;
+    
+    key-handler := FocusScope {
+        key-pressed(event) => {
+            if (event.text == "F1") {
+                // Show help/shortcuts
+                return accept;
+            } else if (event.text == "Tab") {
+                // Tab navigation between sidebar sections
+                return accept;
+            }
+            return reject;
+        }
+    }
+    
+    Flickable {
+        VerticalLayout {
+            padding: Theme.spacing-sm;
+            spacing: Theme.spacing-sm;
+            
+            // Quick Actions Section
+            SectionHeader {
+                text: "Quick Actions";
+                collapsible: true;
+                collapsed: root.quick_actions_collapsed;
+                toggle => {
+                    root.quick_actions_collapsed = !root.quick_actions_collapsed;
+                }
+            }
+            
+            if !root.quick_actions_collapsed: VerticalLayout {
+                spacing: Theme.spacing-xs;
+                
+                QuickActionButton {
+                    action: {
+                        id: "new-document",
+                        name: "New Document",
+                        icon: "📄",
+                        shortcut: "Ctrl+N",
+                        category: "create"
+                    };
+                    clicked => { root.new_document(); }
+                }
+                
+                QuickActionButton {
+                    action: {
+                        id: "new-chapter",
+                        name: "New Chapter",
+                        icon: "📃",
+                        shortcut: "Ctrl+Shift+N",
+                        category: "create"
+                    };
+                    clicked => { root.new_chapter(); }
+                }
+                
+                QuickActionButton {
+                    action: {
+                        id: "new-translation",
+                        name: "New Translation",
+                        icon: "🌐",
+                        shortcut: "Ctrl+T",
+                        category: "create"
+                    };
+                    clicked => { root.new_translation(); }
+                }
+                
+                // Separator
+                Rectangle {
+                    height: 1px;
+                    background: Colors.border;
+                }
+                
+                QuickActionButton {
+                    action: {
+                        id: "save",
+                        name: "Save",
+                        icon: "💾",
+                        shortcut: "Ctrl+S",
+                        category: "file"
+                    };
+                    clicked => { root.save_document(); }
+                }
+                
+                QuickActionButton {
+                    action: {
+                        id: "export",
+                        name: "Export",
+                        icon: "📤",
+                        shortcut: "Ctrl+E",
+                        category: "file"
+                    };
+                    clicked => { root.export_document(); }
+                }
+            }
+            
+            // Project Tree Section (only show if project is loaded)
+            if root.has_project_loaded: SectionHeader {
+                text: "Project: " + root.current_project_name;
+                collapsible: true;
+                collapsed: root.project_tree_collapsed;
+                toggle => {
+                    root.project_tree_collapsed = !root.project_tree_collapsed;
+                }
+            }
+            
+            if root.has_project_loaded && !root.project_tree_collapsed: VerticalLayout {
+                spacing: Theme.spacing-xs;
+                
+                // Search box
+                SearchBox {
+                    text: root.search_text;
+                    search(query) => {
+                        root.search_text = query;
+                        root.search_documents(query);
+                    }
+                    clear => {
+                        root.search_text = "";
+                        root.clear_search();
+                    }
+                }
+                
+                // Tree view
+                VerticalLayout {
+                    spacing: 2px;
+                    
+                    for item in root.tree_items: TreeViewNode {
+                        item: item;
+                        selected: item.id == root.selected_tree_item;
+                        
+                        clicked => {
+                            root.selected_tree_item = item.id;
+                            root.tree_item_clicked(item.id);
+                        }
+                        
+                        toggle_expanded => {
+                            root.tree_item_expanded(item.id, !item.expanded);
+                        }
+                        
+                        context_menu => {
+                            root.tree_item_context_menu(item.id, 0px, 0px);
+                        }
+                    }
+                }
+            }
+            
+            // Recent Documents Section
+            if root.recent_documents.length > 0: SectionHeader {
+                text: "Recent Documents";
+                collapsible: true;
+                collapsed: root.recent_docs_collapsed;
+                toggle => {
+                    root.recent_docs_collapsed = !root.recent_docs_collapsed;
+                }
+            }
+            
+            if !root.recent_docs_collapsed && root.recent_documents.length > 0: VerticalLayout {
+                spacing: Theme.spacing-xs;
+                
+                for document in root.recent_documents: RecentDocumentItem {
+                    document: document;
+                    clicked => {
+                        root.recent_document_clicked(document.id);
+                    }
+                }
+            }
+            
+            // Project Statistics (only show if project is loaded)
+            if root.has_project_loaded: SectionHeader {
+                text: "Statistics";
+            }
+            
+            if root.has_project_loaded: StatsPanel {
+                stats: root.project_stats;
+            }
+            
+            // Navigation Section
+            SectionHeader { text: "Navigation"; }
+            
+            SidebarButton {
+                text: "Projects";
+                icon: "📁";
+                active: false;
+                clicked => { root.show_projects(); }
+            }
+            
+            SidebarButton {
+                text: "Kanban";
+                icon: "📋";
+                active: false;
+                clicked => { root.show_kanban(); }
+            }
+            
+            SidebarButton {
+                text: "Reviews";
+                icon: "✏️";
+                active: false;
+                clicked => { root.show_reviews(); }
+            }
+            
+            // Separator
+            Rectangle {
+                height: 1px;
+                background: Colors.border;
+            }
+            
+            // Mode Controls Section
+            SectionHeader { text: "Mode"; }
+            
+            ModeToggleButton {
+                text: "Markdown";
+                shortcut: "Ctrl+M";
+                active: root.current_mode == "markdown";
+                clicked => { root.toggle_mode(); }
+            }
+            
+            ModeToggleButton {
+                text: "Present";
+                shortcut: "";
+                active: root.current_mode == "presentation";
+                clicked => { root.toggle_mode(); }
+            }
+            
+            // Separator
+            Rectangle {
+                height: 1px;
+                background: Colors.border;
+            }
+            
+            // Layout Controls Section
+            SectionHeader { text: "Layout"; }
+            
+            LayoutButton {
+                text: "Single";
+                shortcut: "Ctrl+1";
+                active: root.current_layout == "single";
+                clicked => { root.set_single_pane(); }
+            }
+            
+            LayoutButton {
+                text: "Split H";
+                shortcut: "Ctrl+2";
+                active: root.current_layout == "horizontal";
+                clicked => { root.set_horizontal_split(); }
+            }
+            
+            LayoutButton {
+                text: "Split V";
+                shortcut: "Ctrl+3";
+                active: root.current_layout == "vertical";
+                clicked => { root.set_vertical_split(); }
+            }
+        }
+    }
+}

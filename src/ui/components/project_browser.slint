@@ -1,0 +1,703 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { ProjectCard, ProjectListItem, ProjectPreviewPane, ProjectCardData } from "project_card.slint";
+
+export struct FilterOption {
+    value: string,
+    label: string,
+    enabled: bool,
+}
+
+export struct SortOption {
+    field: string,
+    label: string,
+    direction: string, // "asc" | "desc"
+}
+
+export { ProjectCardData }
+
+export component ProjectBrowser inherits Dialog {
+    // Properties
+    in property <bool> show-dialog: false;
+    in property <[ProjectCardData]> projects: [];
+    in property <[ProjectCardData]> filtered-projects: [];
+    in property <[ProjectCardData]> recent-projects: [];
+    in property <string> search-query: "";
+    in property <string> view-mode: "grid"; // "grid" | "list"
+    in property <bool> is-loading: false;
+    in property <int> current-page: 1;
+    in property <int> total-pages: 1;
+    in property <int> items-per-page: 20;
+    in property <ProjectCardData> selected-project;
+    in property <bool> show-preview: false;
+    
+    // Filter properties
+    in property <[FilterOption]> status-filters: [
+        { value: "active", label: "Active", enabled: true },
+        { value: "completed", label: "Completed", enabled: false },
+        { value: "on_hold", label: "On Hold", enabled: true },
+        { value: "cancelled", label: "Cancelled", enabled: false },
+    ];
+    in property <[FilterOption]> priority-filters: [
+        { value: "low", label: "Low", enabled: false },
+        { value: "medium", label: "Medium", enabled: false },
+        { value: "high", label: "High", enabled: false },
+        { value: "urgent", label: "Urgent", enabled: false },
+    ];
+    in property <bool> show-archived: false;
+    in property <bool> favorites-only: false;
+    
+    // Sort properties
+    in property <[SortOption]> sort-options: [
+        { field: "updated", label: "Last Updated", direction: "desc" },
+        { field: "name", label: "Name", direction: "asc" },
+        { field: "created", label: "Created", direction: "desc" },
+        { field: "due_date", label: "Due Date", direction: "asc" },
+        { field: "priority", label: "Priority", direction: "desc" },
+        { field: "status", label: "Status", direction: "asc" },
+        { field: "progress", label: "Progress", direction: "desc" },
+    ];
+    in property <int> selected-sort-index: 0;
+    
+    // Callbacks
+    callback search-changed(string);
+    callback filter-changed();
+    callback sort-changed(string, string);
+    callback view-mode-changed(string);
+    callback page-changed(int);
+    callback project-selected(ProjectCardData);
+    callback project-opened(ProjectCardData);
+    callback project-context-menu(ProjectCardData, length, length);
+    callback project-favorite-toggled(ProjectCardData);
+    callback close-dialog();
+    callback refresh-projects();
+    
+    // Dialog properties
+    width: 1200px;
+    height: 800px;
+    
+    // Main layout
+    VerticalLayout {
+        padding: 0;
+        spacing: 0;
+        
+        // Header
+        Rectangle {
+            height: 60px;
+            background: Colors.surface;
+            border-width: 0px;
+            border-bottom-width: 1px;
+            border-color: Colors.outline-variant;
+            
+            HorizontalLayout {
+                padding: 16px;
+                spacing: 16px;
+                alignment: center;
+                
+                // Title
+                Text {
+                    text: "Project Browser";
+                    font-size: Theme.font-size-h3;
+                    font-weight: 600;
+                    color: Colors.on-surface;
+                }
+                
+                Rectangle { } // Spacer
+                
+                // View mode toggle
+                HorizontalLayout {
+                    spacing: 4px;
+                    
+                    Rectangle {
+                        width: 36px;
+                        height: 36px;
+                        border-radius: 8px;
+                        background: view-mode == "grid" ? Colors.primary : transparent;
+                        border-width: 1px;
+                        border-color: Colors.outline-variant;
+                        
+                        Text {
+                            text: "⊞";
+                            color: view-mode == "grid" ? Colors.on-primary : Colors.on-surface-variant;
+                            font-size: 16px;
+                        }
+                        
+                        grid-view-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.view-mode-changed("grid");
+                            }
+                        }
+                    }
+                    
+                    Rectangle {
+                        width: 36px;
+                        height: 36px;
+                        border-radius: 8px;
+                        background: view-mode == "list" ? Colors.primary : transparent;
+                        border-width: 1px;
+                        border-color: Colors.outline-variant;
+                        
+                        Text {
+                            text: "☰";
+                            color: view-mode == "list" ? Colors.on-primary : Colors.on-surface-variant;
+                            font-size: 16px;
+                        }
+                        
+                        list-view-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.view-mode-changed("list");
+                            }
+                        }
+                    }
+                }
+                
+                // Refresh button
+                Rectangle {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 8px;
+                    background: transparent;
+                    border-width: 1px;
+                    border-color: Colors.outline-variant;
+                    
+                    Text {
+                        text: "🔄";
+                        color: Colors.on-surface-variant;
+                        font-size: 16px;
+                    }
+                    
+                    refresh-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.refresh-projects();
+                        }
+                    }
+                }
+                
+                // Close button
+                Rectangle {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 8px;
+                    background: transparent;
+                    border-width: 1px;
+                    border-color: Colors.outline-variant;
+                    
+                    Text {
+                        text: "✕";
+                        color: Colors.on-surface-variant;
+                        font-size: 16px;
+                    }
+                    
+                    close-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.close-dialog();
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Filter and search toolbar
+        Rectangle {
+            height: 60px;
+            background: Colors.surface-variant;
+            border-width: 0px;
+            border-bottom-width: 1px;
+            border-color: Colors.outline-variant;
+            
+            HorizontalLayout {
+                padding: 12px;
+                spacing: 12px;
+                alignment: center;
+                
+                // Search box
+                Rectangle {
+                    width: 300px;
+                    height: 36px;
+                    border-radius: 18px;
+                    background: Colors.surface;
+                    border-width: 1px;
+                    border-color: Colors.outline-variant;
+                    
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 8px;
+                        alignment: center;
+                        
+                        Text {
+                            text: "🔍";
+                            color: Colors.on-surface-variant;
+                            font-size: 14px;
+                        }
+                        
+                        search-input := TextInput {
+                            text: search-query;
+                            placeholder-text: "Search projects...";
+                            font-size: Theme.font-size-body;
+                            color: Colors.on-surface;
+                            
+                            edited => {
+                                root.search-changed(self.text);
+                            }
+                        }
+                    }
+                }
+                
+                // Sort dropdown
+                Rectangle {
+                    width: 180px;
+                    height: 36px;
+                    border-radius: 8px;
+                    background: Colors.surface;
+                    border-width: 1px;
+                    border-color: Colors.outline-variant;
+                    
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 8px;
+                        alignment: center;
+                        
+                        Text {
+                            text: sort-options[selected-sort-index].label;
+                            font-size: Theme.font-size-body;
+                            color: Colors.on-surface;
+                            overflow: elide;
+                        }
+                        
+                        Text {
+                            text: sort-options[selected-sort-index].direction == "asc" ? "↑" : "↓";
+                            color: Colors.on-surface-variant;
+                            font-size: 14px;
+                        }
+                    }
+                    
+                    sort-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            // Cycle through sort options
+                            if (selected-sort-index < sort-options.length - 1) {
+                                selected-sort-index = selected-sort-index + 1;
+                            } else {
+                                selected-sort-index = 0;
+                            }
+                            root.sort-changed(
+                                sort-options[selected-sort-index].field,
+                                sort-options[selected-sort-index].direction
+                            );
+                        }
+                    }
+                }
+                
+                // Filter toggles
+                HorizontalLayout {
+                    spacing: 8px;
+                    
+                    // Favorites only
+                    Rectangle {
+                        height: 36px;
+                        border-radius: 8px;
+                        background: favorites-only ? Colors.primary : transparent;
+                        border-width: 1px;
+                        border-color: Colors.outline-variant;
+                        
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 6px;
+                            alignment: center;
+                            
+                            Text {
+                                text: "⭐";
+                                font-size: 14px;
+                            }
+                            
+                            Text {
+                                text: "Favorites";
+                                font-size: Theme.font-size-small;
+                                color: favorites-only ? Colors.on-primary : Colors.on-surface-variant;
+                            }
+                        }
+                        
+                        favorites-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                favorites-only = !favorites-only;
+                                root.filter-changed();
+                            }
+                        }
+                    }
+                    
+                    // Show archived
+                    Rectangle {
+                        height: 36px;
+                        border-radius: 8px;
+                        background: show-archived ? Colors.primary : transparent;
+                        border-width: 1px;
+                        border-color: Colors.outline-variant;
+                        
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 6px;
+                            alignment: center;
+                            
+                            Text {
+                                text: "📦";
+                                font-size: 14px;
+                            }
+                            
+                            Text {
+                                text: "Archived";
+                                font-size: Theme.font-size-small;
+                                color: show-archived ? Colors.on-primary : Colors.on-surface-variant;
+                            }
+                        }
+                        
+                        archived-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => {
+                                show-archived = !show-archived;
+                                root.filter-changed();
+                            }
+                        }
+                    }
+                }
+                
+                Rectangle { } // Spacer
+                
+                // Results count
+                Text {
+                    text: @tr("{} projects", filtered-projects.length);
+                    font-size: Theme.font-size-small;
+                    color: Colors.on-surface-variant;
+                }
+            }
+        }
+        
+        // Main content area
+        HorizontalLayout {
+            spacing: 0;
+            
+            // Project list/grid
+            Rectangle {
+                background: Colors.background;
+                
+                if is-loading: Rectangle {
+                    VerticalLayout {
+                        alignment: center;
+                        
+                        Text {
+                            text: "Loading projects...";
+                            font-size: Theme.font-size-h4;
+                            color: Colors.on-surface-variant;
+                        }
+                        
+                        Rectangle {
+                            width: 40px;
+                            height: 40px;
+                            border-radius: 20px;
+                            border-width: 3px;
+                            border-color: Colors.primary;
+                            // Add loading animation here
+                        }
+                    }
+                }
+                
+                if !is-loading && filtered-projects.length == 0: Rectangle {
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 16px;
+                        
+                        Text {
+                            text: search-query != "" ? "No projects found matching your search" : "No projects available";
+                            font-size: Theme.font-size-h4;
+                            color: Colors.on-surface-variant;
+                            horizontal-alignment: center;
+                        }
+                        
+                        if search-query != "": Text {
+                            text: @tr("Try adjusting your search terms or filters");
+                            font-size: Theme.font-size-body;
+                            color: Colors.on-surface-variant;
+                            horizontal-alignment: center;
+                        }
+                        
+                        if search-query == "": VerticalLayout {
+                            spacing: 8px;
+                            
+                            Text {
+                                text: "Get started by creating a new project";
+                                font-size: Theme.font-size-body;
+                                color: Colors.on-surface-variant;
+                                horizontal-alignment: center;
+                            }
+                            
+                            Rectangle {
+                                height: 40px;
+                                border-radius: 20px;
+                                background: Colors.primary;
+                                
+                                HorizontalLayout {
+                                    padding-left: 20px;
+                                    padding-right: 20px;
+                                    spacing: 8px;
+                                    alignment: center;
+                                    
+                                    Text {
+                                        text: "+";
+                                        color: Colors.on-primary;
+                                        font-size: 18px;
+                                        font-weight: 600;
+                                    }
+                                    
+                                    Text {
+                                        text: "New Project";
+                                        color: Colors.on-primary;
+                                        font-size: Theme.font-size-body;
+                                        font-weight: 500;
+                                    }
+                                }
+                                
+                                new-project-touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    // Would trigger project creation
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if !is-loading && filtered-projects.length > 0: VerticalLayout {
+                    spacing: 0;
+                    
+                    // Project content
+                    content-scroll := ScrollView {
+                        if view-mode == "grid": GridLayout {
+                            spacing: 16px;
+                            padding: 16px;
+                            
+                            for project[index] in filtered-projects: ProjectCard {
+                                project-data: project;
+                                selected: project.id == selected-project.id;
+                                
+                                clicked(project-data) => {
+                                    root.selected-project = project-data;
+                                    root.project-selected(project-data);
+                                }
+                                
+                                context-menu(project-data, x, y) => {
+                                    root.project-context-menu(project-data, x, y);
+                                }
+                                
+                                favorite-clicked(project-data) => {
+                                    root.project-favorite-toggled(project-data);
+                                }
+                            }
+                        }
+                        
+                        if view-mode == "list": VerticalLayout {
+                            padding: 16px;
+                            spacing: 4px;
+                            
+                            for project[index] in filtered-projects: ProjectListItem {
+                                project-data: project;
+                                selected: project.id == selected-project.id;
+                                
+                                clicked(project-data) => {
+                                    root.selected-project = project-data;
+                                    root.project-selected(project-data);
+                                }
+                                
+                                context-menu(project-data, x, y) => {
+                                    root.project-context-menu(project-data, x, y);
+                                }
+                                
+                                favorite-clicked(project-data) => {
+                                    root.project-favorite-toggled(project-data);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Pagination
+                    if total-pages > 1: Rectangle {
+                        height: 60px;
+                        background: Colors.surface;
+                        border-width: 0px;
+                        border-top-width: 1px;
+                        border-color: Colors.outline-variant;
+                        
+                        HorizontalLayout {
+                            padding: 16px;
+                            spacing: 12px;
+                            alignment: center;
+                            
+                            Rectangle { } // Spacer
+                            
+                            // Previous button
+                            Rectangle {
+                                width: 36px;
+                                height: 36px;
+                                border-radius: 8px;
+                                background: current-page > 1 ? Colors.surface-variant : Colors.outline-variant;
+                                border-width: 1px;
+                                border-color: Colors.outline-variant;
+                                
+                                Text {
+                                    text: "‹";
+                                    color: current-page > 1 ? Colors.on-surface : Colors.on-surface-variant;
+                                    font-size: 18px;
+                                }
+                                
+                                prev-touch := TouchArea {
+                                    mouse-cursor: current-page > 1 ? pointer : default;
+                                    clicked => {
+                                        if (current-page > 1) {
+                                            root.page-changed(current-page - 1);
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Page info
+                            Text {
+                                text: @tr("Page {} of {}", current-page, total-pages);
+                                font-size: Theme.font-size-body;
+                                color: Colors.on-surface;
+                            }
+                            
+                            // Next button
+                            Rectangle {
+                                width: 36px;
+                                height: 36px;
+                                border-radius: 8px;
+                                background: current-page < total-pages ? Colors.surface-variant : Colors.outline-variant;
+                                border-width: 1px;
+                                border-color: Colors.outline-variant;
+                                
+                                Text {
+                                    text: "›";
+                                    color: current-page < total-pages ? Colors.on-surface : Colors.on-surface-variant;
+                                    font-size: 18px;
+                                }
+                                
+                                next-touch := TouchArea {
+                                    mouse-cursor: current-page < total-pages ? pointer : default;
+                                    clicked => {
+                                        if (current-page < total-pages) {
+                                            root.page-changed(current-page + 1);
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            Rectangle { } // Spacer
+                        }
+                    }
+                }
+            }
+            
+            // Preview pane (optional)
+            if show-preview && selected-project.id != "": VerticalLayout {
+                spacing: 0;
+                
+                Rectangle {
+                    width: 1px;
+                    background: Colors.outline-variant;
+                }
+                
+                ProjectPreviewPane {
+                    project-data: selected-project;
+                    visible: true;
+                }
+            }
+        }
+        
+        // Action bar
+        Rectangle {
+            height: 60px;
+            background: Colors.surface;
+            border-width: 0px;
+            border-top-width: 1px;
+            border-color: Colors.outline-variant;
+            
+            HorizontalLayout {
+                padding: 16px;
+                spacing: 12px;
+                alignment: center;
+                
+                Rectangle { } // Spacer
+                
+                // Cancel button
+                Rectangle {
+                    height: 40px;
+                    border-radius: 20px;
+                    background: transparent;
+                    border-width: 1px;
+                    border-color: Colors.outline;
+                    
+                    HorizontalLayout {
+                        padding-left: 20px;
+                        padding-right: 20px;
+                        alignment: center;
+                        
+                        Text {
+                            text: "Cancel";
+                            color: Colors.on-surface;
+                            font-size: Theme.font-size-body;
+                        }
+                    }
+                    
+                    cancel-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.close-dialog();
+                        }
+                    }
+                }
+                
+                // Open button
+                Rectangle {
+                    height: 40px;
+                    border-radius: 20px;
+                    background: selected-project.id != "" ? Colors.primary : Colors.outline-variant;
+                    
+                    HorizontalLayout {
+                        padding-left: 20px;
+                        padding-right: 20px;
+                        spacing: 8px;
+                        alignment: center;
+                        
+                        Text {
+                            text: "📂";
+                            color: selected-project.id != "" ? Colors.on-primary : Colors.on-surface-variant;
+                            font-size: 16px;
+                        }
+                        
+                        Text {
+                            text: "Open Project";
+                            color: selected-project.id != "" ? Colors.on-primary : Colors.on-surface-variant;
+                            font-size: Theme.font-size-body;
+                            font-weight: 500;
+                        }
+                    }
+                    
+                    open-touch := TouchArea {
+                        mouse-cursor: selected-project.id != "" ? pointer : default;
+                        clicked => {
+                            if (selected-project.id != "") {
+                                root.project-opened(selected-project);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

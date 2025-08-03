@@ -1,0 +1,635 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { ScrollView, TextEdit } from "std-widgets.slint";
+
+// Text manipulation operations for enhanced editing
+export struct TextOperation {
+    operation_type: string, // "insert", "replace", "delete", "format"
+    content: string,
+    start_pos: int,
+    end_pos: int,
+    format_type: string, // "bold", "italic", "underline", "heading1", etc.
+}
+
+// Text selection information
+export struct TextSelection {
+    start: int,
+    end: int,
+    selected_text: string,
+}
+
+// Language item structure
+struct LanguageItem {
+    code: string,
+    name: string,
+    flag: string,
+}
+
+// Toolbar button component
+component ToolbarButton inherits Rectangle {
+    in property <string> text;
+    in property <string> tooltip;
+    in property <int> font-weight: 400;
+    
+    callback clicked();
+    
+    width: 32px;
+    height: 28px;
+    border-radius: Theme.border-radius-sm;
+    
+    states [
+        hover when touch-area.has-hover: {
+            background: Colors.surface-hover;
+        }
+        pressed when touch-area.pressed: {
+            background: Colors.primary-light;
+        }
+    ]
+    
+    touch-area := TouchArea {
+        clicked => { root.clicked(); }
+    }
+    
+    Text {
+        text: root.text;
+        font-size: Theme.font-size-base;
+        font-weight: root.font-weight;
+        color: Colors.text-primary;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+// Language dropdown component
+component LanguageDropdown inherits Rectangle {
+    in property <[LanguageItem]> languages: [
+        { code: "en", name: "English", flag: "🇺🇸" },
+        { code: "de", name: "Deutsch", flag: "🇩🇪" },
+        { code: "fr", name: "Français", flag: "🇫🇷" },
+        { code: "es", name: "Español", flag: "🇪🇸" },
+        { code: "it", name: "Italiano", flag: "🇮🇹" },
+        { code: "nl", name: "Nederlands", flag: "🇳🇱" }
+    ];
+    in property <bool> show-dropdown: false;
+    callback language-selected(string);
+    
+    width: 140px;
+    height: languages.length * 32px + 8px;
+    z: 1000;
+    
+    if root.show-dropdown: Rectangle {
+        background: Colors.surface;
+        border-width: 1px;
+        border-color: Colors.border;
+        border-radius: Theme.border-radius-sm;
+        drop-shadow-blur: 8px;
+        drop-shadow-color: #00000040;
+        
+        VerticalLayout {
+            padding: 4px;
+            
+            for lang[index] in root.languages: TouchArea {
+                height: 32px;
+                
+                clicked => {
+                    root.language-selected(lang.code);
+                }
+                
+                Rectangle {
+                    background: parent.has-hover ? Colors.surface-hover : transparent;
+                    border-radius: Theme.border-radius-sm;
+                    
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 8px;
+                        alignment: start;
+                        
+                        Text {
+                            text: lang.flag;
+                            font-size: Theme.font-size-base;
+                            vertical-alignment: center;
+                        }
+                        
+                        Text {
+                            text: lang.name;
+                            font-size: Theme.font-size-small;
+                            color: Colors.text-primary;
+                            vertical-alignment: center;
+                        }
+                        
+                        Text {
+                            text: "(" + lang.code.to-uppercase() + ")";
+                            font-size: Theme.font-size-small;
+                            color: Colors.text-muted;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Language selector component
+component LanguageSelector inherits Rectangle {
+    in property <string> current-language: "en";
+    
+    callback language-selected(string);
+    
+    property <bool> is-open: false;
+    property <LanguageItem> current-lang-info: {
+        if (root.current-language == "en") { { code: "en", name: "English", flag: "🇺🇸" } }
+        else if (root.current-language == "de") { { code: "de", name: "Deutsch", flag: "🇩🇪" } }
+        else if (root.current-language == "fr") { { code: "fr", name: "Français", flag: "🇫🇷" } }
+        else if (root.current-language == "es") { { code: "es", name: "Español", flag: "🇪🇸" } }
+        else if (root.current-language == "it") { { code: "it", name: "Italiano", flag: "🇮🇹" } }
+        else if (root.current-language == "nl") { { code: "nl", name: "Nederlands", flag: "🇳🇱" } }
+        else { { code: "en", name: "English", flag: "🇺🇸" } }
+    };
+    
+    width: 100px;
+    height: 28px;
+    border-width: 1px;
+    border-color: Colors.border;
+    border-radius: Theme.border-radius-sm;
+    background: Colors.background;
+    
+    states [
+        hover when touch-area.has-hover: {
+            border-color: Colors.border-active;
+            background: Colors.surface-hover;
+        }
+        open when root.is-open: {
+            border-color: Colors.primary;
+            background: Colors.surface;
+        }
+    ]
+    
+    touch-area := TouchArea {
+        clicked => {
+            root.is-open = !root.is-open;
+        }
+    }
+    
+    HorizontalLayout {
+        padding-left: Theme.spacing-sm;
+        padding-right: Theme.spacing-sm;
+        alignment: space-between;
+        
+        HorizontalLayout {
+            spacing: 4px;
+            alignment: start;
+            
+            Text {
+                text: root.current-lang-info.flag;
+                font-size: Theme.font-size-small;
+                vertical-alignment: center;
+            }
+            
+            Text {
+                text: root.current-language.to-uppercase();
+                font-size: Theme.font-size-small;
+                color: Colors.text-primary;
+                vertical-alignment: center;
+            }
+        }
+        
+        Text {
+            text: root.is-open ? "▲" : "▼";
+            font-size: Theme.font-size-small;
+            color: Colors.text-muted;
+            vertical-alignment: center;
+        }
+    }
+    
+    dropdown := LanguageDropdown {
+        show-dropdown: root.is-open;
+        x: 0;
+        y: root.height + 2px;
+        
+        language-selected(code) => {
+            root.language-selected(code);
+            root.is-open = false;
+        }
+    }
+}
+
+// Enhanced text editor component with professional editing capabilities
+export component EnhancedTextEditor inherits Rectangle {
+    in property <string> content: "";
+    in property <bool> read-only: false;
+    in property <string> placeholder: "Start typing...";
+    in property <string> editor-mode: "markdown"; // "markdown" or "presentation"
+    
+    // Selection and cursor properties
+    in-out property <int> cursor-position: 0;
+    in-out property <TextSelection> selection: { start: 0, end: 0, selected_text: "" };
+    
+    // Callbacks for text operations
+    callback text-changed(string);
+    callback selection-changed(TextSelection);
+    callback cursor-moved(int);
+    callback text-operation(TextOperation);
+    
+    // Formatting callbacks
+    callback format-text(string, int, int); // format_type, start, end
+    callback insert-text-at-cursor(string);
+    callback replace-selection(string);
+    callback delete-selection();
+    
+    // Undo/Redo callbacks
+    callback undo();
+    callback redo();
+    
+    background: Colors.editor-background;
+    
+    ScrollView {
+        text-edit := TextEdit {
+            text: root.content;
+            font-size: Theme.font-size-base;
+            wrap: word-wrap;
+            read-only: root.read-only;
+            
+            edited(text) => {
+                root.text-changed(text);
+            }
+            
+            // Enhanced keyboard handling
+            key-pressed(event) => {
+                if (event.modifiers.control) {
+                    if (event.text == "z") {
+                        root.undo();
+                        return accept;
+                    } else if (event.text == "y" || (event.modifiers.shift && event.text == "z")) {
+                        root.redo();
+                        return accept;
+                    } else if (event.text == "a") {
+                        // Select all - would need to be implemented in Rust
+                        return accept;
+                    }
+                }
+                return reject;
+            }
+        }
+    }
+    
+    // Visual feedback for empty editor
+    if root.content == "": Rectangle {
+        x: Theme.spacing-md;
+        y: Theme.spacing-md;
+        
+        Text {
+            text: root.placeholder;
+            color: Colors.text-muted;
+            font-size: Theme.font-size-base;
+        }
+    }
+}
+
+// Enhanced toolbar with text manipulation capabilities
+component EnhancedToolbar inherits Rectangle {
+    in property <string> mode: "markdown";
+    in property <string> language: "en";
+    in property <TextSelection> selection;
+    in property <bool> has-selection: selection.start != selection.end;
+    
+    // Language selection
+    callback language-changed(string);
+    
+    // Text formatting callbacks
+    callback format-bold();
+    callback format-italic();
+    callback format-underline();
+    callback format-heading(int);
+    callback format-code();
+    callback format-quote();
+    
+    // List operations
+    callback insert-bullet-list();
+    callback insert-numbered-list();
+    callback insert-checklist();
+    
+    // Insert operations
+    callback insert-link();
+    callback insert-image();
+    callback insert-table();
+    callback insert-code-block();
+    
+    // Text operations
+    callback increase-indent();
+    callback decrease-indent();
+    callback align-left();
+    callback align-center();
+    callback align-right();
+    
+    // Undo/Redo
+    callback undo();
+    callback redo();
+    
+    background: Colors.surface;
+    height: Theme.toolbar-height;
+    border-width: 1px;
+    border-color: Colors.border;
+    
+    HorizontalLayout {
+        padding: Theme.spacing-sm;
+        spacing: Theme.spacing-xs;
+        alignment: start;
+        
+        // Language selector section
+        LanguageSelector {
+            current-language: root.language;
+            
+            language-selected(lang) => {
+                root.language-changed(lang);
+            }
+        }
+        
+        // Separator
+        Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        // Undo/Redo section
+        ToolbarButton { 
+            text: "↶"; 
+            tooltip: "Undo (Ctrl+Z)"; 
+            clicked => { root.undo(); }
+        }
+        ToolbarButton { 
+            text: "↷"; 
+            tooltip: "Redo (Ctrl+Y)"; 
+            clicked => { root.redo(); }
+        }
+        
+        // Separator
+        Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        // Basic formatting section
+        ToolbarButton { 
+            text: "B"; 
+            tooltip: "Bold (Ctrl+B)"; 
+            font-weight: 700;
+            clicked => { root.format-bold(); }
+        }
+        ToolbarButton { 
+            text: "I"; 
+            tooltip: "Italic (Ctrl+I)"; 
+            clicked => { root.format-italic(); }
+        }
+        
+        if root.mode == "presentation": ToolbarButton { 
+            text: "U"; 
+            tooltip: "Underline (Ctrl+U)"; 
+            clicked => { root.format-underline(); }
+        }
+        
+        ToolbarButton { 
+            text: "</>"; 
+            tooltip: "Code"; 
+            clicked => { root.format-code(); }
+        }
+        
+        // Separator
+        Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        // Heading section
+        ToolbarButton { 
+            text: "H1"; 
+            tooltip: "Heading 1"; 
+            clicked => { root.format-heading(1); }
+        }
+        ToolbarButton { 
+            text: "H2"; 
+            tooltip: "Heading 2"; 
+            clicked => { root.format-heading(2); }
+        }
+        ToolbarButton { 
+            text: "H3"; 
+            tooltip: "Heading 3"; 
+            clicked => { root.format-heading(3); }
+        }
+        
+        // Separator
+        Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        // List section
+        ToolbarButton { 
+            text: "•"; 
+            tooltip: "Bullet List"; 
+            clicked => { root.insert-bullet-list(); }
+        }
+        ToolbarButton { 
+            text: "1."; 
+            tooltip: "Numbered List"; 
+            clicked => { root.insert-numbered-list(); }
+        }
+        ToolbarButton { 
+            text: "☑"; 
+            tooltip: "Checklist"; 
+            clicked => { root.insert-checklist(); }
+        }
+        
+        // Separator
+        Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        // Insert section
+        ToolbarButton { 
+            text: "🔗"; 
+            tooltip: "Insert Link (Ctrl+K)"; 
+            clicked => { root.insert-link(); }
+        }
+        ToolbarButton { 
+            text: "🖼"; 
+            tooltip: "Insert Image"; 
+            clicked => { root.insert-image(); }
+        }
+        ToolbarButton { 
+            text: "⊞"; 
+            tooltip: "Insert Table"; 
+            clicked => { root.insert-table(); }
+        }
+        
+        if root.mode == "markdown": ToolbarButton { 
+            text: "{}"; 
+            tooltip: "Code Block"; 
+            clicked => { root.insert-code-block(); }
+        }
+        
+        // Separator
+        Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        // Quote button for markdown
+        if root.mode == "markdown": ToolbarButton { 
+            text: "\""; 
+            tooltip: "Quote Block"; 
+            clicked => { root.format-quote(); }
+        }
+        
+        // Indentation controls
+        ToolbarButton { 
+            text: "⇤"; 
+            tooltip: "Decrease Indent"; 
+            clicked => { root.decrease-indent(); }
+        }
+        ToolbarButton { 
+            text: "⇥"; 
+            tooltip: "Increase Indent"; 
+            clicked => { root.increase-indent(); }
+        }
+        
+        // Alignment controls for presentation mode
+        if root.mode == "presentation": Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        if root.mode == "presentation": ToolbarButton { 
+            text: "⫷"; 
+            tooltip: "Align Left"; 
+            clicked => { root.align-left(); }
+        }
+        if root.mode == "presentation": ToolbarButton { 
+            text: "⫸"; 
+            tooltip: "Align Center"; 
+            clicked => { root.align-center(); }
+        }
+        if root.mode == "presentation": ToolbarButton { 
+            text: "⫹"; 
+            tooltip: "Align Right"; 
+            clicked => { root.align-right(); }
+        }
+    }
+}
+
+// Complete enhanced editor component combining toolbar and text editor
+export component ProfessionalEditor inherits Rectangle {
+    in property <string> content: "";
+    in property <string> mode: "markdown"; // "markdown" or "presentation"  
+    in property <string> language: "en";
+    in property <bool> read-only: false;
+    
+    // Text operation callbacks
+    callback content-changed(string);
+    callback language-changed(string);
+    callback text-operation(TextOperation);
+    
+    // Formatting callbacks
+    callback format-bold();
+    callback format-italic();
+    callback format-underline();
+    callback format-heading(int);
+    callback format-code();
+    callback format-quote();
+    
+    // List callbacks
+    callback insert-bullet-list();
+    callback insert-numbered-list();
+    callback insert-checklist();
+    
+    // Insert callbacks
+    callback insert-link();
+    callback insert-image();
+    callback insert-table();
+    callback insert-code-block();
+    
+    // Text manipulation callbacks
+    callback increase-indent();
+    callback decrease-indent();
+    callback align-left();
+    callback align-center();
+    callback align-right();
+    
+    // Undo/Redo callbacks
+    callback undo();
+    callback redo();
+    
+    background: Colors.editor-background;
+    
+    VerticalLayout {
+        spacing: 0px;
+        
+        // Enhanced toolbar
+        toolbar := EnhancedToolbar {
+            mode: root.mode;
+            language: root.language;
+            
+            language-changed(lang) => { root.language-changed(lang); }
+            
+            // Format callbacks
+            format-bold => { root.format-bold(); }
+            format-italic => { root.format-italic(); }
+            format-underline => { root.format-underline(); }
+            format-heading(level) => { root.format-heading(level); }
+            format-code => { root.format-code(); }
+            format-quote => { root.format-quote(); }
+            
+            // List callbacks
+            insert-bullet-list => { root.insert-bullet-list(); }
+            insert-numbered-list => { root.insert-numbered-list(); }
+            insert-checklist => { root.insert-checklist(); }
+            
+            // Insert callbacks
+            insert-link => { root.insert-link(); }
+            insert-image => { root.insert-image(); }
+            insert-table => { root.insert-table(); }
+            insert-code-block => { root.insert-code-block(); }
+            
+            // Text manipulation callbacks
+            increase-indent => { root.increase-indent(); }
+            decrease-indent => { root.decrease-indent(); }
+            align-left => { root.align-left(); }
+            align-center => { root.align-center(); }
+            align-right => { root.align-right(); }
+            
+            // Undo/Redo callbacks
+            undo => { root.undo(); }
+            redo => { root.redo(); }
+        }
+        
+        // Enhanced text editor
+        text-editor := EnhancedTextEditor {
+            content: root.content;
+            read-only: root.read-only;
+            editor-mode: root.mode;
+            placeholder: root.mode == "markdown" ? 
+                "Start writing in Markdown..." : 
+                "Start writing your presentation...";
+            
+            text-changed(text) => {
+                root.content-changed(text);
+            }
+            
+            text-operation(op) => {
+                root.text-operation(op);
+            }
+            
+            undo => { root.undo(); }
+            redo => { root.redo(); }
+        }
+    }
+}

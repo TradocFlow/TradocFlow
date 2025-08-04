@@ -152,6 +152,7 @@ export component MainWindow inherits Window {
     callback wizard-next();
     callback wizard-cancel();
     callback wizard-finish();
+    callback select-folder();
     callback template-selected(string /* template-id */);
     callback language-toggled(string /* language-code */, bool /* enabled */);
     callback source-language-changed(string /* language-code */);
@@ -662,7 +663,7 @@ export component MainWindow inherits Window {
                     Text {
                         text: root.status-message;
                         font-size: Theme.font-size-small;
-                        color: root.status-type == "success" ? Colors.success : 
+                        color: root.status-type == "success" ? Colors.success :
                                root.status-type == "warning" ? Colors.warning :
                                root.status-type == "error" ? Colors.error :
                                Colors.text-secondary;
@@ -685,6 +686,7 @@ export component MainWindow inherits Window {
                 root.wizard-finish();
                 root.show-project-wizard = false;
             }
+            select-folder => { root.select-folder(); }
             template-selected(template-id) => { root.template-selected(template-id); }
             language-toggled(code, enabled) => { root.language-toggled(code, enabled); }
             source-language-changed(code) => { root.source-language-changed(code); }

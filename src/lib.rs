@@ -29,7 +29,10 @@ mod test_i18n;
 pub use review_system::*;
 pub use translation_manager::{TranslationManager, TranslationProject};
 pub use export_engine::*;
-pub use document_import_service::*;
+pub use document_import_service::{
+    DocumentImportService, DocumentFile, DocumentContent, MultiDocumentImportResult,
+    SingleDocumentImportResult, ImportError
+};
 pub use notification_system::{
     NotificationService, 
     Notification, 
@@ -228,4 +231,16 @@ pub enum TradocumentError {
     DatabaseError(String),
     #[error("Validation error: {0}")]
     ValidationError(String),
+    #[error("File error: {0}")]
+    FileError(String),
+    #[error("Translation memory error: {0}")]
+    TranslationMemory(String),
+    #[error("Terminology error: {0}")]
+    Terminology(String),
+    #[error("DuckDB error: {0}")]
+    DuckDB(#[from] duckdb::Error),
+    #[error("Parquet error: {0}")]
+    Parquet(String),
+    #[error("CSV error: {0}")]
+    Csv(#[from] csv::Error),
 }

@@ -1,6 +1,6 @@
 import { Colors } from "../styles/colors.slint";
 import { Theme } from "../styles/default.slint";
-import { LineEdit, TextEdit, ComboBox, Button } from "std-widgets.slint";
+import { LineEdit, TextEdit, ComboBox, Button, CheckBox } from "std-widgets.slint";
 
 export struct WizardStep {
     id: string,
@@ -16,12 +16,22 @@ export struct ProjectDetails {
     description: string,
     due-date: string,
     priority: string,
+    folder-path: string,
+    translation-memory: string,
 }
 
 export struct ValidationError {
     field: string,
     message: string,
     severity: string, // "error", "warning", "info"
+}
+
+export struct TeamMemberData {
+    id: string,
+    name: string,
+    email: string,
+    role: string, // "Translator", "Reviewer", "Project Manager", "Admin"
+    languages: [string],
 }
 
 export component ProjectCreationWizard inherits Dialog {
@@ -32,7 +42,7 @@ export component ProjectCreationWizard inherits Dialog {
     
     // Wizard state
     in-out property <int> current-step: 1;
-    in-out property <int> total-steps: 6;
+    in-out property <int> total-steps: 7;
     in-out property <bool> can-go-back: current-step > 1;
     in-out property <bool> can-go-next: current-step < total-steps && !has-validation-errors;
     in-out property <bool> can-finish: current-step == total-steps && !has-validation-errors;
@@ -44,10 +54,33 @@ export component ProjectCreationWizard inherits Dialog {
         name: "",
         description: "",
         due-date: "",
-        priority: "medium"
+        priority: "medium",
+        folder-path: "",
+        translation-memory: "none",
     };
     in-out property <string> selected-template-id: "blank";
     in-out property <[ValidationError]> validation-errors;
+    
+    // Language configuration properties
+    in-out property <string> source-language: "English";
+    in-out property <bool> target-spanish: false;
+    in-out property <bool> target-french: false;
+    in-out property <bool> target-german: false;
+    in-out property <bool> target-italian: false;
+    in-out property <bool> target-portuguese: false;
+    in-out property <bool> target-dutch: false;
+    in-out property <bool> target-chinese: false;
+    in-out property <bool> target-japanese: false;
+    in-out property <int> selected-target-count: (target-spanish ? 1 : 0) + (target-french ? 1 : 0) + (target-german ? 1 : 0) + (target-italian ? 1 : 0) + (target-portuguese ? 1 : 0) + (target-dutch ? 1 : 0) + (target-chinese ? 1 : 0) + (target-japanese ? 1 : 0);
+    
+    // Team management properties
+    in-out property <[TeamMemberData]> team-members: [];
+    in-out property <string> new-member-name: "";
+    in-out property <string> new-member-email: "";
+    in-out property <string> new-member-role: "Translator";
+    
+    // Validation properties
+    in-out property <bool> folder-validation-error: false;
     
     // Callbacks
     callback wizard-step-changed(int /* step */);
@@ -55,6 +88,7 @@ export component ProjectCreationWizard inherits Dialog {
     callback wizard-next();
     callback wizard-cancel();
     callback wizard-finish();
+    callback select-folder();
     callback template-selected(string /* template-id */);
     callback language-toggled(string /* language-code */, bool /* enabled */);
     callback source-language-changed(string /* language-code */);
@@ -89,9 +123,10 @@ export component ProjectCreationWizard inherits Dialog {
                     Text {
                         text: current-step == 1 ? "Project Details" :
                               current-step == 2 ? "Template Selection" :
-                              current-step == 3 ? "Language Configuration" :
-                              current-step == 4 ? "Team Setup" :
-                              current-step == 5 ? "Project Structure" :
+                              current-step == 3 ? "Project Location" :
+                              current-step == 4 ? "Language Configuration" :
+                              current-step == 5 ? "Team Setup" :
+                              current-step == 6 ? "Project Structure" :
                               "Review & Create";
                         font-size: Theme.font-size-large;
                         font-weight: 600;
@@ -101,9 +136,10 @@ export component ProjectCreationWizard inherits Dialog {
                     Text {
                         text: current-step == 1 ? "Basic project information" :
                               current-step == 2 ? "Choose a project template" :
-                              current-step == 3 ? "Setup source and target languages" :
-                              current-step == 4 ? "Add team members and roles" :
-                              current-step == 5 ? "Configure initial chapters" :
+                              current-step == 3 ? "Set the project folder and translation memory" :
+                              current-step == 4 ? "Setup source and target languages" :
+                              current-step == 5 ? "Add team members and roles" :
+                              current-step == 6 ? "Configure initial chapters" :
                               "Review and confirm settings";
                         font-size: Theme.font-size-small;
                         color: Colors.text-secondary;
@@ -115,11 +151,11 @@ export component ProjectCreationWizard inherits Dialog {
                     spacing: 8px;
                     alignment: end;
                     
-                    for step in 6: Rectangle {
+                    for step in 7: Rectangle {
                         width: 32px;
                         height: 32px;
                         border-radius: 16px;
-                        background: step < current-step ? Colors.success : 
+                        background: step < current-step ? Colors.success :
                                    step == current-step - 1 ? Colors.primary : Colors.surface-variant;
                         border-width: step == current-step - 1 ? 2px : 1px;
                         border-color: step == current-step - 1 ? Colors.primary : Colors.border;
@@ -443,34 +479,910 @@ export component ProjectCreationWizard inherits Dialog {
                     }
                 }
                 
-                // Steps 3-6: Simplified placeholders
-                if current-step == 3: Text {
-                    text: "Language Configuration step will be implemented here.\nFor now, English will be the source language with Spanish, French, and German as targets.";
-                    font-size: Theme.font-size-base;
-                    color: Colors.text-secondary;
-                    wrap: word-wrap;
+                // Step 3: Project Location
+                if current-step == 3: step3-content := VerticalLayout {
+                    spacing: Theme.spacing-lg;
+                    alignment: start;
+                    
+                    // Project folder
+                    VerticalLayout {
+                        spacing: 8px;
+                        
+                        Text {
+                            text: "Project Folder *";
+                            font-weight: 600;
+                            color: Colors.text-primary;
+                        }
+                        
+                        HorizontalLayout {
+                            spacing: 8px;
+                            
+                            folder-path-input := LineEdit {
+                                text: project-details.folder-path;
+                                placeholder-text: "Select a folder for your project";
+                                font-size: Theme.font-size-base;
+                                enabled: false;
+                            }
+                            
+                            select-folder-button := Button {
+                                text: "Browse...";
+                                clicked => {
+                                    root.select-folder();
+                                }
+                            }
+                        }
+                        
+                        Text {
+                            text: "Choose a directory to store your project files. The system will create a project folder with the necessary structure.";
+                            font-size: Theme.font-size-small;
+                            color: Colors.text-secondary;
+                        }
+                        
+                        // Folder validation feedback
+                        if project-details.folder-path != "" && !folder-validation-error: Rectangle {
+                            background: #f0f9ff;
+                            border-radius: Theme.border-radius-sm;
+                            border-width: 1px;
+                            border-color: Colors.success;
+                            
+                            HorizontalLayout {
+                                padding: 8px;
+                                spacing: 8px;
+                                
+                                Text {
+                                    text: "✓";
+                                    color: Colors.success;
+                                    font-weight: 600;
+                                }
+                                
+                                Text {
+                                    text: "Valid project location selected";
+                                    font-size: Theme.font-size-small;
+                                    color: Colors.success;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Translation Memory Configuration
+                    VerticalLayout {
+                        spacing: 8px;
+                        
+                        Text {
+                            text: "Translation Memory Configuration";
+                            font-weight: 600;
+                            color: Colors.text-primary;
+                        }
+                        
+                        translation-memory-combo := ComboBox {
+                            model: ["Create New", "Import Existing", "None"];
+                            current-value: project-details.translation-memory == "none" ? "None" :
+                                          project-details.translation-memory == "import" ? "Import Existing" : "Create New";
+                            
+                            selected(value) => {
+                                project-details.translation-memory = value == "None" ? "none" :
+                                                                    value == "Import Existing" ? "import" : "new";
+                                has-unsaved-changes = true;
+                            }
+                        }
+                        
+                        Text {
+                            text: "Choose how to handle translation memory for this project. A new translation memory will be created automatically, or you can import an existing one.";
+                            font-size: Theme.font-size-small;
+                            color: Colors.text-secondary;
+                            wrap: word-wrap;
+                        }
+                    }
+                    
+                    // Project structure preview
+                    VerticalLayout {
+                        spacing: 8px;
+                        
+                        Text {
+                            text: "Project Structure Preview";
+                            font-weight: 600;
+                            color: Colors.text-primary;
+                        }
+                        
+                        Rectangle {
+                            background: Colors.surface-variant;
+                            border-radius: Theme.border-radius-md;
+                            
+                            VerticalLayout {
+                                padding: Theme.spacing-md;
+                                spacing: 4px;
+                                
+                                Text {
+                                    text: "📁 " + (project-details.name != "" ? project-details.name : "Project Name");
+                                    font-family: "monospace";
+                                    font-size: Theme.font-size-small;
+                                    color: Colors.text-primary;
+                                }
+                                
+                                Text {
+                                    text: "  ├── 📁 chapters/";
+                                    font-family: "monospace";
+                                    font-size: Theme.font-size-small;
+                                    color: Colors.text-secondary;
+                                }
+                                
+                                Text {
+                                    text: "  ├── 📁 translation_memory/";
+                                    font-family: "monospace";
+                                    font-size: Theme.font-size-small;
+                                    color: Colors.text-secondary;
+                                }
+                                
+                                Text {
+                                    text: "  ├── 📁 terminology/";
+                                    font-family: "monospace";
+                                    font-size: Theme.font-size-small;
+                                    color: Colors.text-secondary;
+                                }
+                                
+                                Text {
+                                    text: "  ├── 📁 exports/";
+                                    font-family: "monospace";
+                                    font-size: Theme.font-size-small;
+                                    color: Colors.text-secondary;
+                                }
+                                
+                                Text {
+                                    text: "  └── 📄 project.json";
+                                    font-family: "monospace";
+                                    font-size: Theme.font-size-small;
+                                    color: Colors.text-secondary;
+                                }
+                            }
+                        }
+                    }
                 }
                 
-                if current-step == 4: Text {
-                    text: "Team Setup step will be implemented here.\nFor now, you'll be the project owner.";
-                    font-size: Theme.font-size-base;
-                    color: Colors.text-secondary;
-                    wrap: word-wrap;
-                }
-                
-                if current-step == 5: Text {
-                    text: "Project Structure step will be implemented here.\nChapters will be created based on the selected template.";
-                    font-size: Theme.font-size-base;
-                    color: Colors.text-secondary;
-                    wrap: word-wrap;
-                }
-                
-                if current-step == 6: VerticalLayout {
+                // Step 4: Language Configuration
+                if current-step == 4: step4-content := VerticalLayout {
                     spacing: Theme.spacing-lg;
                     alignment: start;
                     
                     Text {
-                        text: "Please review your project configuration before creating the project.";
+                        text: "Configure the source language and target languages for your translation project.";
+                        font-size: Theme.font-size-base;
+                        color: Colors.text-secondary;
+                        wrap: word-wrap;
+                    }
+                    
+                    // Source Language Selection
+                    VerticalLayout {
+                        spacing: 8px;
+                        
+                        Text {
+                            text: "Source Language *";
+                            font-weight: 600;
+                            color: Colors.text-primary;
+                        }
+                        
+                        source-language-combo := ComboBox {
+                            model: ["English", "Spanish", "French", "German", "Italian", "Portuguese", "Dutch", "Chinese", "Japanese"];
+                            current-value: source-language;
+                            
+                            selected(value) => {
+                                root.source-language = value;
+                                root.source-language-changed(value);
+                                has-unsaved-changes = true;
+                            }
+                        }
+                        
+                        Text {
+                            text: "Select the primary language that will be translated from.";
+                            font-size: Theme.font-size-small;
+                            color: Colors.text-secondary;
+                        }
+                    }
+                    
+                    // Target Languages Selection
+                    VerticalLayout {
+                        spacing: 8px;
+                        
+                        Text {
+                            text: "Target Languages *";
+                            font-weight: 600;
+                            color: Colors.text-primary;
+                        }
+                        
+                        Text {
+                            text: "Select the languages you want to translate into. You can select multiple languages.";
+                            font-size: Theme.font-size-small;
+                            color: Colors.text-secondary;
+                        }
+                        
+                        // Language checkboxes grid
+                        VerticalLayout {
+                            spacing: 8px;
+                            
+                            // Row 1
+                            HorizontalLayout {
+                                spacing: Theme.spacing-lg;
+                                
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    
+                                    CheckBox {
+                                        text: "Spanish";
+                                        checked: target-spanish;
+                                        toggled => {
+                                            root.target-spanish = self.checked;
+                                            root.language-toggled("es", self.checked);
+                                            has-unsaved-changes = true;
+                                        }
+                                    }
+                                }
+                                
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    
+                                    CheckBox {
+                                        text: "French";
+                                        checked: target-french;
+                                        toggled => {
+                                            root.target-french = self.checked;
+                                            root.language-toggled("fr", self.checked);
+                                            has-unsaved-changes = true;
+                                        }
+                                    }
+                                }
+                                
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    
+                                    CheckBox {
+                                        text: "German";
+                                        checked: target-german;
+                                        toggled => {
+                                            root.target-german = self.checked;
+                                            root.language-toggled("de", self.checked);
+                                            has-unsaved-changes = true;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Row 2
+                            HorizontalLayout {
+                                spacing: Theme.spacing-lg;
+                                
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    
+                                    CheckBox {
+                                        text: "Italian";
+                                        checked: target-italian;
+                                        toggled => {
+                                            root.target-italian = self.checked;
+                                            root.language-toggled("it", self.checked);
+                                            has-unsaved-changes = true;
+                                        }
+                                    }
+                                }
+                                
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    
+                                    CheckBox {
+                                        text: "Portuguese";
+                                        checked: target-portuguese;
+                                        toggled => {
+                                            root.target-portuguese = self.checked;
+                                            root.language-toggled("pt", self.checked);
+                                            has-unsaved-changes = true;
+                                        }
+                                    }
+                                }
+                                
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    
+                                    CheckBox {
+                                        text: "Dutch";
+                                        checked: target-dutch;
+                                        toggled => {
+                                            root.target-dutch = self.checked;
+                                            root.language-toggled("nl", self.checked);
+                                            has-unsaved-changes = true;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Row 3
+                            HorizontalLayout {
+                                spacing: Theme.spacing-lg;
+                                
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    
+                                    CheckBox {
+                                        text: "Chinese";
+                                        checked: target-chinese;
+                                        toggled => {
+                                            root.target-chinese = self.checked;
+                                            root.language-toggled("zh", self.checked);
+                                            has-unsaved-changes = true;
+                                        }
+                                    }
+                                }
+                                
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    
+                                    CheckBox {
+                                        text: "Japanese";
+                                        checked: target-japanese;
+                                        toggled => {
+                                            root.target-japanese = self.checked;
+                                            root.language-toggled("ja", self.checked);
+                                            has-unsaved-changes = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Selected languages summary
+                        if selected-target-count > 0: Rectangle {
+                            background: #f0f9ff;
+                            border-radius: Theme.border-radius-sm;
+                            border-width: 1px;
+                            border-color: Colors.primary;
+                            
+                            HorizontalLayout {
+                                padding: 8px;
+                                spacing: 8px;
+                                
+                                Text {
+                                    text: "📋";
+                                    font-size: Theme.font-size-base;
+                                }
+                                
+                                Text {
+                                    text: selected-target-count + " target language" + (selected-target-count > 1 ? "s" : "") + " selected";
+                                    font-size: Theme.font-size-small;
+                                    color: Colors.primary;
+                                    font-weight: 600;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Step 5: Team Setup
+                if current-step == 5: step5-content := VerticalLayout {
+                    spacing: Theme.spacing-lg;
+                    alignment: start;
+                    
+                    Text {
+                        text: "Add team members to your translation project and assign their roles. You can add more members later from the project settings.";
+                        font-size: Theme.font-size-base;
+                        color: Colors.text-secondary;
+                        wrap: word-wrap;
+                    }
+                    
+                    // Add new team member form
+                    Rectangle {
+                        background: Colors.surface;
+                        border-radius: Theme.border-radius-md;
+                        border-width: 1px;
+                        border-color: Colors.border;
+                        
+                        VerticalLayout {
+                            padding: Theme.spacing-lg;
+                            spacing: Theme.spacing-md;
+                            
+                            Text {
+                                text: "Add Team Member";
+                                font-weight: 600;
+                                color: Colors.text-primary;
+                                font-size: Theme.font-size-large;
+                            }
+                            
+                            // Member details form
+                            HorizontalLayout {
+                                spacing: Theme.spacing-md;
+                                
+                                // Name field
+                                VerticalLayout {
+                                    spacing: 4px;
+                                    
+                                    Text {
+                                        text: "Name *";
+                                        font-weight: 600;
+                                        color: Colors.text-primary;
+                                        font-size: Theme.font-size-small;
+                                    }
+                                    
+                                    member-name-input := LineEdit {
+                                        text: new-member-name;
+                                        placeholder-text: "Enter full name";
+                                        font-size: Theme.font-size-base;
+                                        
+                                        edited(text) => {
+                                            root.new-member-name = text;
+                                        }
+                                    }
+                                }
+                                
+                                // Email field
+                                VerticalLayout {
+                                    spacing: 4px;
+                                    
+                                    Text {
+                                        text: "Email *";
+                                        font-weight: 600;
+                                        color: Colors.text-primary;
+                                        font-size: Theme.font-size-small;
+                                    }
+                                    
+                                    member-email-input := LineEdit {
+                                        text: new-member-email;
+                                        placeholder-text: "Enter email address";
+                                        font-size: Theme.font-size-base;
+                                        
+                                        edited(text) => {
+                                            root.new-member-email = text;
+                                        }
+                                    }
+                                }
+                                
+                                // Role field
+                                VerticalLayout {
+                                    spacing: 4px;
+                                    
+                                    Text {
+                                        text: "Role";
+                                        font-weight: 600;
+                                        color: Colors.text-primary;
+                                        font-size: Theme.font-size-small;
+                                    }
+                                    
+                                    member-role-combo := ComboBox {
+                                        model: ["Translator", "Reviewer", "Project Manager", "Admin"];
+                                        current-value: new-member-role;
+                                        
+                                        selected(value) => {
+                                            root.new-member-role = value;
+                                        }
+                                    }
+                                }
+                                
+                                // Add button
+                                VerticalLayout {
+                                    spacing: 4px;
+                                    alignment: end;
+                                    
+                                    Text {
+                                        text: " ";
+                                        font-size: Theme.font-size-small;
+                                    }
+                                    
+                                    add-member-button := Button {
+                                        text: "Add Member";
+                                        enabled: new-member-name != "" && new-member-email != "";
+                                        
+                                        clicked => {
+                                            if (new-member-name != "" && new-member-email != "") {
+                                                root.team-member-added(new-member-name, new-member-email, new-member-role);
+                                                root.new-member-name = "";
+                                                root.new-member-email = "";
+                                                root.new-member-role = "Translator";
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Team members list
+                    if team-members.length > 0: VerticalLayout {
+                        spacing: 8px;
+                        
+                        Text {
+                            text: "Team Members (" + team-members.length + ")";
+                            font-weight: 600;
+                            color: Colors.text-primary;
+                        }
+                        
+                        for member[index] in team-members: Rectangle {
+                            background: Colors.surface-variant;
+                            border-radius: Theme.border-radius-sm;
+                            border-width: 1px;
+                            border-color: Colors.border;
+                            
+                            HorizontalLayout {
+                                padding: Theme.spacing-md;
+                                spacing: Theme.spacing-md;
+                                alignment: space-between;
+                                
+                                // Member info
+                                VerticalLayout {
+                                    spacing: 2px;
+                                    alignment: start;
+                                    
+                                    Text {
+                                        text: member.name;
+                                        font-weight: 600;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: member.email;
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-secondary;
+                                    }
+                                }
+                                
+                                // Role badge
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    alignment: end;
+                                    
+                                    Rectangle {
+                                        background: member.role == "Admin" ? Colors.error :
+                                                   member.role == "Project Manager" ? Colors.warning :
+                                                   member.role == "Reviewer" ? Colors.primary : Colors.success;
+                                        border-radius: 12px;
+                                        
+                                        Text {
+                                            text: member.role;
+                                            font-size: Theme.font-size-small;
+                                            color: Colors.on-primary;
+                                            font-weight: 600;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                        
+                                        min-width: 80px;
+                                        height: 24px;
+                                    }
+                                    
+                                    // Remove button
+                                    Button {
+                                        text: "Remove";
+                                        
+                                        clicked => {
+                                            root.team-member-removed(member.id);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Role descriptions
+                    Rectangle {
+                        background: #f8fafc;
+                        border-radius: Theme.border-radius-md;
+                        
+                        VerticalLayout {
+                            padding: Theme.spacing-md;
+                            spacing: 8px;
+                            
+                            Text {
+                                text: "Role Descriptions";
+                                font-weight: 600;
+                                color: Colors.text-primary;
+                                font-size: Theme.font-size-small;
+                            }
+                            
+                            Text {
+                                text: "• Translator: Can create and edit translations";
+                                font-size: Theme.font-size-small;
+                                color: Colors.text-secondary;
+                            }
+                            
+                            Text {
+                                text: "• Reviewer: Can review and approve translations";
+                                font-size: Theme.font-size-small;
+                                color: Colors.text-secondary;
+                            }
+                            
+                            Text {
+                                text: "• Project Manager: Can manage team and project settings";
+                                font-size: Theme.font-size-small;
+                                color: Colors.text-secondary;
+                            }
+                            
+                            Text {
+                                text: "• Admin: Full access to all project features";
+                                font-size: Theme.font-size-small;
+                                color: Colors.text-secondary;
+                            }
+                        }
+                    }
+                }
+                
+                // Step 6: Project Structure
+                if current-step == 6: step6-content := VerticalLayout {
+                    spacing: Theme.spacing-lg;
+                    alignment: start;
+                    
+                    Text {
+                        text: "Configure the initial structure for your translation project. Chapters will be created based on your selected template.";
+                        font-size: Theme.font-size-base;
+                        color: Colors.text-secondary;
+                        wrap: word-wrap;
+                    }
+                    
+                    // Template-based structure preview
+                    Rectangle {
+                        background: Colors.surface;
+                        border-radius: Theme.border-radius-md;
+                        border-width: 1px;
+                        border-color: Colors.border;
+                        
+                        VerticalLayout {
+                            padding: Theme.spacing-lg;
+                            spacing: Theme.spacing-md;
+                            
+                            Text {
+                                text: "Initial Chapter Structure";
+                                font-weight: 600;
+                                color: Colors.text-primary;
+                                font-size: Theme.font-size-large;
+                            }
+                            
+                            Text {
+                                text: "Based on template: " + (selected-template-id == "technical_manual" ? "Technical Manual" :
+                                      selected-template-id == "user_guide" ? "User Guide" :
+                                      selected-template-id == "training_material" ? "Training Material" : "Blank Project");
+                                font-size: Theme.font-size-small;
+                                color: Colors.text-secondary;
+                            }
+                            
+                            // Chapter structure based on template
+                            VerticalLayout {
+                                spacing: 4px;
+                                
+                                if selected-template-id == "technical_manual": VerticalLayout {
+                                    spacing: 4px;
+                                    
+                                    Text {
+                                        text: "📄 01. Introduction";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: "📄 02. System Requirements";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: "📄 03. Installation Guide";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: "📄 04. Configuration";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: "📄 05. API Reference";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: "📄 06. Troubleshooting";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                }
+                                
+                                if selected-template-id == "user_guide": VerticalLayout {
+                                    spacing: 4px;
+                                    
+                                    Text {
+                                        text: "📄 01. Getting Started";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: "📄 02. Basic Features";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: "📄 03. Advanced Features";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: "📄 04. Tips and Tricks";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: "📄 05. FAQ";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                }
+                                
+                                if selected-template-id == "training_material": VerticalLayout {
+                                    spacing: 4px;
+                                    
+                                    Text {
+                                        text: "📄 01. Course Overview";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: "📄 02. Learning Objectives";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: "📄 03. Module 1 - Basics";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: "📄 04. Module 2 - Intermediate";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: "📄 05. Module 3 - Advanced";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                    
+                                    Text {
+                                        text: "📄 06. Assessment";
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.text-primary;
+                                    }
+                                }
+                                
+                                if selected-template-id == "blank": Text {
+                                    text: "📄 01. Introduction (placeholder chapter)";
+                                    font-family: "monospace";
+                                    font-size: Theme.font-size-small;
+                                    color: Colors.text-secondary;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Language structure preview
+                    Rectangle {
+                        background: #f8fafc;
+                        border-radius: Theme.border-radius-md;
+                        
+                        VerticalLayout {
+                            padding: Theme.spacing-md;
+                            spacing: 8px;
+                            
+                            Text {
+                                text: "Multi-Language Structure";
+                                font-weight: 600;
+                                color: Colors.text-primary;
+                                font-size: Theme.font-size-small;
+                            }
+                            
+                            Text {
+                                text: "Each chapter will be created in the following languages:";
+                                font-size: Theme.font-size-small;
+                                color: Colors.text-secondary;
+                            }
+                            
+                            HorizontalLayout {
+                                spacing: 8px;
+                                
+                                Rectangle {
+                                    background: Colors.primary;
+                                    border-radius: 12px;
+                                    
+                                    Text {
+                                        text: source-language + " (Source)";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.on-primary;
+                                        font-weight: 600;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    
+                                    min-width: 100px;
+                                    height: 24px;
+                                }
+                                
+                                if target-spanish: Rectangle {
+                                    background: Colors.success;
+                                    border-radius: 12px;
+                                    
+                                    Text {
+                                        text: "Spanish";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.on-primary;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    
+                                    min-width: 80px;
+                                    height: 24px;
+                                }
+                                
+                                if target-french: Rectangle {
+                                    background: Colors.success;
+                                    border-radius: 12px;
+                                    
+                                    Text {
+                                        text: "French";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.on-primary;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    
+                                    min-width: 80px;
+                                    height: 24px;
+                                }
+                                
+                                if target-german: Rectangle {
+                                    background: Colors.success;
+                                    border-radius: 12px;
+                                    
+                                    Text {
+                                        text: "German";
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.on-primary;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    
+                                    min-width: 80px;
+                                    height: 24px;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Step 7: Review & Create
+                if current-step == 7: step7-content := VerticalLayout {
+                    spacing: Theme.spacing-lg;
+                    alignment: start;
+                    
+                    Text {
+                        text: "Please review your project configuration before creating the project. Once created, you can modify most settings from the project dashboard.";
                         font-size: Theme.font-size-base;
                         color: Colors.text-secondary;
                         wrap: word-wrap;
@@ -478,39 +1390,378 @@ export component ProjectCreationWizard inherits Dialog {
                     
                     // Project summary
                     Rectangle {
-                        background: Colors.surface-variant;
+                        background: Colors.surface;
                         border-radius: Theme.border-radius-md;
+                        border-width: 1px;
+                        border-color: Colors.border;
                         
                         VerticalLayout {
                             padding: Theme.spacing-lg;
                             spacing: Theme.spacing-md;
                             
                             Text {
-                                text: "Project Summary";
+                                text: "Project Configuration Summary";
                                 font-size: Theme.font-size-large;
                                 font-weight: 600;
                                 color: Colors.text-primary;
                             }
                             
+                            // Basic details
+                            VerticalLayout {
+                                spacing: 8px;
+                                
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    
+                                    Text {
+                                        text: "Name:";
+                                        font-weight: 600;
+                                        color: Colors.text-primary;
+                                        min-width: 120px;
+                                    }
+                                    
+                                    Text {
+                                        text: project-details.name;
+                                        color: Colors.text-secondary;
+                                    }
+                                }
+                                
+                                if project-details.description != "": HorizontalLayout {
+                                    spacing: 8px;
+                                    alignment: start;
+                                    
+                                    Text {
+                                        text: "Description:";
+                                        font-weight: 600;
+                                        color: Colors.text-primary;
+                                        min-width: 120px;
+                                    }
+                                    
+                                    Text {
+                                        text: project-details.description;
+                                        color: Colors.text-secondary;
+                                        wrap: word-wrap;
+                                    }
+                                }
+                                
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    
+                                    Text {
+                                        text: "Priority:";
+                                        font-weight: 600;
+                                        color: Colors.text-primary;
+                                        min-width: 120px;
+                                    }
+                                    
+                                    Rectangle {
+                                        background: project-details.priority == "urgent" ? Colors.error :
+                                                   project-details.priority == "high" ? Colors.warning :
+                                                   project-details.priority == "medium" ? Colors.primary : Colors.success;
+                                        border-radius: 12px;
+                                        
+                                        Text {
+                                            text: project-details.priority == "low" ? "Low" :
+                                                  project-details.priority == "medium" ? "Medium" :
+                                                  project-details.priority == "high" ? "High" : "Urgent";
+                                            font-size: Theme.font-size-small;
+                                            color: Colors.on-primary;
+                                            font-weight: 600;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                        
+                                        min-width: 60px;
+                                        height: 20px;
+                                    }
+                                }
+                                
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    
+                                    Text {
+                                        text: "Template:";
+                                        font-weight: 600;
+                                        color: Colors.text-primary;
+                                        min-width: 120px;
+                                    }
+                                    
+                                    Text {
+                                        text: selected-template-id == "technical_manual" ? "Technical Manual" :
+                                              selected-template-id == "user_guide" ? "User Guide" :
+                                              selected-template-id == "training_material" ? "Training Material" : "Blank Project";
+                                        color: Colors.text-secondary;
+                                    }
+                                }
+                                
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    
+                                    Text {
+                                        text: "Location:";
+                                        font-weight: 600;
+                                        color: Colors.text-primary;
+                                        min-width: 120px;
+                                    }
+                                    
+                                    Text {
+                                        text: project-details.folder-path;
+                                        color: Colors.text-secondary;
+                                        font-family: "monospace";
+                                        font-size: Theme.font-size-small;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Language configuration summary
+                    Rectangle {
+                        background: #f0f9ff;
+                        border-radius: Theme.border-radius-md;
+                        border-width: 1px;
+                        border-color: Colors.primary;
+                        
+                        VerticalLayout {
+                            padding: Theme.spacing-md;
+                            spacing: 8px;
+                            
                             Text {
-                                text: "Name: " + project-details.name;
-                                color: Colors.text-secondary;
+                                text: "Language Configuration";
+                                font-weight: 600;
+                                color: Colors.text-primary;
                             }
                             
-                            if project-details.description != "": Text {
-                                text: "Description: " + project-details.description;
-                                color: Colors.text-secondary;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                
+                                Text {
+                                    text: "Source:";
+                                    font-weight: 600;
+                                    color: Colors.text-primary;
+                                    min-width: 80px;
+                                }
+                                
+                                Rectangle {
+                                    background: Colors.primary;
+                                    border-radius: 12px;
+                                    
+                                    Text {
+                                        text: source-language;
+                                        font-size: Theme.font-size-small;
+                                        color: Colors.on-primary;
+                                        font-weight: 600;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    
+                                    min-width: 80px;
+                                    height: 24px;
+                                }
+                            }
+                            
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: start;
+                                
+                                Text {
+                                    text: "Targets:";
+                                    font-weight: 600;
+                                    color: Colors.text-primary;
+                                    min-width: 80px;
+                                }
+                                
+                                HorizontalLayout {
+                                    spacing: 4px;
+                                    
+                                    if target-spanish: Rectangle {
+                                        background: Colors.success;
+                                        border-radius: 12px;
+                                        
+                                        Text {
+                                            text: "Spanish";
+                                            font-size: Theme.font-size-small;
+                                            color: Colors.on-primary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                        
+                                        min-width: 60px;
+                                        height: 20px;
+                                    }
+                                    
+                                    if target-french: Rectangle {
+                                        background: Colors.success;
+                                        border-radius: 12px;
+                                        
+                                        Text {
+                                            text: "French";
+                                            font-size: Theme.font-size-small;
+                                            color: Colors.on-primary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                        
+                                        min-width: 60px;
+                                        height: 20px;
+                                    }
+                                    
+                                    if target-german: Rectangle {
+                                        background: Colors.success;
+                                        border-radius: 12px;
+                                        
+                                        Text {
+                                            text: "German";
+                                            font-size: Theme.font-size-small;
+                                            color: Colors.on-primary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                        
+                                        min-width: 60px;
+                                        height: 20px;
+                                    }
+                                    
+                                    if target-italian: Rectangle {
+                                        background: Colors.success;
+                                        border-radius: 12px;
+                                        
+                                        Text {
+                                            text: "Italian";
+                                            font-size: Theme.font-size-small;
+                                            color: Colors.on-primary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                        
+                                        min-width: 60px;
+                                        height: 20px;
+                                    }
+                                    
+                                    if target-portuguese: Rectangle {
+                                        background: Colors.success;
+                                        border-radius: 12px;
+                                        
+                                        Text {
+                                            text: "Portuguese";
+                                            font-size: Theme.font-size-small;
+                                            color: Colors.on-primary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                        
+                                        min-width: 80px;
+                                        height: 20px;
+                                    }
+                                    
+                                    if target-dutch: Rectangle {
+                                        background: Colors.success;
+                                        border-radius: 12px;
+                                        
+                                        Text {
+                                            text: "Dutch";
+                                            font-size: Theme.font-size-small;
+                                            color: Colors.on-primary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                        
+                                        min-width: 60px;
+                                        height: 20px;
+                                    }
+                                    
+                                    if target-chinese: Rectangle {
+                                        background: Colors.success;
+                                        border-radius: 12px;
+                                        
+                                        Text {
+                                            text: "Chinese";
+                                            font-size: Theme.font-size-small;
+                                            color: Colors.on-primary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                        
+                                        min-width: 60px;
+                                        height: 20px;
+                                    }
+                                    
+                                    if target-japanese: Rectangle {
+                                        background: Colors.success;
+                                        border-radius: 12px;
+                                        
+                                        Text {
+                                            text: "Japanese";
+                                            font-size: Theme.font-size-small;
+                                            color: Colors.on-primary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                        
+                                        min-width: 70px;
+                                        height: 20px;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Team summary
+                    if team-members.length > 0: Rectangle {
+                        background: #f0fdf4;
+                        border-radius: Theme.border-radius-md;
+                        border-width: 1px;
+                        border-color: Colors.success;
+                        
+                        VerticalLayout {
+                            padding: Theme.spacing-md;
+                            spacing: 8px;
+                            
+                            Text {
+                                text: "Team Members (" + team-members.length + ")";
+                                font-weight: 600;
+                                color: Colors.text-primary;
+                            }
+                            
+                            for member in team-members: HorizontalLayout {
+                                spacing: 8px;
+                                
+                                Text {
+                                    text: "•";
+                                    color: Colors.success;
+                                    font-weight: 600;
+                                }
+                                
+                                Text {
+                                    text: member.name + " (" + member.email + ") - " + member.role;
+                                    font-size: Theme.font-size-small;
+                                    color: Colors.text-secondary;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Ready to create message
+                    Rectangle {
+                        background: #fef3c7;
+                        border-radius: Theme.border-radius-md;
+                        border-width: 1px;
+                        border-color: Colors.warning;
+                        
+                        HorizontalLayout {
+                            padding: Theme.spacing-md;
+                            spacing: 8px;
+                            
+                            Text {
+                                text: "🚀";
+                                font-size: Theme.font-size-large;
+                            }
+                            
+                            Text {
+                                text: "Ready to create your translation project! Click 'Create Project' to initialize the project structure and begin your translation workflow.";
+                                font-size: Theme.font-size-small;
+                                color: Colors.text-primary;
                                 wrap: word-wrap;
-                            }
-                            
-                            Text {
-                                text: "Priority: " + project-details.priority;
-                                color: Colors.text-secondary;
-                            }
-                            
-                            Text {
-                                text: "Template: " + selected-template-id;
-                                color: Colors.text-secondary;
                             }
                         }
                     }

@@ -24,6 +24,10 @@ pub fn run_all_migrations(pool: &DatabasePool) -> SqlResult<()> {
     run_migration(&conn, "004_create_translation_progress", create_translation_progress_table)?;
     run_migration(&conn, "005_create_documents", create_documents_table)?;
     run_migration(&conn, "006_create_users", create_users_table)?;
+    run_migration(&conn, "007_create_translation_projects", create_translation_projects_table)?;
+    run_migration(&conn, "008_create_chapters", create_chapters_table)?;
+    run_migration(&conn, "009_create_team_members", create_team_members_table)?;
+    run_migration(&conn, "010_create_terminology", create_terminology_table)?;
     
     Ok(())
 }
@@ -170,5 +174,101 @@ fn create_users_table(conn: &Connection) -> SqlResult<()> {
         )",
         [],
     )?;
+    Ok(())
+}
+
+fn create_translation_projects_table(conn: &Connection) -> SqlResult<()> {
+    conn.execute(
+        "CREATE TABLE translation_projects (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            source_language TEXT NOT NULL,
+            target_languages TEXT NOT NULL, -- JSON array
+            project_path TEXT NOT NULL,
+            settings TEXT NOT NULL, -- JSON project settings
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active'
+        )",
+        [],
+    )?;
+    Ok(())
+}
+
+fn create_chapters_table(conn: &Connection) -> SqlResult<()> {
+    conn.execute(
+        "CREATE TABLE chapters (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            chapter_number INTEGER NOT NULL,
+            slug TEXT NOT NULL,
+            title TEXT NOT NULL, -- JSON object with language -> title mapping
+            status TEXT NOT NULL DEFAULT 'draft',
+            assigned_translators TEXT, -- JSON object with language -> user_id mapping
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (project_id) REFERENCES translation_projects (id) ON DELETE CASCADE,
+            UNIQUE(project_id, chapter_number),
+            UNIQUE(project_id, slug)
+        )",
+        [],
+    )?;
+    Ok(())
+}
+
+fn create_team_members_table(conn: &Connection) -> SqlResult<()> {
+    conn.execute(
+        "CREATE TABLE team_members (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            role TEXT NOT NULL, -- ProjectManager, Translator, Reviewer, Admin
+            languages TEXT NOT NULL, -- JSON array of language codes
+            permissions TEXT NOT NULL, -- JSON array of permissions
+            joined_at TEXT NOT NULL,
+            FOREIGN KEY (project_id) REFERENCES translation_projects (id) ON DELETE CASCADE,
+            UNIQUE(project_id, user_id)
+        )",
+        [],
+    )?;
+    Ok(())
+}
+
+fn create_terminology_table(conn: &Connection) -> SqlResult<()> {
+    conn.execute(
+        "CREATE TABLE terminology (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            term TEXT NOT NULL,
+            definition TEXT,
+            do_not_translate BOOLEAN DEFAULT FALSE,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (project_id) REFERENCES translation_projects (id) ON DELETE CASCADE,
+            UNIQUE(project_id, term)
+        )",
+        [],
+    )?;
+    
+    // Create indexes for efficient terminology lookups
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_terminology_project_id ON terminology(project_id)",
+        [],
+    )?;
+    
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_terminology_term ON terminology(term)",
+        [],
+    )?;
+    
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_terminology_do_not_translate 
+         ON terminology(project_id, do_not_translate) WHERE do_not_translate = TRUE",
+        [],
+    )?;
+    
     Ok(())
 }

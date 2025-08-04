@@ -65,6 +65,13 @@ impl App {
         Ok(app)
     }
 
+    /// Initialize the application (load last project, etc.)
+    pub async fn initialize(&self) -> Result<()> {
+        // Try to reopen the last project automatically
+        self.try_reopen_last_project().await?;
+        Ok(())
+    }
+
     /// Run the application - this will block until the window is closed
     pub fn run(&self) -> Result<()> {
         self.main_window.run()
@@ -294,7 +301,8 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
-                    window.set_status_message("Project browser would appear here".into());
+                    window.set_show_project_browser(true);
+                    window.set_status_message("Project browser opened".into());
                     window.set_status_type("info".into());
                 }
             }
@@ -367,6 +375,9 @@ impl App {
 
         // Project Wizard Callbacks
         self.setup_project_wizard_callbacks();
+        
+        // Project Browser Callbacks
+        self.setup_project_browser_callbacks();
     }
 
     /// Set up project wizard specific callbacks
@@ -527,7 +538,16 @@ impl App {
                                 window.set_status_message(format!("Project '{}' created successfully!", result.project.name).into());
                                 window.set_status_type("success".into());
                                 window.set_has_project_loaded(true);
-                                window.set_current_project_name(result.project.name.into());
+                                window.set_current_project_name(result.project.name.clone().into());
+                                
+                                // Save as last opened project
+                                if let Some(settings_dir) = dirs::config_dir() {
+                                    let settings_dir = settings_dir.join("tradocflow");
+                                    if std::fs::create_dir_all(&settings_dir).is_ok() {
+                                        let last_project_file = settings_dir.join("last_project.txt");
+                                        let _ = std::fs::write(&last_project_file, result.project.project_path.to_string_lossy().as_bytes());
+                                    }
+                                }
                             }
                         }
                         Err(e) => {
@@ -555,6 +575,202 @@ impl App {
                 }
             }
         });
+    }
+
+    /// Set up project browser specific callbacks
+    fn setup_project_browser_callbacks(&self) {
+        let main_window_weak = self.main_window.as_weak();
+        let project_service = Arc::clone(&self.project_service);
+
+        // Open project browser callback (already handled in project_open)
+        self.main_window.on_open_project_browser({
+            let main_window_weak = main_window_weak.clone();
+            let project_service = project_service.clone();
+            move || {
+                if let Some(window) = main_window_weak.upgrade() {
+                    window.set_show_project_browser(true);
+                    window.set_status_message("Project browser opened".into());
+                    window.set_status_type("info".into());
+                    
+                    // Automatically load projects when browser opens
+                    window.invoke_browser_refresh_projects();
+                }
+            }
+        });
+
+        // Close project browser callback
+        self.main_window.on_close_project_browser({
+            let main_window_weak = main_window_weak.clone();
+            move || {
+                if let Some(window) = main_window_weak.upgrade() {
+                    window.set_show_project_browser(false);
+                    window.set_status_message("Project browser closed".into());
+                    window.set_status_type("info".into());
+                }
+            }
+        });
+
+        // Project browser search callback
+        self.main_window.on_browser_search_changed({
+            let main_window_weak = main_window_weak.clone();
+            move |query| {
+                if let Some(window) = main_window_weak.upgrade() {
+                    window.set_browser_search_query(query.clone());
+                    window.set_status_message(format!("Searching for: {}", query).into());
+                    window.set_status_type("info".into());
+                    
+                    // TODO: Implement actual project search
+                    // For now, we'll just update the search query
+                }
+            }
+        });
+
+        // Project browser project selected callback
+        self.main_window.on_browser_project_opened({
+            let main_window_weak = main_window_weak.clone();
+            let project_service = project_service.clone();
+            move |project_data| {
+                if let Some(window) = main_window_weak.upgrade() {
+                    // Extract project information from ProjectData
+                    let project_name = project_data.name.to_string();
+                    let project_path = std::path::PathBuf::from(project_data.path.to_string());
+                    
+                    // Set project as loaded
+                    window.set_has_project_loaded(true);
+                    window.set_current_project_name(project_name.clone().into());
+                    window.set_show_project_browser(false);
+                    
+                    window.set_status_message(format!("Opened project: {}", project_name).into());
+                    window.set_status_type("success".into());
+                    
+                    // Save as last opened project
+                    // TODO: This should be done through a proper method on App, but for now we'll do it inline
+                    if let Some(settings_dir) = dirs::config_dir() {
+                        let settings_dir = settings_dir.join("tradocflow");
+                        if std::fs::create_dir_all(&settings_dir).is_ok() {
+                            let last_project_file = settings_dir.join("last_project.txt");
+                            let _ = std::fs::write(&last_project_file, project_path.to_string_lossy().as_bytes());
+                        }
+                    }
+                    
+                    // TODO: Load project contents and update UI
+                    // This would involve loading the project configuration and updating the sidebar
+                }
+            }
+        });
+
+        // Refresh projects callback
+        self.main_window.on_browser_refresh_projects({
+            let main_window_weak = main_window_weak.clone();
+            let project_service = project_service.clone();
+            move || {
+                if let Some(window) = main_window_weak.upgrade() {
+                    window.set_browser_is_loading(true);
+                    window.set_status_message("Refreshing project list...".into());
+                    window.set_status_type("info".into());
+                    
+                    // Discover projects in background
+                    let window_weak = window.as_weak();
+                    let project_service = project_service.clone();
+                    
+                    // Use tokio runtime for async operation
+                    let rt = tokio::runtime::Runtime::new().unwrap();
+                    match rt.block_on(project_service.discover_projects(None)) {
+                        Ok(summaries) => {
+                            if let Some(window) = window_weak.upgrade() {
+                                // Convert ProjectSummary to ProjectData
+                                let project_data_vec = summaries.iter().map(|summary| {
+                                    crate::ProjectData {
+                                        name: summary.name.clone().into(),
+                                        description: summary.description.clone().unwrap_or_default().into(),
+                                        path: summary.path.to_string_lossy().to_string().into(),
+                                        source_language: summary.source_language.clone().into(),
+                                        target_languages: ModelRc::new(VecModel::from(
+                                            summary.target_languages.iter()
+                                                .map(|lang| lang.clone().into())
+                                                .collect::<Vec<_>>()
+                                        )),
+                                        team_member_count: summary.team_member_count as i32,
+                                        chapter_count: summary.chapter_count as i32,
+                                        template_id: summary.template_id.clone().into(),
+                                        created: summary.created_at.format("%Y-%m-%d").to_string().into(),
+                                    }
+                                }).collect::<Vec<_>>();
+                                
+                                let model_rc = ModelRc::new(VecModel::from(project_data_vec));
+                                window.set_browser_projects(model_rc);
+                                window.set_browser_is_loading(false);
+                                window.set_status_message(format!("Found {} projects", summaries.len()).into());
+                                window.set_status_type("success".into());
+                            }
+                        }
+                        Err(e) => {
+                            if let Some(window) = window_weak.upgrade() {
+                                window.set_browser_is_loading(false);
+                                window.set_status_message(format!("Failed to discover projects: {}", e).into());
+                                window.set_status_type("error".into());
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /// Try to reopen the last project that was worked on
+    async fn try_reopen_last_project(&self) -> Result<()> {
+        if let Ok(last_project_path) = self.get_last_project_path() {
+            if last_project_path.exists() {
+                match self.project_service.load_project(&last_project_path).await {
+                    Ok(project) => {
+                        self.main_window.set_has_project_loaded(true);
+                        self.main_window.set_current_project_name(project.name.clone().into());
+                        self.main_window.set_status_message(format!("Reopened project: {}", project.name).into());
+                        self.main_window.set_status_type("success".into());
+                        
+                        // TODO: Load project contents and update the sidebar with project tree
+                    }
+                    Err(e) => {
+                        self.main_window.set_status_message(format!("Failed to reopen last project: {}", e).into());
+                        self.main_window.set_status_type("warning".into());
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Get the path to the last opened project from settings
+    fn get_last_project_path(&self) -> Result<std::path::PathBuf> {
+        let settings_dir = dirs::config_dir()
+            .ok_or_else(|| TradocumentError::IoError(std::io::Error::new(std::io::ErrorKind::NotFound, "Could not find config directory")))?
+            .join("tradocflow");
+        
+        let last_project_file = settings_dir.join("last_project.txt");
+        
+        if last_project_file.exists() {
+            let path_str = std::fs::read_to_string(&last_project_file)
+                .map_err(|e| TradocumentError::IoError(e))?;
+            Ok(std::path::PathBuf::from(path_str.trim()))
+        } else {
+            Err(TradocumentError::IoError(std::io::Error::new(std::io::ErrorKind::NotFound, "No last project file found")))
+        }
+    }
+
+    /// Save the current project path as the last opened project
+    fn save_last_project_path(&self, project_path: &std::path::Path) -> Result<()> {
+        let settings_dir = dirs::config_dir()
+            .ok_or_else(|| TradocumentError::IoError(std::io::Error::new(std::io::ErrorKind::NotFound, "Could not find config directory")))?
+            .join("tradocflow");
+        
+        std::fs::create_dir_all(&settings_dir)
+            .map_err(|e| TradocumentError::IoError(e))?;
+        
+        let last_project_file = settings_dir.join("last_project.txt");
+        std::fs::write(&last_project_file, project_path.to_string_lossy().as_bytes())
+            .map_err(|e| TradocumentError::IoError(e))?;
+        
+        Ok(())
     }
 
     /// Convert language code to full language name

@@ -233,6 +233,8 @@ pub enum TradocumentError {
     ValidationError(String),
     #[error("File error: {0}")]
     FileError(String),
+    #[error("Sync error: {0}")]
+    SyncError(String),
     #[error("Translation memory error: {0}")]
     TranslationMemory(String),
     #[error("Terminology error: {0}")]

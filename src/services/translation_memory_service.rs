@@ -18,7 +18,55 @@ use crate::models::translation_models::{
     TranslationUnit, LanguagePair, ChunkMetadata, ChunkType, TranslationUnitParquet
 };
 
+/// Type of chunk linking operation
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ChunkLinkType {
+    /// Link chunks into a phrase group
+    LinkedPhrase,
+    /// Unlink previously linked chunks
+    Unlinked,
+    /// Merge chunks into a single unit
+    Merged,
+}
+
+/// Translation match result from similarity search
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranslationMatch {
+    pub id: Uuid,
+    pub source_text: String,
+    pub target_text: String,
+    pub confidence_score: f32,
+    pub similarity_score: f32,
+    pub context: Option<String>,
+}
+
+/// Translation suggestion for user interface
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranslationSuggestion {
+    pub id: Uuid,
+    pub source_text: String,
+    pub suggested_text: String,
+    pub confidence: f32,
+    pub similarity: f32,
+    pub context: Option<String>,
+    pub source: TranslationSource,
+}
+
+/// Source of a translation suggestion
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum TranslationSource {
+    /// From translation memory
+    Memory,
+    /// From terminology database
+    Terminology,
+    /// From machine translation
+    Machine,
+    /// From user input
+    Manual,
+}
+
 /// Service for managing translation memories using DuckDB and Parquet storage
+#[derive(Clone)]
 pub struct TranslationMemoryService {
     duckdb_connection: Arc<RwLock<Connection>>,
     parquet_manager: Arc<ParquetManager>,
@@ -873,41 +921,7 @@ impl ChunkManager {
     }
 }
 
-// Supporting types and enums
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TranslationMatch {
-    pub id: Uuid,
-    pub source_text: String,
-    pub target_text: String,
-    pub confidence_score: f32,
-    pub similarity_score: f32,
-    pub context: Option<String>,
-}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TranslationSuggestion {
-    pub id: Uuid,
-    pub source_text: String,
-    pub suggested_text: String,
-    pub confidence: f32,
-    pub similarity: f32,
-    pub context: Option<String>,
-    pub source: TranslationSource,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum TranslationSource {
-    Memory,
-    Terminology,
-    AutoTranslation,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ChunkLinkType {
-    Sequential,
-    Parallel,
-    Reference,
-}
 #[cfg(test)]
 mod tests {
     use super::*;

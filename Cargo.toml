@@ -23,6 +23,10 @@ path = "src/bin/test_gui.rs"
 name = "api_server"
 path = "src/bin/api_server.rs"
 
+[[bin]]
+name = "terminology_demo"
+path = "src/bin/terminology_demo.rs"
+
 
 
 [dependencies]
@@ -49,6 +53,8 @@ thiserror = "1.0"
 # Document import
 markdownify = "0.1"
 tempfile = "3.8"
+docx-rs = "0.4"
+zip = "0.6"
 
 # Async runtime and networking
 tokio = { version = "1.0", features = ["full"] }

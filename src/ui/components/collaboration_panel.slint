@@ -1,0 +1,689 @@
+import { Button, ListView, ScrollView, TextEdit, ComboBox, CheckBox } from "std-widgets.slint";
+import { Colors } from "../styles/colors.slint";
+
+// User presence indicator
+export component UserPresenceIndicator inherits Rectangle {
+    in property <string> user-name;
+    in property <string> user-role;
+    in property <bool> is-typing;
+    in property <bool> is-active;
+    
+    width: 200px;
+    height: 32px;
+    border-radius: 4px;
+    background: is-active ? Colors.primary-light : Colors.background-secondary;
+    border-width: 1px;
+    border-color: is-active ? Colors.primary : Colors.border;
+    
+    HorizontalLayout {
+        padding: 8px;
+        spacing: 8px;
+        
+        // Status indicator
+        Rectangle {
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            background: is-active ? Colors.success : Colors.text-secondary;
+        }
+        
+        // User info
+        VerticalLayout {
+            Text {
+                text: user-name;
+                font-size: 12px;
+                font-weight: 600;
+                color: Colors.text-primary;
+            }
+            
+            Text {
+                text: user-role + (is-typing ? " (typing...)" : "");
+                font-size: 10px;
+                color: Colors.text-secondary;
+                font-style: is-typing ? italic : normal;
+            }
+        }
+    }
+}
+
+// Suggestion item component
+export component SuggestionItem inherits Rectangle {
+    in property <string> author-name;
+    in property <string> original-text;
+    in property <string> suggested-text;
+    in property <string> reason;
+    in property <string> status;
+    in property <float> confidence-score;
+    
+    callback accept-suggestion();
+    callback reject-suggestion();
+    callback vote-approve();
+    callback vote-reject();
+    
+    width: parent.width;
+    height: suggestion-layout.preferred-height + 16px;
+    background: Colors.background-secondary;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: Colors.border;
+    
+    suggestion-layout := VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        
+        // Header
+        HorizontalLayout {
+            spacing: 8px;
+            
+            Text {
+                text: "Suggestion by " + author-name;
+                font-size: 12px;
+                font-weight: 600;
+                color: Colors.text-primary;
+            }
+            
+            Rectangle {
+                width: 60px;
+                height: 20px;
+                border-radius: 10px;
+                background: status == "pending" ? Colors.warning : 
+                           status == "accepted" ? Colors.success : Colors.error;
+                
+                Text {
+                    text: status;
+                    font-size: 10px;
+                    color: Colors.text-on-primary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+            
+            Text {
+                text: "Confidence: " + Math.round(confidence-score * 100) + "%";
+                font-size: 10px;
+                color: Colors.text-secondary;
+                horizontal-alignment: right;
+            }
+        }
+        
+        // Original vs Suggested text
+        HorizontalLayout {
+            spacing: 12px;
+            
+            VerticalLayout {
+                spacing: 4px;
+                
+                Text {
+                    text: "Original:";
+                    font-size: 10px;
+                    font-weight: 600;
+                    color: Colors.text-secondary;
+                }
+                
+                Rectangle {
+                    background: Colors.error-light;
+                    border-radius: 4px;
+                    padding: 8px;
+                    
+                    Text {
+                        text: original-text;
+                        font-size: 12px;
+                        color: Colors.text-primary;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+            
+            VerticalLayout {
+                spacing: 4px;
+                
+                Text {
+                    text: "Suggested:";
+                    font-size: 10px;
+                    font-weight: 600;
+                    color: Colors.text-secondary;
+                }
+                
+                Rectangle {
+                    background: Colors.success-light;
+                    border-radius: 4px;
+                    padding: 8px;
+                    
+                    Text {
+                        text: suggested-text;
+                        font-size: 12px;
+                        color: Colors.text-primary;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+        }
+        
+        // Reason
+        if reason != "" : VerticalLayout {
+            spacing: 4px;
+            
+            Text {
+                text: "Reason:";
+                font-size: 10px;
+                font-weight: 600;
+                color: Colors.text-secondary;
+            }
+            
+            Text {
+                text: reason;
+                font-size: 11px;
+                color: Colors.text-primary;
+                wrap: word-wrap;
+            }
+        }
+        
+        // Action buttons
+        if status == "pending" : HorizontalLayout {
+            spacing: 8px;
+            
+            Button {
+                text: "Accept";
+                primary: true;
+                clicked => { accept-suggestion(); }
+            }
+            
+            Button {
+                text: "Reject";
+                clicked => { reject-suggestion(); }
+            }
+            
+            Button {
+                text: "👍 Vote";
+                clicked => { vote-approve(); }
+            }
+            
+            Button {
+                text: "👎 Vote";
+                clicked => { vote-reject(); }
+            }
+        }
+    }
+}
+
+// Comment item component
+export component CommentItem inherits Rectangle {
+    in property <string> author-name;
+    in property <string> content;
+    in property <string> comment-type;
+    in property <string> timestamp;
+    in property <bool> is-resolved;
+    in property <int> reply-count;
+    
+    callback resolve-comment();
+    callback reply-to-comment();
+    callback view-thread();
+    
+    width: parent.width;
+    height: comment-layout.preferred-height + 16px;
+    background: is-resolved ? Colors.background-tertiary : Colors.background-secondary;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: is-resolved ? Colors.success : Colors.border;
+    
+    comment-layout := VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        
+        // Header
+        HorizontalLayout {
+            spacing: 8px;
+            
+            Text {
+                text: author-name;
+                font-size: 12px;
+                font-weight: 600;
+                color: Colors.text-primary;
+            }
+            
+            Rectangle {
+                width: 60px;
+                height: 18px;
+                border-radius: 9px;
+                background: comment-type == "issue" ? Colors.error : 
+                           comment-type == "suggestion" ? Colors.warning : Colors.info;
+                
+                Text {
+                    text: comment-type;
+                    font-size: 9px;
+                    color: Colors.text-on-primary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+            
+            Text {
+                text: timestamp;
+                font-size: 10px;
+                color: Colors.text-secondary;
+                horizontal-alignment: right;
+            }
+        }
+        
+        // Content
+        Text {
+            text: content;
+            font-size: 12px;
+            color: Colors.text-primary;
+            wrap: word-wrap;
+        }
+        
+        // Actions
+        HorizontalLayout {
+            spacing: 8px;
+            
+            if !is-resolved : Button {
+                text: "Resolve";
+                clicked => { resolve-comment(); }
+            }
+            
+            Button {
+                text: "Reply";
+                clicked => { reply-to-comment(); }
+            }
+            
+            if reply-count > 0 : Button {
+                text: "View Thread (" + reply-count + ")";
+                clicked => { view-thread(); }
+            }
+        }
+    }
+}
+
+// Main collaboration panel
+export component CollaborationPanel inherits Rectangle {
+    in property <string> current-user-id;
+    in property <string> current-user-name;
+    in property <string> current-language;
+    
+    // User presence
+    in property <[{user-id: string, user-name: string, user-role: string, is-typing: bool, is-active: bool}]> active-users;
+    
+    // Suggestions
+    in property <[{id: string, author-name: string, original-text: string, suggested-text: string, reason: string, status: string, confidence-score: float}]> suggestions;
+    
+    // Comments
+    in property <[{id: string, author-name: string, content: string, comment-type: string, timestamp: string, is-resolved: bool, reply-count: int}]> comments;
+    
+    // Callbacks
+    callback accept-suggestion(string /* suggestion-id */);
+    callback reject-suggestion(string /* suggestion-id */);
+    callback vote-on-suggestion(string /* suggestion-id */, string /* vote-type */);
+    callback resolve-comment(string /* comment-id */);
+    callback reply-to-comment(string /* comment-id */);
+    callback add-comment(string /* content */, string /* comment-type */);
+    callback create-suggestion(string /* original-text */, string /* suggested-text */, string /* reason */);
+    
+    width: 320px;
+    background: Colors.background-primary;
+    border-width: 1px;
+    border-color: Colors.border;
+    
+    VerticalLayout {
+        padding: 16px;
+        spacing: 16px;
+        
+        // Header
+        Text {
+            text: "Collaboration";
+            font-size: 16px;
+            font-weight: 700;
+            color: Colors.text-primary;
+        }
+        
+        // Tabs
+        HorizontalLayout {
+            spacing: 4px;
+            
+            tab-users := Rectangle {
+                width: 80px;
+                height: 32px;
+                border-radius: 4px;
+                background: tab-area.current-tab == 0 ? Colors.primary : Colors.background-secondary;
+                
+                Text {
+                    text: "Users";
+                    font-size: 12px;
+                    color: tab-area.current-tab == 0 ? Colors.text-on-primary : Colors.text-primary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                
+                TouchArea {
+                    clicked => { tab-area.current-tab = 0; }
+                }
+            }
+            
+            tab-suggestions := Rectangle {
+                width: 80px;
+                height: 32px;
+                border-radius: 4px;
+                background: tab-area.current-tab == 1 ? Colors.primary : Colors.background-secondary;
+                
+                Text {
+                    text: "Suggestions";
+                    font-size: 12px;
+                    color: tab-area.current-tab == 1 ? Colors.text-on-primary : Colors.text-primary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                
+                TouchArea {
+                    clicked => { tab-area.current-tab = 1; }
+                }
+            }
+            
+            tab-comments := Rectangle {
+                width: 80px;
+                height: 32px;
+                border-radius: 4px;
+                background: tab-area.current-tab == 2 ? Colors.primary : Colors.background-secondary;
+                
+                Text {
+                    text: "Comments";
+                    font-size: 12px;
+                    color: tab-area.current-tab == 2 ? Colors.text-on-primary : Colors.text-primary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                
+                TouchArea {
+                    clicked => { tab-area.current-tab = 2; }
+                }
+            }
+        }
+        
+        // Tab content
+        tab-area := Rectangle {
+            property <int> current-tab: 0;
+            
+            // Users tab
+            if current-tab == 0 : VerticalLayout {
+                spacing: 8px;
+                
+                Text {
+                    text: "Active Users (" + active-users.length + ")";
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: Colors.text-primary;
+                }
+                
+                ScrollView {
+                    height: 300px;
+                    
+                    VerticalLayout {
+                        spacing: 4px;
+                        
+                        for user in active-users : UserPresenceIndicator {
+                            user-name: user.user-name;
+                            user-role: user.user-role;
+                            is-typing: user.is-typing;
+                            is-active: user.is-active;
+                        }
+                    }
+                }
+            }
+            
+            // Suggestions tab
+            if current-tab == 1 : VerticalLayout {
+                spacing: 8px;
+                
+                HorizontalLayout {
+                    Text {
+                        text: "Suggestions (" + suggestions.length + ")";
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: Colors.text-primary;
+                    }
+                    
+                    Button {
+                        text: "+ New";
+                        primary: true;
+                        clicked => {
+                            // Open suggestion dialog
+                            suggestion-dialog.show();
+                        }
+                    }
+                }
+                
+                ScrollView {
+                    height: 300px;
+                    
+                    VerticalLayout {
+                        spacing: 8px;
+                        
+                        for suggestion in suggestions : SuggestionItem {
+                            author-name: suggestion.author-name;
+                            original-text: suggestion.original-text;
+                            suggested-text: suggestion.suggested-text;
+                            reason: suggestion.reason;
+                            status: suggestion.status;
+                            confidence-score: suggestion.confidence-score;
+                            
+                            accept-suggestion => { accept-suggestion(suggestion.id); }
+                            reject-suggestion => { reject-suggestion(suggestion.id); }
+                            vote-approve => { vote-on-suggestion(suggestion.id, "approve"); }
+                            vote-reject => { vote-on-suggestion(suggestion.id, "reject"); }
+                        }
+                    }
+                }
+            }
+            
+            // Comments tab
+            if current-tab == 2 : VerticalLayout {
+                spacing: 8px;
+                
+                HorizontalLayout {
+                    Text {
+                        text: "Comments (" + comments.length + ")";
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: Colors.text-primary;
+                    }
+                    
+                    Button {
+                        text: "+ Add";
+                        primary: true;
+                        clicked => {
+                            // Open comment dialog
+                            comment-dialog.show();
+                        }
+                    }
+                }
+                
+                ScrollView {
+                    height: 300px;
+                    
+                    VerticalLayout {
+                        spacing: 8px;
+                        
+                        for comment in comments : CommentItem {
+                            author-name: comment.author-name;
+                            content: comment.content;
+                            comment-type: comment.comment-type;
+                            timestamp: comment.timestamp;
+                            is-resolved: comment.is-resolved;
+                            reply-count: comment.reply-count;
+                            
+                            resolve-comment => { resolve-comment(comment.id); }
+                            reply-to-comment => { reply-to-comment(comment.id); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Suggestion creation dialog
+    suggestion-dialog := PopupWindow {
+        width: 400px;
+        height: 300px;
+        
+        Rectangle {
+            background: Colors.background-primary;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: Colors.border;
+            
+            VerticalLayout {
+                padding: 16px;
+                spacing: 12px;
+                
+                Text {
+                    text: "Create Suggestion";
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: Colors.text-primary;
+                }
+                
+                VerticalLayout {
+                    spacing: 8px;
+                    
+                    Text {
+                        text: "Original Text:";
+                        font-size: 12px;
+                        color: Colors.text-secondary;
+                    }
+                    
+                    original-text-edit := TextEdit {
+                        height: 60px;
+                        placeholder-text: "Enter original text...";
+                    }
+                }
+                
+                VerticalLayout {
+                    spacing: 8px;
+                    
+                    Text {
+                        text: "Suggested Text:";
+                        font-size: 12px;
+                        color: Colors.text-secondary;
+                    }
+                    
+                    suggested-text-edit := TextEdit {
+                        height: 60px;
+                        placeholder-text: "Enter suggested text...";
+                    }
+                }
+                
+                VerticalLayout {
+                    spacing: 8px;
+                    
+                    Text {
+                        text: "Reason:";
+                        font-size: 12px;
+                        color: Colors.text-secondary;
+                    }
+                    
+                    reason-edit := TextEdit {
+                        height: 40px;
+                        placeholder-text: "Explain your suggestion...";
+                    }
+                }
+                
+                HorizontalLayout {
+                    spacing: 8px;
+                    
+                    Button {
+                        text: "Cancel";
+                        clicked => { suggestion-dialog.close(); }
+                    }
+                    
+                    Button {
+                        text: "Create";
+                        primary: true;
+                        clicked => {
+                            create-suggestion(
+                                original-text-edit.text,
+                                suggested-text-edit.text,
+                                reason-edit.text
+                            );
+                            suggestion-dialog.close();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Comment creation dialog
+    comment-dialog := PopupWindow {
+        width: 400px;
+        height: 250px;
+        
+        Rectangle {
+            background: Colors.background-primary;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: Colors.border;
+            
+            VerticalLayout {
+                padding: 16px;
+                spacing: 12px;
+                
+                Text {
+                    text: "Add Comment";
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: Colors.text-primary;
+                }
+                
+                VerticalLayout {
+                    spacing: 8px;
+                    
+                    Text {
+                        text: "Type:";
+                        font-size: 12px;
+                        color: Colors.text-secondary;
+                    }
+                    
+                    comment-type-combo := ComboBox {
+                        model: ["general", "suggestion", "question", "issue", "approval"];
+                        current-value: "general";
+                    }
+                }
+                
+                VerticalLayout {
+                    spacing: 8px;
+                    
+                    Text {
+                        text: "Comment:";
+                        font-size: 12px;
+                        color: Colors.text-secondary;
+                    }
+                    
+                    comment-content-edit := TextEdit {
+                        height: 80px;
+                        placeholder-text: "Enter your comment...";
+                    }
+                }
+                
+                HorizontalLayout {
+                    spacing: 8px;
+                    
+                    Button {
+                        text: "Cancel";
+                        clicked => { comment-dialog.close(); }
+                    }
+                    
+                    Button {
+                        text: "Add";
+                        primary: true;
+                        clicked => {
+                            add-comment(
+                                comment-content-edit.text,
+                                comment-type-combo.current-value
+                            );
+                            comment-dialog.close();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

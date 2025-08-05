@@ -51,7 +51,7 @@ impl std::fmt::Display for CommitType {
             CommitType::Docs => "docs",
             CommitType::Refactor => "refactor",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -122,7 +122,7 @@ impl CommitMessageBuilder {
             message.push_str(&commit_type.to_string());
             
             if let Some(scope) = self.scope {
-                message.push_str(&format!("({})", scope));
+                message.push_str(&format!("({scope})"));
             }
             
             if self.breaking_change {
@@ -144,7 +144,7 @@ impl CommitMessageBuilder {
         if !self.metadata.is_empty() {
             message.push_str("\n\n");
             for (key, value) in &self.metadata {
-                message.push_str(&format!("{}: {}\n", key, value));
+                message.push_str(&format!("{key}: {value}\n"));
             }
         }
 
@@ -165,10 +165,10 @@ impl CommitTemplates {
     ) -> String {
         CommitMessageBuilder::new()
             .commit_type(CommitType::Translate)
-            .scope(format!("{}/{}", chapter, language))
+            .scope(format!("{chapter}/{language}"))
             .description("start translation session")
             .body_lines([
-                format!("Initialize {} translation work for {}", language, chapter),
+                format!("Initialize {language} translation work for {chapter}"),
                 "".to_string(),
                 "This branch will contain all translation work for this chapter/language combination.".to_string(),
             ])
@@ -211,10 +211,10 @@ impl CommitTemplates {
     ) -> String {
         CommitMessageBuilder::new()
             .commit_type(CommitType::Translate)
-            .scope(format!("{}/{}", chapter, language))
+            .scope(format!("{chapter}/{language}"))
             .description("complete translation work")
             .body_lines([
-                format!("Ready for review: {}", summary),
+                format!("Ready for review: {summary}"),
                 "".to_string(),
                 "All translation units have been completed and are ready for reviewer feedback.".to_string(),
             ])
@@ -236,7 +236,7 @@ impl CommitTemplates {
     ) -> String {
         CommitMessageBuilder::new()
             .commit_type(CommitType::Review)
-            .scope(format!("{}/{}", chapter, language))
+            .scope(format!("{chapter}/{language}"))
             .description(format!("{} translation review", status.to_lowercase()))
             .body_line(feedback_summary)
             .metadata("Reviewer", reviewer)
@@ -256,7 +256,7 @@ impl CommitTemplates {
     ) -> String {
         let mut builder = CommitMessageBuilder::new()
             .commit_type(CommitType::Task)
-            .description(format!("add todo: {}", title))
+            .description(format!("add todo: {title}"))
             .metadata("Created-By", created_by)
             .metadata("Priority", priority)
             .metadata("Context", context);
@@ -276,12 +276,12 @@ impl CommitTemplates {
     ) -> String {
         let mut builder = CommitMessageBuilder::new()
             .commit_type(CommitType::Task)
-            .description(format!("complete todo: {}", title))
+            .description(format!("complete todo: {title}"))
             .metadata("Completed-By", completed_by)
             .metadata("Status", "Completed");
 
         if let Some(res) = resolution {
-            builder = builder.body_line(format!("Resolution: {}", res));
+            builder = builder.body_line(format!("Resolution: {res}"));
         }
 
         builder.build()
@@ -297,11 +297,11 @@ impl CommitTemplates {
     ) -> String {
         CommitMessageBuilder::new()
             .commit_type(CommitType::Review)
-            .scope(format!("{}/{}", chapter, language))
+            .scope(format!("{chapter}/{language}"))
             .description("approve and merge translation")
             .body_lines([
-                format!("Approved translation work by {}", translator),
-                format!("Merged from PR #{}", pr_id),
+                format!("Approved translation work by {translator}"),
+                format!("Merged from PR #{pr_id}"),
             ])
             .metadata("Reviewer", reviewer)
             .metadata("Translator", translator)
@@ -322,10 +322,10 @@ impl CommitTemplates {
         CommitMessageBuilder::new()
             .commit_type(CommitType::Task)
             .scope(language)
-            .description(format!("research terminology: {}", term))
+            .description(format!("research terminology: {term}"))
             .body_lines([
-                format!("Context: {}", context),
-                format!("Resolution: {}", resolution),
+                format!("Context: {context}"),
+                format!("Resolution: {resolution}"),
             ])
             .metadata("Researcher", researcher)
             .metadata("Term", term)
@@ -342,7 +342,7 @@ impl CommitTemplates {
         language: Option<&str>,
     ) -> String {
         let scope = if let Some(lang) = language {
-            format!("{}/{}", chapter, lang)
+            format!("{chapter}/{lang}")
         } else {
             chapter.to_string()
         };
@@ -351,7 +351,7 @@ impl CommitTemplates {
             .commit_type(CommitType::Task)
             .scope(scope)
             .description("update screenshots")
-            .body_line(format!("Updated {} screenshots for chapter", screenshot_count))
+            .body_line(format!("Updated {screenshot_count} screenshots for chapter"))
             .metadata("Updated-By", updated_by)
             .metadata("Screenshot-Count", screenshot_count.to_string())
             .metadata("Type", "screenshot")
@@ -368,14 +368,14 @@ impl CommitTemplates {
     ) -> String {
         let mut builder = CommitMessageBuilder::new()
             .commit_type(CommitType::Review)
-            .scope(format!("{}/{}", chapter, language))
+            .scope(format!("{chapter}/{language}"))
             .description("update quality score")
             .metadata("Reviewer", reviewer)
             .metadata("Quality-Score", score.to_string())
             .metadata("Language", language);
 
         if let Some(notes) = notes {
-            builder = builder.body_line(format!("Notes: {}", notes));
+            builder = builder.body_line(format!("Notes: {notes}"));
         }
 
         builder.build()
@@ -391,11 +391,11 @@ impl CommitTemplates {
     ) -> String {
         CommitMessageBuilder::new()
             .commit_type(CommitType::Translate)
-            .scope(format!("{}/{}", chapter, language))
+            .scope(format!("{chapter}/{language}"))
             .description("sync TOML data from markdown")
             .body_lines([
-                format!("Synchronized {} translation units", units_updated),
-                format!("Sync type: {}", sync_type),
+                format!("Synchronized {units_updated} translation units"),
+                format!("Sync type: {sync_type}"),
                 "".to_string(),
                 "TOML data updated to reflect current markdown content.".to_string(),
             ])
@@ -415,10 +415,10 @@ impl CommitTemplates {
     ) -> String {
         CommitMessageBuilder::new()
             .commit_type(CommitType::Task)
-            .scope(format!("{}/{}", chapter, language))
+            .scope(format!("{chapter}/{language}"))
             .description("recover translation session")
             .body_lines([
-                format!("Recovered session after {}", recovery_reason),
+                format!("Recovered session after {recovery_reason}"),
                 "".to_string(),
                 "Session state restored from previous work.".to_string(),
             ])
@@ -438,10 +438,10 @@ impl CommitTemplates {
     ) -> String {
         CommitMessageBuilder::new()
             .commit_type(CommitType::Translate)
-            .scope(format!("{}/{}", chapter, language))
-            .description(format!("bulk {}", operation_type))
+            .scope(format!("{chapter}/{language}"))
+            .description(format!("bulk {operation_type}"))
             .body_lines([
-                format!("Performed bulk {} on {} units", operation_type, units_affected),
+                format!("Performed bulk {operation_type} on {units_affected} units"),
                 "".to_string(),
                 "Multiple translation units updated in single operation.".to_string(),
             ])
@@ -463,9 +463,9 @@ impl CommitTemplates {
     ) -> String {
         CommitMessageBuilder::new()
             .commit_type(CommitType::Task)
-            .scope(format!("{}/{}", chapter, language))
-            .description(format!("update status: {} -> {}", old_status, new_status))
-            .body_line(format!("Translation unit {} status changed", unit_id))
+            .scope(format!("{chapter}/{language}"))
+            .description(format!("update status: {old_status} -> {new_status}"))
+            .body_line(format!("Translation unit {unit_id} status changed"))
             .metadata("Unit-ID", unit_id)
             .metadata("Old-Status", old_status)
             .metadata("New-Status", new_status)
@@ -484,7 +484,7 @@ impl CommitTemplates {
         CommitMessageBuilder::new()
             .commit_type(CommitType::Refactor)
             .scope(chapter)
-            .description(format!("chapter structure: {}", change_type))
+            .description(format!("chapter structure: {change_type}"))
             .body_lines([
                 description.to_string(),
                 "".to_string(),
@@ -507,7 +507,7 @@ impl CommitTemplates {
             .scope(chapter)
             .description("reorder translation units")
             .body_lines([
-                format!("Reordered {} translation units", units_reordered),
+                format!("Reordered {units_reordered} translation units"),
                 "".to_string(),
                 "Units reorganized for better logical flow.".to_string(),
             ])
@@ -527,9 +527,9 @@ impl CommitTemplates {
         CommitMessageBuilder::new()
             .commit_type(CommitType::Task)
             .scope(chapter)
-            .description(format!("cleanup {}", cleanup_type))
+            .description(format!("cleanup {cleanup_type}"))
             .body_lines([
-                format!("Cleaned up {} {} items", items_cleaned, cleanup_type),
+                format!("Cleaned up {items_cleaned} {cleanup_type} items"),
                 "".to_string(),
                 "Metadata cleanup to improve data quality.".to_string(),
             ])

@@ -5,8 +5,10 @@ use unic_langid::LanguageIdentifier;
 
 /// Supported languages in the application
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default)]
 pub enum Language {
     #[serde(rename = "en")]
+    #[default]
     English,
     #[serde(rename = "de")] 
     German,
@@ -76,11 +78,6 @@ impl Language {
     }
 }
 
-impl Default for Language {
-    fn default() -> Self {
-        Language::English
-    }
-}
 
 impl std::fmt::Display for Language {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -133,7 +130,7 @@ pub fn t_with_args(key: &str, args: &HashMap<String, String>) -> String {
     
     // Simple placeholder replacement for {key} style placeholders
     for (placeholder_key, value) in args {
-        let placeholder = format!("{{{}}}", placeholder_key);
+        let placeholder = format!("{{{placeholder_key}}}");
         result = result.replace(&placeholder, value);
     }
     

@@ -6,7 +6,7 @@ use serde_json;
 use anyhow::{Result, Context};
 use chrono::Utc;
 
-use crate::models::project::{Project, ProjectStatus, Priority};
+use crate::models::project::Project;
 use crate::models::document::{Chapter, TranslationUnit, ProjectStructure, ChapterInfo};
 
 #[derive(Clone)]
@@ -46,7 +46,7 @@ impl ProjectManager {
         for language in &all_languages {
             let lang_path = chapters_path.join(language);
             fs::create_dir_all(&lang_path)
-                .context(format!("Failed to create directory for language: {}", language))?;
+                .context(format!("Failed to create directory for language: {language}"))?;
         }
         
         // Create project metadata file
@@ -104,12 +104,12 @@ impl ProjectManager {
             
             let default_title = "Untitled".to_string();
             let title = chapter.title.get(language).unwrap_or(&default_title);
-            let default_content = format!("# {}\n\n*Content not available in {}*", title, language);
+            let default_content = format!("# {title}\n\n*Content not available in {language}*");
             let content = chapter.content.get(language)
                 .unwrap_or(&default_content);
             
             fs::write(&file_path, content)
-                .context(format!("Failed to write chapter file for language: {}", language))?;
+                .context(format!("Failed to write chapter file for language: {language}"))?;
         }
         
         Ok(())
@@ -133,9 +133,9 @@ impl ProjectManager {
             if let Ok(entries) = fs::read_dir(&lang_path) {
                 for entry in entries.flatten() {
                     if let Some(filename) = entry.file_name().to_str() {
-                        if filename.ends_with(&format!("_{}.md", chapter_slug)) {
+                        if filename.ends_with(&format!("_{chapter_slug}.md")) {
                             let file_content = fs::read_to_string(entry.path())
-                                .context(format!("Failed to read chapter file: {}", filename))?;
+                                .context(format!("Failed to read chapter file: {filename}"))?;
                             content.insert(language.clone(), file_content);
                             break;
                         }
@@ -154,11 +154,11 @@ impl ProjectManager {
         
         for (language, text) in content {
             let lang_path = chapters_path.join(&language);
-            let filename = format!("{:02}_{}.md", chapter_number, chapter_slug);
+            let filename = format!("{chapter_number:02}_{chapter_slug}.md");
             let file_path = lang_path.join(&filename);
             
             fs::write(&file_path, text)
-                .context(format!("Failed to write chapter content for language: {}", language))?;
+                .context(format!("Failed to write chapter content for language: {language}"))?;
         }
         
         Ok(())
@@ -219,7 +219,7 @@ impl ProjectManager {
             let unit = TranslationUnit {
                 id: Uuid::new_v4(),
                 chapter_id,
-                paragraph_id: format!("p{}", paragraph_counter),
+                paragraph_id: format!("p{paragraph_counter}"),
                 source_language: "en".to_string(), // Default source language
                 source_text: trimmed.to_string(),
                 translations: HashMap::new(),

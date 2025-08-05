@@ -1,6 +1,6 @@
-use crate::models::translation_models::{TranslationProject, Chapter, ChunkMetadata, ChunkType, ChapterStatus};
+use crate::models::translation_models::{Chapter, ChunkMetadata, ChapterStatus};
 use crate::services::translation_memory_service::TranslationMemoryService;
-use crate::services::chunk_processor::{ChunkProcessor, ChunkingConfig, ChunkingStrategy};
+use crate::services::chunk_processor::{ChunkProcessor, ChunkingConfig};
 use crate::TradocumentError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -183,13 +183,13 @@ impl DocumentImportService {
                             result.errors.push(format!("Failed to import {}: {}", 
                                 doc.file_path.display(), e));
                             // Don't fail completely for target language imports
-                            result.warnings.push(format!("Target language import failed: {}", e));
+                            result.warnings.push(format!("Target language import failed: {e}"));
                         }
                     }
                 }
             } else {
                 result.warnings.push(format!(
-                    "No documents found for target language: {}", language_code
+                    "No documents found for target language: {language_code}"
                 ));
             }
         }
@@ -201,7 +201,7 @@ impl DocumentImportService {
                     result.created_chunks.extend(tm_chunks);
                 }
                 Err(e) => {
-                    result.warnings.push(format!("Failed to create translation memory: {}", e));
+                    result.warnings.push(format!("Failed to create translation memory: {e}"));
                 }
             }
         }
@@ -305,10 +305,10 @@ impl DocumentImportService {
             "md" => {
                 // Already markdown, just read it
                 fs::read_to_string(file_path)
-                    .map_err(|e| TradocumentError::FileError(format!("Failed to read markdown file: {}", e)))
+                    .map_err(|e| TradocumentError::FileError(format!("Failed to read markdown file: {e}")))
             }
             _ => Err(TradocumentError::ValidationError(
-                format!("Unsupported file format: {}", file_extension)
+                format!("Unsupported file format: {file_extension}")
             )),
         }
     }
@@ -321,15 +321,15 @@ impl DocumentImportService {
     ) -> Result<String, TradocumentError> {
         // Read the DOCX file
         let mut file = fs::File::open(file_path)
-            .map_err(|e| TradocumentError::FileError(format!("Failed to open DOCX file: {}", e)))?;
+            .map_err(|e| TradocumentError::FileError(format!("Failed to open DOCX file: {e}")))?;
         
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)
-            .map_err(|e| TradocumentError::FileError(format!("Failed to read DOCX file: {}", e)))?;
+            .map_err(|e| TradocumentError::FileError(format!("Failed to read DOCX file: {e}")))?;
 
         // Parse the DOCX document
         let docx = read_docx(&buf)
-            .map_err(|e| TradocumentError::ValidationError(format!("Failed to parse DOCX: {}", e)))?;
+            .map_err(|e| TradocumentError::ValidationError(format!("Failed to parse DOCX: {e}")))?;
 
         // Extract document title from filename
         let filename = file_path.file_stem()
@@ -339,7 +339,7 @@ impl DocumentImportService {
         let mut markdown = String::new();
         
         // Add document title
-        markdown.push_str(&format!("# {}\n\n", filename));
+        markdown.push_str(&format!("# {filename}\n\n"));
 
         // Use a simplified text extraction approach for now
         // This avoids complex type matching issues with the docx-rs crate
@@ -351,7 +351,7 @@ impl DocumentImportService {
             if !trimmed.is_empty() {
                 // Simple heuristic for headings (all caps or title case)
                 if trimmed.chars().all(|c| c.is_uppercase() || c.is_whitespace() || c.is_numeric()) && trimmed.len() > 3 {
-                    markdown.push_str(&format!("## {}\n\n", trimmed));
+                    markdown.push_str(&format!("## {trimmed}\n\n"));
                 } else {
                     markdown.push_str(trimmed);
                     markdown.push_str("\n\n");
@@ -431,7 +431,7 @@ impl DocumentImportService {
             .and_then(|name| name.to_str())
             .unwrap_or("Untitled");
 
-        let mut markdown = format!("# {}\n\n", filename);
+        let mut markdown = format!("# {filename}\n\n");
         markdown.push_str("## Legacy DOC Import\n\n");
         markdown.push_str("This document was imported from a legacy DOC file.\n\n");
         markdown.push_str("**Note**: Full DOC support requires LibreOffice or similar conversion tools.\n\n");
@@ -442,13 +442,13 @@ impl DocumentImportService {
     /// Convert text file to markdown
     async fn convert_txt_to_markdown(&self, file_path: &Path) -> Result<String, TradocumentError> {
         let content = fs::read_to_string(file_path)
-            .map_err(|e| TradocumentError::FileError(format!("Failed to read text file: {}", e)))?;
+            .map_err(|e| TradocumentError::FileError(format!("Failed to read text file: {e}")))?;
 
         let filename = file_path.file_stem()
             .and_then(|name| name.to_str())
             .unwrap_or("Untitled");
 
-        let mut markdown = format!("# {}\n\n", filename);
+        let mut markdown = format!("# {filename}\n\n");
         
         // Convert plain text to markdown paragraphs
         for line in content.lines() {
@@ -472,7 +472,7 @@ impl DocumentImportService {
     ) -> Result<Vec<ChunkMetadata>, TradocumentError> {
         // Process content using the chunk processor
         let processed_chunks = self.chunk_processor.process_content(content)
-            .map_err(|e| TradocumentError::ValidationError(format!("Chunking failed: {}", e)))?;
+            .map_err(|e| TradocumentError::ValidationError(format!("Chunking failed: {e}")))?;
 
         // Convert processed chunks to ChunkMetadata with additional context
         let mut chunks = self.chunk_processor.chunks_to_metadata(processed_chunks);
@@ -505,11 +505,10 @@ impl DocumentImportService {
             let cleaned = word.trim_matches(|c: char| !c.is_alphabetic()).to_lowercase();
             
             // Extract potential technical terms (capitalized, long words, etc.)
-            if cleaned.len() > 6 && !self.is_common_word(&cleaned) {
-                if !terms.contains(&cleaned) {
+            if cleaned.len() > 6 && !self.is_common_word(&cleaned)
+                && !terms.contains(&cleaned) {
                     terms.push(cleaned);
                 }
-            }
         }
 
         Ok(terms)
@@ -570,7 +569,7 @@ impl DocumentImportService {
         // Store in translation memory service
         if let Err(e) = self.translation_memory.add_chunks_batch(tm_chunks.clone()).await {
             // Log warning but don't fail
-            eprintln!("Warning: Failed to add chunks to translation memory: {}", e);
+            eprintln!("Warning: Failed to add chunks to translation memory: {e}");
         }
 
         Ok(tm_chunks)
@@ -621,9 +620,7 @@ impl DocumentImportService {
                 for &chapter_num in &source_chapters {
                     if !target_chapters.contains(&chapter_num) {
                         result.warnings.push(format!(
-                            "Chapter {} missing in {} language", 
-                            chapter_num, 
-                            lang_code
+                            "Chapter {chapter_num} missing in {lang_code} language"
                         ));
                     }
                 }
@@ -661,12 +658,12 @@ impl DocumentImportService {
 
         // Scan directory for supported document files
         let entries = fs::read_dir(folder_path)
-            .map_err(|e| TradocumentError::FileError(format!("Failed to read directory: {}", e)))?;
+            .map_err(|e| TradocumentError::FileError(format!("Failed to read directory: {e}")))?;
 
         let mut chapter_counter = 1;
 
         for entry in entries {
-            let entry = entry.map_err(|e| TradocumentError::FileError(format!("Failed to read entry: {}", e)))?;
+            let entry = entry.map_err(|e| TradocumentError::FileError(format!("Failed to read entry: {e}")))?;
             let path = entry.path();
 
             if path.is_file() {
@@ -694,7 +691,7 @@ impl DocumentImportService {
                         };
 
                         documents.entry(language_code)
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push(import_doc);
 
                         chapter_counter += 1;

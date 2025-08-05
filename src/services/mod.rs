@@ -13,6 +13,15 @@ pub mod chunk_linking_service;
 pub mod editor_sync_service;
 pub mod language_syntax_service;
 pub mod split_pane_editor_integration_test;
+pub mod collaborative_editing_service;
+#[cfg(test)]
+pub mod collaborative_editing_service_tests;
+pub mod user_management_service;
+pub mod permission_service;
+#[cfg(test)]
+pub mod user_management_service_tests;
+#[cfg(test)]
+pub mod permission_service_tests;
 
 pub use project_manager::ProjectManager;
 pub use project_service::ProjectService;
@@ -42,4 +51,19 @@ pub use editor_sync_service::{
 pub use language_syntax_service::{
     LanguageSyntaxService, LanguageSyntaxConfig, TextDirection, MarkdownExtension, 
     SpecialCharacter, SyntaxTheme
+};
+pub use collaborative_editing_service::{
+    CollaborativeEditingService, UserSession, DocumentChange, ChangeType, 
+    TranslationSuggestion, SuggestionStatus, Comment, CommentType, CommentContext,
+    CollaborationEvent, UserPresenceUpdate, ConflictNotification, ConflictType,
+    SuggestionVote, VoteType, CommentReply, SelectionRange
+};
+pub use user_management_service::{
+    UserManagementService, User, UserProfile, UserPreferences, CreateUserRequest,
+    UpdateUserRequest, TeamInvitation, InvitationStatus, InviteTeamMemberRequest,
+    UserManagementError
+};
+pub use permission_service::{
+    PermissionService, PermissionContext, PermissionGrant, GrantPermissionRequest,
+    PermissionError
 };

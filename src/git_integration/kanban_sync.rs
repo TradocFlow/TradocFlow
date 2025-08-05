@@ -210,7 +210,7 @@ impl KanbanGitSync {
         
         // Create an in-memory database for the kanban repository
         let conn = rusqlite::Connection::open_in_memory()
-            .map_err(|e| TradocumentError::Database(e))?;
+            .map_err(TradocumentError::Database)?;
         let pool: DatabasePool = Arc::new(Mutex::new(conn));
         
         let kanban_repository = Arc::new(KanbanRepository::new(pool));
@@ -328,7 +328,7 @@ impl KanbanGitSync {
                     timestamp: Utc::now(),
                     user_id: creator.to_string(),
                     metadata: SyncEventMetadata {
-                        description: format!("Translation branch created: {}", branch_name),
+                        description: format!("Translation branch created: {branch_name}"),
                         affected_entities: vec![card.id.to_string()],
                         auto_generated: true,
                         requires_manual_review: false,
@@ -384,7 +384,7 @@ impl KanbanGitSync {
                 timestamp: Utc::now(),
                 user_id: creator.to_string(),
                 metadata: SyncEventMetadata {
-                    description: format!("Pull request #{} opened for review", pr_number),
+                    description: format!("Pull request #{pr_number} opened for review"),
                     affected_entities: vec![card_id.to_string()],
                     auto_generated: true,
                     requires_manual_review: true,
@@ -426,7 +426,7 @@ impl KanbanGitSync {
                 timestamp: Utc::now(),
                 user_id: merger.to_string(),
                 metadata: SyncEventMetadata {
-                    description: format!("Pull request #{} merged successfully", pr_number),
+                    description: format!("Pull request #{pr_number} merged successfully"),
                     affected_entities: vec![card_id.to_string()],
                     auto_generated: true,
                     requires_manual_review: false,
@@ -509,7 +509,7 @@ impl KanbanGitSync {
                 timestamp: Utc::now(),
                 user_id: resolver.to_string(),
                 metadata: SyncEventMetadata {
-                    description: format!("Comment resolved: {}", comment_id),
+                    description: format!("Comment resolved: {comment_id}"),
                     affected_entities: vec![card_id.to_string()],
                     auto_generated: true,
                     requires_manual_review: false,
@@ -530,7 +530,7 @@ impl KanbanGitSync {
     ) -> Result<()> {
         // Load card details
         let card = self.kanban_repository.get_card(card_id).await
-            .map_err(|e| TradocumentError::Database(e))?;
+            .map_err(TradocumentError::Database)?;
         
         // Determine Git operations based on status change
         match (old_status.clone(), new_status.clone()) {
@@ -574,7 +574,7 @@ impl KanbanGitSync {
             timestamp: Utc::now(),
             user_id: mover.to_string(),
             metadata: SyncEventMetadata {
-                description: format!("Card moved from {:?} to {:?}", old_status, new_status),
+                description: format!("Card moved from {old_status:?} to {new_status:?}"),
                 affected_entities: vec![card_id.to_string()],
                 auto_generated: false,
                 requires_manual_review: new_status == CardStatus::Blocked,
@@ -690,7 +690,7 @@ impl KanbanGitSync {
                 feature_name: Some(feature_name.to_string()),
             }),
             _ => Err(TradocumentError::ApiError(
-                format!("Unable to parse branch name: {}", branch_name)
+                format!("Unable to parse branch name: {branch_name}")
             ))
         }
     }
@@ -887,7 +887,7 @@ impl KanbanGitSync {
         
         // In a real implementation, this would create the actual Git branch
         // For now, we'll just return the branch name
-        println!("Would create Git branch: {}", branch_name);
+        println!("Would create Git branch: {branch_name}");
         
         Ok(branch_name)
     }
@@ -918,7 +918,7 @@ impl KanbanGitSync {
         };
         
         self.kanban_repository.move_card(move_request).await
-            .map_err(|e| TradocumentError::Database(e))?;
+            .map_err(TradocumentError::Database)?;
         
         Ok(())
     }
@@ -1147,7 +1147,7 @@ impl KanbanGitSync {
             &card_request,
             _creator,
             metadata,
-        ).await.map_err(|e| TradocumentError::Database(e))
+        ).await.map_err(TradocumentError::Database)
     }
 
     /// Synchronize todo assignment with Kanban board
@@ -1156,7 +1156,7 @@ impl KanbanGitSync {
         // This is a simplified implementation - in reality, you'd have a mapping
         
         // Log the sync operation for now
-        println!("Syncing todo assignment: {} assigned to {}", todo_id, assignee);
+        println!("Syncing todo assignment: {todo_id} assigned to {assignee}");
         
         // TODO: Implement actual Kanban card update
         // 1. Find card by todo metadata or mapping
@@ -1172,7 +1172,7 @@ impl KanbanGitSync {
         // Update relevant Kanban cards
         
         // Log the sync operation for now
-        println!("Handling Git commit: {} - {}", title, message);
+        println!("Handling Git commit: {title} - {message}");
         
         // TODO: Implement actual commit processing
         // 1. Parse commit message for todo/task references

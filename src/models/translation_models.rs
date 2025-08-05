@@ -83,7 +83,7 @@ impl TranslationProject {
         for lang in &member.languages {
             if !all_languages.contains(lang) {
                 return Err(ValidationError::InvalidLanguage(
-                    format!("Language '{}' is not supported by this project", lang)
+                    format!("Language '{lang}' is not supported by this project")
                 ));
             }
         }
@@ -514,6 +514,7 @@ impl TranslationUnit {
 
 /// Metadata for translation units
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct TranslationMetadata {
     pub translator_id: Option<String>,
     pub reviewer_id: Option<String>,
@@ -522,17 +523,6 @@ pub struct TranslationMetadata {
     pub tags: Vec<String>,
 }
 
-impl Default for TranslationMetadata {
-    fn default() -> Self {
-        Self {
-            translator_id: None,
-            reviewer_id: None,
-            quality_score: None,
-            notes: Vec::new(),
-            tags: Vec::new(),
-        }
-    }
-}
 
 /// Chunk metadata for sentence chunking and linking information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1109,7 +1099,7 @@ impl TerminologyCsvRecord {
             None => false,
             Some(value) => {
                 return Err(ValidationError::InvalidTerm(
-                    format!("Invalid do_not_translate value: '{}'. Expected true/false, yes/no, or 1/0", value)
+                    format!("Invalid do_not_translate value: '{value}'. Expected true/false, yes/no, or 1/0")
                 ));
             }
         };

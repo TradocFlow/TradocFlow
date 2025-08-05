@@ -77,7 +77,7 @@ impl KanbanRepository {
         // Get project name
         let mut project_stmt = conn.prepare("SELECT name FROM projects WHERE id = ?1")?;
         let project_name: String = project_stmt.query_row(params![project_id.to_string()], |row| {
-            Ok(row.get(0)?)
+            row.get(0)
         })?;
         
         // Get all cards for the project
@@ -222,7 +222,7 @@ impl KanbanRepository {
         )?;
         
         let position: i32 = stmt.query_row(params![project_id.to_string(), status.as_str()], |row| {
-            Ok(row.get(0)?)
+            row.get(0)
         })?;
         
         Ok(position)

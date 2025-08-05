@@ -1,13 +1,11 @@
 use std::sync::Arc;
-use std::collections::HashMap;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use anyhow::Result;
-use slint::{ComponentHandle, Model, ModelRc, VecModel};
+use slint::{Model, ModelRc, VecModel};
 
 use crate::services::{
-    TranslationMemoryIntegrationService, IntegrationConfig, EditorSuggestion,
-    ConfidenceIndicator, TextPosition, SearchFilters, TranslationStatistics
+    TranslationMemoryIntegrationService, EditorSuggestion, TextPosition, SearchFilters
 };
 use crate::models::translation_models::LanguagePair;
 

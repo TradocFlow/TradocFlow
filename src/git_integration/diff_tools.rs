@@ -273,17 +273,17 @@ impl GitDiffTools {
         chapter: &str,
     ) -> Result<ChapterData> {
         let tree = commit.tree().map_err(GitError::from)?;
-        let chapter_path = format!("content/chapters/{}.toml", chapter);
+        let chapter_path = format!("content/chapters/{chapter}.toml");
         
         let entry = tree.get_path(Path::new(&chapter_path))
-            .map_err(|_| GitError::InvalidOperation(format!("Chapter {} not found in commit", chapter)))?;
+            .map_err(|_| GitError::InvalidOperation(format!("Chapter {chapter} not found in commit")))?;
         
         let blob = repo.find_blob(entry.id()).map_err(GitError::from)?;
         let content = std::str::from_utf8(blob.content())
-            .map_err(|e| GitError::InvalidOperation(format!("Invalid UTF-8 in chapter file: {}", e)))?;
+            .map_err(|e| GitError::InvalidOperation(format!("Invalid UTF-8 in chapter file: {e}")))?;
         
         toml::from_str(content)
-            .map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Invalid TOML in chapter file: {}", e))))
+            .map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Invalid TOML in chapter file: {e}"))))
     }
 
     fn compare_translation_units(
@@ -315,7 +315,7 @@ impl GitDiffTools {
                 (None, Some(to_unit)) => {
                     // Unit added
                     for (language, translation) in &to_unit.translations {
-                        if options.language_filter.as_ref().map_or(true, |lang| lang == language) {
+                        if options.language_filter.as_ref().is_none_or(|lang| lang == language) {
                             unit_diffs.push(TranslationUnitDiff {
                                 unit_id: unit_id.to_string(),
                                 change_type: UnitChangeType::Added,
@@ -366,7 +366,7 @@ impl GitDiffTools {
         all_languages.extend(to_unit.translations.keys().map(|s| s.as_str()));
 
         for language in all_languages {
-            if options.language_filter.as_ref().map_or(true, |lang| lang == language) {
+            if options.language_filter.as_ref().is_none_or(|lang| lang == language) {
                 let from_translation = from_unit.translations.get(language);
                 let to_translation = to_unit.translations.get(language);
 
@@ -592,7 +592,7 @@ impl GitDiffTools {
             if !from_todos.contains_key(todo_id) {
                 changes.push(MetadataChange {
                     change_type: MetadataChangeType::TodoAdded,
-                    context: format!("todo:{}", todo_id),
+                    context: format!("todo:{todo_id}"),
                     old_value: None,
                     new_value: Some(todo.title.clone()),
                     author: todo.created_by.clone(),
@@ -611,17 +611,17 @@ impl GitDiffTools {
                     
                     changes.push(MetadataChange {
                         change_type,
-                        context: format!("todo:{}:status", todo_id),
+                        context: format!("todo:{todo_id}:status"),
                         old_value: Some(format!("{:?}", old_todo.status)),
                         new_value: Some(format!("{:?}", new_todo.status)),
                         author: new_todo.assigned_to.clone().unwrap_or_else(|| "system".to_string()),
-                        timestamp: new_todo.resolved_at.unwrap_or_else(|| Utc::now()),
+                        timestamp: new_todo.resolved_at.unwrap_or_else(Utc::now),
                     });
                 }
             } else {
                 changes.push(MetadataChange {
                     change_type: MetadataChangeType::TodoDeleted,
-                    context: format!("todo:{}", todo_id),
+                    context: format!("todo:{todo_id}"),
                     old_value: Some(old_todo.title.clone()),
                     new_value: None,
                     author: "system".to_string(),
@@ -733,7 +733,7 @@ impl GitDiffTools {
                 .map_err(GitError::from)?;
             let commit = branch.get().peel_to_commit().map_err(GitError::from)?;
             Ok(commit.id().to_string())
-        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {}", e))))?
+        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {e}"))))?
     }
 
     async fn list_chapters_in_commit(&self, commit_id: &str) -> Result<Vec<String>> {
@@ -764,7 +764,7 @@ impl GitDiffTools {
             }).map_err(GitError::from)?;
             
             Ok(chapters)
-        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {}", e))))?
+        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {e}"))))?
     }
 
     fn calculate_overall_stats(&self, chapter_diffs: &[DetailedTranslationDiff]) -> BranchComparisonStats {

@@ -489,7 +489,7 @@ impl TaskManager {
                      Updated-By: {}\n\
                      Todo-ID: {}",
                     todo.title,
-                    changes.into_iter().map(|c| format!("- {}", c)).collect::<Vec<_>>().join("\n"),
+                    changes.into_iter().map(|c| format!("- {c}")).collect::<Vec<_>>().join("\n"),
                     self.current_user.id,
                     todo.id
                 ),
@@ -568,7 +568,7 @@ impl TaskManager {
             Ok(todo)
         } else {
             Err(TradocumentError::ApiError(
-                format!("Todo {} not found", todo_id)
+                format!("Todo {todo_id} not found")
             ))
         }
     }
@@ -783,7 +783,7 @@ impl TaskManager {
         // Sync with Kanban board if configured
         if let Err(e) = self.kanban_sync.sync_todo_assignment(todo_id, assignee).await {
             // Log error but don't fail the operation
-            eprintln!("Failed to sync todo assignment to Kanban: {}", e);
+            eprintln!("Failed to sync todo assignment to Kanban: {e}");
         }
 
         Ok(())
@@ -852,7 +852,7 @@ impl TaskManager {
 
         // Create Git commit
         self.commit_todo_operation(
-            &format!("comment: reply to comment {}", comment_id),
+            &format!("comment: reply to comment {comment_id}"),
             &format!(
                 "Added reply to comment\n\n\
                  Reply content: {}\n\
@@ -889,7 +889,7 @@ impl TaskManager {
 
         // Create Git commit
         self.commit_todo_operation(
-            &format!("comment: resolve comment {}", comment_id),
+            &format!("comment: resolve comment {comment_id}"),
             &format!(
                 "Resolved comment {}\n\n\
                  Resolved-By: {}",
@@ -1030,7 +1030,7 @@ impl TaskManager {
                     unit.todos.push(todo.clone());
                 } else {
                     return Err(TradocumentError::ApiError(
-                        format!("Unit {} not found", unit_id)
+                        format!("Unit {unit_id} not found")
                     ));
                 }
                 
@@ -1141,7 +1141,7 @@ impl TaskManager {
                     unit.comments.push(comment.clone());
                 } else {
                     return Err(TradocumentError::ApiError(
-                        format!("Unit {} not found", paragraph)
+                        format!("Unit {paragraph} not found")
                     ));
                 }
                 
@@ -1187,7 +1187,7 @@ impl TaskManager {
         }
         
         Err(TradocumentError::ApiError(
-            format!("Comment {} not found", comment_id)
+            format!("Comment {comment_id} not found")
         ))
     }
 
@@ -1226,7 +1226,7 @@ impl TaskManager {
         }
         
         Err(TradocumentError::ApiError(
-            format!("Comment {} not found", comment_id)
+            format!("Comment {comment_id} not found")
         ))
     }
 
@@ -1237,7 +1237,7 @@ impl TaskManager {
         if project_path.exists() {
             let toml_content = std::fs::read_to_string(&project_path)?;
             let project_data: ProjectData = toml::from_str(&toml_content)
-                .map_err(|e| TradocumentError::ApiError(format!("Failed to parse project TOML: {}", e)))?;
+                .map_err(|e| TradocumentError::ApiError(format!("Failed to parse project TOML: {e}")))?;
             Ok(project_data)
         } else {
             // Create default project data
@@ -1255,7 +1255,7 @@ impl TaskManager {
         }
 
         let toml_content = toml::to_string_pretty(project_data)
-            .map_err(|e| TradocumentError::ApiError(format!("Failed to serialize project TOML: {}", e)))?;
+            .map_err(|e| TradocumentError::ApiError(format!("Failed to serialize project TOML: {e}")))?;
             
         std::fs::write(&project_path, toml_content)?;
         Ok(())
@@ -1265,7 +1265,7 @@ impl TaskManager {
     async fn load_chapter_toml(&self, chapter_name: &str) -> Result<ChapterData> {
         let chapter_path = Path::new(&self.repo_path)
             .join("content/chapters")
-            .join(format!("{}.toml", chapter_name));
+            .join(format!("{chapter_name}.toml"));
             
         self.load_chapter_toml_by_path(&chapter_path).await
     }
@@ -1275,7 +1275,7 @@ impl TaskManager {
         if chapter_path.exists() {
             let toml_content = std::fs::read_to_string(chapter_path)?;
             let chapter_data: ChapterData = toml::from_str(&toml_content)
-                .map_err(|e| TradocumentError::ApiError(format!("Failed to parse chapter TOML: {}", e)))?;
+                .map_err(|e| TradocumentError::ApiError(format!("Failed to parse chapter TOML: {e}")))?;
             Ok(chapter_data)
         } else {
             // Create default chapter data
@@ -1291,7 +1291,7 @@ impl TaskManager {
     async fn save_chapter_toml(&self, chapter_name: &str, chapter_data: &ChapterData) -> Result<()> {
         let chapter_path = Path::new(&self.repo_path)
             .join("content/chapters")
-            .join(format!("{}.toml", chapter_name));
+            .join(format!("{chapter_name}.toml"));
         
         // Ensure directory exists
         if let Some(parent) = chapter_path.parent() {
@@ -1299,7 +1299,7 @@ impl TaskManager {
         }
 
         let toml_content = toml::to_string_pretty(chapter_data)
-            .map_err(|e| TradocumentError::ApiError(format!("Failed to serialize chapter TOML: {}", e)))?;
+            .map_err(|e| TradocumentError::ApiError(format!("Failed to serialize chapter TOML: {e}")))?;
             
         std::fs::write(&chapter_path, toml_content)?;
         Ok(())
@@ -1468,12 +1468,12 @@ impl TaskManager {
             Ok(_) => {
                 // Sync with Kanban if the operation was successful
                 if let Err(e) = self.kanban_sync.handle_git_commit(title, message).await {
-                    eprintln!("Failed to sync Git commit to Kanban: {}", e);
+                    eprintln!("Failed to sync Git commit to Kanban: {e}");
                 }
                 Ok(())
             }
             Err(e) => {
-                eprintln!("Git commit failed for '{}': {}", title, e);
+                eprintln!("Git commit failed for '{title}': {e}");
                 // Return the original error
                 Err(e)
             }
@@ -1535,8 +1535,8 @@ impl TaskManager {
             // Create temporary user object - TODO: Replace with proper user lookup
             let temp_user = User {
                 id: user_id.clone(),
-                name: format!("User {}", user_id),
-                email: format!("{}@example.com", user_id),
+                name: format!("User {user_id}"),
+                email: format!("{user_id}@example.com"),
                 role: crate::UserRole::Translator, // Default role
                 created_at: Utc::now(),
                 active: true,
@@ -1546,7 +1546,7 @@ impl TaskManager {
                 notification,
                 &temp_user,
             ).await {
-                eprintln!("Failed to send notification to user {}: {}", user_id, e);
+                eprintln!("Failed to send notification to user {user_id}: {e}");
             }
         }
 
@@ -1561,7 +1561,7 @@ impl TaskManager {
         };
 
         // Log for debugging/audit trail
-        println!("Task notification sent: {:?}", task_notification);
+        println!("Task notification sent: {task_notification:?}");
         
         Ok(())
     }
@@ -1617,7 +1617,7 @@ impl TaskManager {
                 recipient_id: user_id.clone(),
                 sender_id: Some(self.current_user.id.clone()),
                 notification_type: crate::NotificationType::CommentAdded,
-                title: format!("Comment: {}", action),
+                title: format!("Comment: {action}"),
                 message: notification_content,
                 metadata: crate::NotificationMetadata {
                     document_id: None,
@@ -1636,8 +1636,8 @@ impl TaskManager {
             // Create temporary user object - TODO: Replace with proper user lookup
             let temp_user = User {
                 id: user_id.clone(),
-                name: format!("User {}", user_id),
-                email: format!("{}@example.com", user_id),
+                name: format!("User {user_id}"),
+                email: format!("{user_id}@example.com"),
                 role: crate::UserRole::Translator, // Default role
                 created_at: Utc::now(),
                 active: true,
@@ -1647,7 +1647,7 @@ impl TaskManager {
                 notification,
                 &temp_user,
             ).await {
-                eprintln!("Failed to send comment notification to user {}: {}", user_id, e);
+                eprintln!("Failed to send comment notification to user {user_id}: {e}");
             }
         }
 
@@ -1662,7 +1662,7 @@ impl TaskManager {
         };
 
         // Log for debugging/audit trail
-        println!("Comment notification sent: {:?}", task_notification);
+        println!("Comment notification sent: {task_notification:?}");
         
         Ok(())
     }
@@ -1837,7 +1837,7 @@ impl TaskManager {
                 .filter(|t| {
                     t.assigned_to.as_ref() == Some(member) 
                     && t.status == TodoStatus::Open 
-                    && t.due_date.map_or(false, |due| due < Utc::now())
+                    && t.due_date.is_some_and(|due| due < Utc::now())
                 })
                 .count() as u32;
 
@@ -2036,7 +2036,7 @@ impl TaskManager {
         let completion_percentage = todo.metadata.as_ref().and_then(|m| m.progress_percent);
 
         // Use the most recent timestamp as last activity
-        let last_activity = todo.resolved_at.unwrap_or_else(|| {
+        let last_activity = todo.resolved_at.unwrap_or({
             // Use creation time if not resolved
             todo.created_at
         });
@@ -2106,7 +2106,7 @@ impl TaskManager {
                 _ => {}
             }
 
-            if todo.status == TodoStatus::Open && todo.due_date.map_or(false, |due| due < Utc::now()) {
+            if todo.status == TodoStatus::Open && todo.due_date.is_some_and(|due| due < Utc::now()) {
                 overdue += 1;
             }
 
@@ -2155,8 +2155,8 @@ impl TaskManager {
         match context {
             TodoContext::Project => "project".to_string(),
             TodoContext::Chapter => "chapter".to_string(),
-            TodoContext::Paragraph { unit_id } => format!("paragraph:{}", unit_id),
-            TodoContext::Translation { unit_id, language } => format!("translation:{}:{}", unit_id, language),
+            TodoContext::Paragraph { unit_id } => format!("paragraph:{unit_id}"),
+            TodoContext::Translation { unit_id, language } => format!("translation:{unit_id}:{language}"),
         }
     }
 
@@ -2165,8 +2165,8 @@ impl TaskManager {
         match context {
             TodoContext::Project => "project-level".to_string(),
             TodoContext::Chapter => "chapter-level".to_string(),
-            TodoContext::Paragraph { unit_id } => format!("paragraph-{}", unit_id),
-            TodoContext::Translation { unit_id, language } => format!("translation-{}-{}", unit_id, language),
+            TodoContext::Paragraph { unit_id } => format!("paragraph-{unit_id}"),
+            TodoContext::Translation { unit_id, language } => format!("translation-{unit_id}-{language}"),
         }
     }
 
@@ -2175,7 +2175,7 @@ impl TaskManager {
         match context {
             CommentContext::Project => "project".to_string(),
             CommentContext::Chapter => "chapter".to_string(),
-            CommentContext::Translation { paragraph, language } => format!("translation:{}:{}", paragraph, language),
+            CommentContext::Translation { paragraph, language } => format!("translation:{paragraph}:{language}"),
         }
     }
 }

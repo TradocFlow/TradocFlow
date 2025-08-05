@@ -182,7 +182,7 @@ impl AppState {
     /// Create a new document
     pub async fn create_document(&self, title: String) -> Result<(), crate::TradocumentError> {
         let mut content = HashMap::new();
-        content.insert("en".to_string(), format!("# {}\n\nStart writing your document here...", title));
+        content.insert("en".to_string(), format!("# {title}\n\nStart writing your document here..."));
         
         let api_client = self.api_client.read().await;
         let document = api_client.create_document(title, content.clone()).await?;
@@ -379,11 +379,11 @@ impl AppState {
         
         // Create project in database
         let project = self.project_repository.create(request, user.id.clone()).await
-            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to create project: {}", e)))?;
+            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to create project: {e}")))?;
         
         // Initialize project file structure
         let project_structure = self.project_manager.initialize_project(&project, &source_language, &target_languages).await
-            .map_err(|e| TradocumentError::ProjectError(format!("Failed to initialize project structure: {}", e)))?;
+            .map_err(|e| TradocumentError::ProjectError(format!("Failed to initialize project structure: {e}")))?;
         
         // Set as current project
         {
@@ -402,7 +402,7 @@ impl AppState {
             projects.push(project);
         }
         
-        self.set_status(format!("Project '{}' created successfully", name)).await;
+        self.set_status(format!("Project '{name}' created successfully")).await;
         Ok(())
     }
     
@@ -410,12 +410,12 @@ impl AppState {
     pub async fn load_project(&self, project_id: uuid::Uuid) -> Result<(), TradocumentError> {
         // Load project from database
         let project = self.project_repository.get_by_id(project_id).await
-            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to load project: {}", e)))?
-            .ok_or_else(|| TradocumentError::ProjectNotFound(format!("Project with ID {} not found", project_id)))?;
+            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to load project: {e}")))?
+            .ok_or_else(|| TradocumentError::ProjectNotFound(format!("Project with ID {project_id} not found")))?;
         
         // Load project structure
         let project_structure = self.project_manager.get_project_structure(project_id).await
-            .map_err(|e| TradocumentError::ProjectError(format!("Failed to load project structure: {}", e)))?;
+            .map_err(|e| TradocumentError::ProjectError(format!("Failed to load project structure: {e}")))?;
         
         // Set as current project
         {
@@ -457,7 +457,7 @@ impl AppState {
         };
         
         let projects = self.project_repository.list_by_member(&user.id, None, None).await
-            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to load projects: {}", e)))?;
+            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to load projects: {e}")))?;
         
         {
             let mut project_list = self.projects.write().await;
@@ -489,7 +489,7 @@ impl AppState {
         };
         
         self.project_repository.update(current_project.id, update_request).await
-            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to update project: {}", e)))?;
+            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to update project: {e}")))?;
         
         // Clear unsaved changes
         {
@@ -557,7 +557,7 @@ impl AppState {
         };
         
         let updated_project = self.project_repository.update(current_project.id, update_request).await
-            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to update project: {}", e)))?
+            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to update project: {e}")))?
             .ok_or_else(|| TradocumentError::ProjectError("Failed to retrieve updated project".to_string()))?;
         
         // Update current project state
@@ -682,7 +682,7 @@ impl AppState {
             }
         }
         
-        let similarity_score = if base_sections.len() > 0 {
+        let similarity_score = if !base_sections.is_empty() {
             let matching_sections = base_sections.len() - missing_sections.len() - different_sections.len();
             matching_sections as f32 / base_sections.len() as f32
         } else {
@@ -863,7 +863,7 @@ impl AppState {
             
             // Add language folders
             for (lang_index, language) in structure.languages.iter().enumerate() {
-                let lang_id = format!("lang_{}", language);
+                let lang_id = format!("lang_{language}");
                 tree_items.push(TreeViewItem {
                     id: lang_id.clone(),
                     name: format!("{} ({})", self.get_language_name(language), language.to_uppercase()),
@@ -1157,7 +1157,7 @@ impl AppState {
             }
             2 => {
                 // Validate template selection
-                if !self.template_manager.get_template(&wizard_data.template_id).is_some() {
+                if self.template_manager.get_template(&wizard_data.template_id).is_none() {
                     errors.push("Please select a valid template".to_string());
                 }
             }
@@ -1177,7 +1177,7 @@ impl AppState {
                 // Validate team setup (optional step, no hard requirements)
                 for member in &wizard_data.team_members {
                     if member.name.trim().is_empty() {
-                        errors.push(format!("Team member name cannot be empty"));
+                        errors.push("Team member name cannot be empty".to_string());
                     }
                     if member.email.trim().is_empty() || !member.email.contains('@') {
                         errors.push(format!("Invalid email address for team member: {}", member.name));
@@ -1237,7 +1237,7 @@ impl AppState {
         
         // Create project in database
         let project = self.project_repository.create(request, user.id.clone()).await
-            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to create project: {}", e)))?;
+            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to create project: {e}")))?;
         
         // Get target languages that are enabled
         let target_languages: Vec<String> = wizard_data.target_languages.iter()
@@ -1250,7 +1250,7 @@ impl AppState {
             &project, 
             &wizard_data.source_language, 
             &target_languages
-        ).await.map_err(|e| TradocumentError::ProjectError(format!("Failed to initialize project structure: {}", e)))?;
+        ).await.map_err(|e| TradocumentError::ProjectError(format!("Failed to initialize project structure: {e}")))?;
         
         // Create initial chapters from template
         if let Some(template) = self.template_manager.get_template(&wizard_data.template_id) {
@@ -1270,14 +1270,14 @@ impl AppState {
                         content.insert(wizard_data.source_language.clone(), chapter_template.content_template.clone());
                         content
                     },
-                    order: chapter_template.chapter_number as u32,
+                    order: chapter_template.chapter_number,
                     status: crate::models::document::ChapterStatus::Draft,
                     created_at: Utc::now(),
                     updated_at: Utc::now(),
                 };
                 
                 self.project_manager.create_chapter(project.id, &chapter).await
-                    .map_err(|e| TradocumentError::ProjectError(format!("Failed to create chapter: {}", e)))?;
+                    .map_err(|e| TradocumentError::ProjectError(format!("Failed to create chapter: {e}")))?;
             }
         }
         
@@ -1345,7 +1345,7 @@ impl AppState {
         
         // Load projects from repository
         let projects = self.project_repository.list_by_member(&user.id, None, None).await
-            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to load projects: {}", e)))?;
+            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to load projects: {e}")))?;
         
         // Convert to browser items
         let mut browser_items = Vec::new();
@@ -1354,7 +1354,7 @@ impl AppState {
         for project in projects {
             // Get project summary
             let summary = self.project_repository.get_summary(project.id).await
-                .map_err(|e| TradocumentError::DatabaseError(format!("Failed to get project summary: {}", e)))?
+                .map_err(|e| TradocumentError::DatabaseError(format!("Failed to get project summary: {e}")))?
                 .unwrap_or_else(|| crate::models::project::ProjectSummary {
                     id: project.id,
                     name: project.name.clone(),
@@ -1446,7 +1446,7 @@ impl AppState {
             
             // Update pagination
             let total_items = browser_state.filtered_projects.len();
-            browser_state.total_pages = (total_items + browser_state.items_per_page - 1) / browser_state.items_per_page;
+            browser_state.total_pages = total_items.div_ceil(browser_state.items_per_page);
             if browser_state.total_pages == 0 {
                 browser_state.total_pages = 1;
             }
@@ -1584,8 +1584,8 @@ impl AppState {
     /// Add to recent projects
     pub async fn add_to_recent_projects(&self, project_id: uuid::Uuid) -> Result<(), TradocumentError> {
         let project = self.project_repository.get_by_id(project_id).await
-            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to get project: {}", e)))?
-            .ok_or_else(|| TradocumentError::ProjectNotFound(format!("Project {} not found", project_id)))?;
+            .map_err(|e| TradocumentError::DatabaseError(format!("Failed to get project: {e}")))?
+            .ok_or_else(|| TradocumentError::ProjectNotFound(format!("Project {project_id} not found")))?;
         
         let mut browser_state = self.project_browser_state.write().await;
         
@@ -1658,6 +1658,7 @@ pub struct ContentComparison {
 
 /// Enhanced sidebar state management
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct SidebarState {
     pub tree_items: Vec<TreeViewItem>,
     pub recent_documents: Vec<RecentDocument>,
@@ -1670,6 +1671,7 @@ pub struct SidebarState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct SectionCollapseState {
     pub project_tree: bool,
     pub quick_actions: bool,
@@ -1723,31 +1725,7 @@ pub struct ProjectStats {
     pub recent_activity: String,
 }
 
-impl Default for SidebarState {
-    fn default() -> Self {
-        Self {
-            tree_items: Vec::new(),
-            recent_documents: Vec::new(),
-            project_stats: ProjectStats::default(),
-            search_query: String::new(),
-            search_results: Vec::new(),
-            selected_item_id: String::new(),
-            expanded_items: std::collections::HashSet::new(),
-            sections_collapsed: SectionCollapseState::default(),
-        }
-    }
-}
 
-impl Default for SectionCollapseState {
-    fn default() -> Self {
-        Self {
-            project_tree: false,
-            quick_actions: false,
-            recent_documents: false,
-            statistics: false,
-        }
-    }
-}
 
 impl Default for ProjectStats {
     fn default() -> Self {

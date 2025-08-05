@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Board Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-link {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 10px;
+            transition: background 0.2s;
+        }
+        .test-link:hover {
+            background: #0056b3;
+        }
+        .instructions {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        .feature-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .feature-list li:before {
+            content: "✓ ";
+            color: #28a745;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Kanban Board Test Page</h1>
+        
+        <div class="instructions">
+            <h3>Testing Instructions:</h3>
+            <p>1. Start the API server: <code>cargo run --bin api_server</code></p>
+            <p>2. Click the link below to open the Kanban board</p>
+            <p>3. The board will load with a default project ID for testing</p>
+        </div>
+
+        <a href="index.html?project=test-project-123" class="test-link">
+            Open Kanban Board (Test Project)
+        </a>
+
+        <h3>Features Implemented:</h3>
+        <ul class="feature-list">
+            <li>Responsive Kanban board layout with drag-and-drop</li>
+            <li>Task creation, editing, and status management</li>
+            <li>Real-time updates using Server-Sent Events</li>
+            <li>Search functionality for tasks</li>
+            <li>Filtering by assignee and priority</li>
+            <li>Visual priority indicators and due date tracking</li>
+            <li>Modal-based task editing interface</li>
+            <li>Toast notifications for user feedback</li>
+            <li>Keyboard shortcuts (Ctrl+N for new task, Esc to close modal)</li>
+            <li>Mobile-responsive design</li>
+        </ul>
+
+        <h3>API Endpoints:</h3>
+        <ul>
+            <li><strong>GET</strong> /api/projects/{id}/kanban - Get board data</li>
+            <li><strong>POST</strong> /api/projects/{id}/kanban - Create new task</li>
+            <li><strong>GET</strong> /api/kanban/{id} - Get specific task</li>
+            <li><strong>PUT</strong> /api/kanban/{id} - Update task</li>
+            <li><strong>DELETE</strong> /api/kanban/{id} - Delete task</li>
+            <li><strong>PUT</strong> /api/kanban/{id}/move - Move task between columns</li>
+            <li><strong>GET</strong> /api/projects/{id}/events - Server-Sent Events stream</li>
+        </ul>
+
+        <div class="instructions">
+            <h3>Note:</h3>
+            <p>This is a test interface. In the actual application, the project ID would be passed from the main Slint application when opening the web-based Kanban board.</p>
+        </div>
+    </div>
+
+    <script src="test.js"></script>
+</body>
+</html>

@@ -253,6 +253,7 @@ pub struct UpdateThreadRequest {
 
 /// Comment search and filter options
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct CommentFilter {
     pub author: Option<String>,
     pub comment_type: Option<CommentType>,
@@ -522,7 +523,7 @@ impl CommentSystem {
         };
 
         self.commit_comment_operation(
-            &format!("comment: {}", event_type),
+            &format!("comment: {event_type}"),
             &format!(
                 "Added comment to thread\n\n\
                  Type: {:?}\n\
@@ -532,8 +533,8 @@ impl CommentSystem {
                  Author: {}\n\
                  Comment-ID: {}",
                 comment.comment_type,
-                thread_id.as_ref().map(|s| s.clone()).unwrap_or_else(|| "none".to_string()),
-                request.parent_id.as_ref().map(|s| s.clone()).unwrap_or_else(|| "none".to_string()),
+                thread_id.clone().unwrap_or_else(|| "none".to_string()),
+                request.parent_id.clone().unwrap_or_else(|| "none".to_string()),
                 self.truncate_content(&comment.content, 100),
                 comment.author,
                 comment.id
@@ -641,14 +642,14 @@ impl CommentSystem {
         // Create Git commit
         if !changes.is_empty() {
             self.commit_comment_operation(
-                &format!("comment: update comment {}", comment_id),
+                &format!("comment: update comment {comment_id}"),
                 &format!(
                     "Updated comment\n\n\
                      Changes:\n{}\n\
                      Reason: {}\n\n\
                      Updated-By: {}\n\
                      Comment-ID: {}",
-                    changes.into_iter().map(|c| format!("- {}", c)).collect::<Vec<_>>().join("\n"),
+                    changes.into_iter().map(|c| format!("- {c}")).collect::<Vec<_>>().join("\n"),
                     request.reason.unwrap_or_else(|| "No reason provided".to_string()),
                     self.current_user.id,
                     comment.id
@@ -681,7 +682,7 @@ impl CommentSystem {
     /// Get a specific comment by ID
     pub async fn get_comment(&self, comment_id: &str) -> Result<ThreadedComment> {
         self.find_comment_in_toml(comment_id).await?.ok_or_else(|| {
-            TradocumentError::ApiError(format!("Comment {} not found", comment_id))
+            TradocumentError::ApiError(format!("Comment {comment_id} not found"))
         })
     }
 
@@ -705,7 +706,7 @@ impl CommentSystem {
             Ok(thread)
         } else {
             Err(TradocumentError::ApiError(
-                format!("Thread {} not found", thread_id)
+                format!("Thread {thread_id} not found")
             ))
         }
     }
@@ -736,15 +737,9 @@ impl CommentSystem {
         let mut all_threads = self.load_all_threads().await?;
 
         // Apply filters
-        all_comments = all_comments
-            .into_iter()
-            .filter(|comment| self.matches_comment_filter(comment, &filter))
-            .collect();
+        all_comments.retain(|comment| self.matches_comment_filter(comment, &filter));
 
-        all_threads = all_threads
-            .into_iter()
-            .filter(|thread| self.matches_thread_filter(thread, &filter))
-            .collect();
+        all_threads.retain(|thread| self.matches_thread_filter(thread, &filter));
 
         // Calculate pagination
         let total_count = all_comments.len() as u32;
@@ -792,7 +787,7 @@ impl CommentSystem {
 
         // Create Git commit
         self.commit_comment_operation(
-            &format!("thread: resolve thread {}", thread_id),
+            &format!("thread: resolve thread {thread_id}"),
             &format!(
                 "Resolved comment thread\n\n\
                  Thread ID: {}\n\
@@ -836,7 +831,7 @@ impl CommentSystem {
 
         // Create Git commit
         self.commit_comment_operation(
-            &format!("thread: close thread {}", thread_id),
+            &format!("thread: close thread {thread_id}"),
             &format!(
                 "Closed comment thread\n\n\
                  Thread ID: {}\n\
@@ -1048,27 +1043,6 @@ pub struct CommentStatistics {
     pub avg_resolution_time: Option<f32>, // hours
 }
 
-impl Default for CommentFilter {
-    fn default() -> Self {
-        Self {
-            author: None,
-            comment_type: None,
-            context_type: None,
-            thread_id: None,
-            thread_status: None,
-            resolved: None,
-            mentions: None,
-            created_after: None,
-            created_before: None,
-            content_search: None,
-            tags: None,
-            priority: None,
-            language: None,
-            chapter: None,
-            unit_id: None,
-        }
-    }
-}
 
 impl CommentSystem {
     /// Validate thread exists
@@ -1122,10 +1096,10 @@ impl CommentSystem {
     fn format_thread_context(&self, context: &ThreadContext) -> String {
         match context {
             ThreadContext::Translation { unit_id, language, chapter, .. } => {
-                format!("translation:{}:{}:{}", chapter, unit_id, language)
+                format!("translation:{chapter}:{unit_id}:{language}")
             }
             ThreadContext::Paragraph { unit_id, chapter, .. } => {
-                format!("paragraph:{}:{}", chapter, unit_id)
+                format!("paragraph:{chapter}:{unit_id}")
             }
             ThreadContext::Chapter { chapter, section } => {
                 format!("chapter:{}:{}", chapter, section.as_deref().unwrap_or(""))
@@ -1493,7 +1467,7 @@ impl CommentSystem {
                     unit.comments.push(legacy_comment);
                 } else {
                     return Err(TradocumentError::ApiError(
-                        format!("Unit {} not found", paragraph)
+                        format!("Unit {paragraph} not found")
                     ));
                 }
                 
@@ -1570,15 +1544,15 @@ impl CommentSystem {
         }
 
         Err(TradocumentError::ApiError(
-            format!("Comment {} not found for removal", comment_id)
+            format!("Comment {comment_id} not found for removal")
         ))
     }
 
     /// Commit comment operation to Git
     async fn commit_comment_operation(&self, title: &str, message: &str) -> Result<()> {
         // In a real implementation, this would use the GitWorkflowManager
-        println!("Git commit: {}", title);
-        println!("Message: {}", message);
+        println!("Git commit: {title}");
+        println!("Message: {message}");
         
         // TODO: Implement actual Git commit through GitWorkflowManager
         // self.git_manager.commit_changes(title, message).await?;
@@ -1617,7 +1591,7 @@ impl CommentSystem {
         };
 
         // TODO: Integrate with notification system
-        println!("Comment notification: {:?}", notification);
+        println!("Comment notification: {notification:?}");
         
         Ok(())
     }
@@ -1641,7 +1615,7 @@ impl CommentSystem {
         };
 
         // TODO: Integrate with notification system
-        println!("Thread notification: {:?}", notification);
+        println!("Thread notification: {notification:?}");
         
         Ok(())
     }
@@ -1650,7 +1624,7 @@ impl CommentSystem {
     async fn load_chapter_toml(&self, chapter_name: &str) -> Result<ChapterData> {
         let chapter_path = Path::new(&self.repo_path)
             .join("content/chapters")
-            .join(format!("{}.toml", chapter_name));
+            .join(format!("{chapter_name}.toml"));
             
         self.load_chapter_toml_by_path(&chapter_path).await
     }
@@ -1660,7 +1634,7 @@ impl CommentSystem {
         if chapter_path.exists() {
             let toml_content = std::fs::read_to_string(chapter_path)?;
             let chapter_data: ChapterData = toml::from_str(&toml_content)
-                .map_err(|e| TradocumentError::ApiError(format!("Failed to parse chapter TOML: {}", e)))?;
+                .map_err(|e| TradocumentError::ApiError(format!("Failed to parse chapter TOML: {e}")))?;
             Ok(chapter_data)
         } else {
             // Create default chapter data
@@ -1676,7 +1650,7 @@ impl CommentSystem {
     async fn save_chapter_toml(&self, chapter_name: &str, chapter_data: &ChapterData) -> Result<()> {
         let chapter_path = Path::new(&self.repo_path)
             .join("content/chapters")
-            .join(format!("{}.toml", chapter_name));
+            .join(format!("{chapter_name}.toml"));
         
         // Ensure directory exists
         if let Some(parent) = chapter_path.parent() {
@@ -1684,7 +1658,7 @@ impl CommentSystem {
         }
 
         let toml_content = toml::to_string_pretty(chapter_data)
-            .map_err(|e| TradocumentError::ApiError(format!("Failed to serialize chapter TOML: {}", e)))?;
+            .map_err(|e| TradocumentError::ApiError(format!("Failed to serialize chapter TOML: {e}")))?;
             
         std::fs::write(&chapter_path, toml_content)?;
         Ok(())

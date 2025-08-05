@@ -35,7 +35,7 @@ impl TomlFileManager {
     
     /// Get the path to a chapter TOML file
     pub fn chapter_toml_path(&self, chapter_number: u32, chapter_slug: &str) -> PathBuf {
-        let filename = format!("{:02}_{}.toml", chapter_number, chapter_slug);
+        let filename = format!("{chapter_number:02}_{chapter_slug}.toml");
         self.root_path.join("content").join("chapters").join(filename)
     }
     
@@ -71,7 +71,7 @@ impl TomlFileManager {
     pub fn read_project(&self) -> Result<ProjectData> {
         let path = self.project_toml_path();
         let content = fs::read_to_string(&path)
-            .map_err(|e| TomlDataError::Validation(format!("Failed to read project.toml: {}", e)))?;
+            .map_err(|e| TomlDataError::Validation(format!("Failed to read project.toml: {e}")))?;
         
         let project: ProjectData = toml::from_str(&content)?;
         
@@ -91,7 +91,7 @@ impl TomlFileManager {
         // Ensure parent directory exists
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
-                .map_err(|e| TomlDataError::Validation(format!("Failed to create directory: {}", e)))?;
+                .map_err(|e| TomlDataError::Validation(format!("Failed to create directory: {e}")))?;
         }
         
         // Serialize to TOML with pretty formatting
@@ -103,22 +103,22 @@ impl TomlFileManager {
             Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
         );
         
-        let final_content = format!("{}{}", header, toml_content);
+        let final_content = format!("{header}{toml_content}");
         
         // Write atomically by writing to temp file first
         let temp_path = path.with_extension("toml.tmp");
         {
             let mut file = fs::File::create(&temp_path)
-                .map_err(|e| TomlDataError::Validation(format!("Failed to create temp file: {}", e)))?;
+                .map_err(|e| TomlDataError::Validation(format!("Failed to create temp file: {e}")))?;
             file.write_all(final_content.as_bytes())
-                .map_err(|e| TomlDataError::Validation(format!("Failed to write temp file: {}", e)))?;
+                .map_err(|e| TomlDataError::Validation(format!("Failed to write temp file: {e}")))?;
             file.sync_all()
-                .map_err(|e| TomlDataError::Validation(format!("Failed to sync temp file: {}", e)))?;
+                .map_err(|e| TomlDataError::Validation(format!("Failed to sync temp file: {e}")))?;
         }
         
         // Atomic rename
         fs::rename(&temp_path, &path)
-            .map_err(|e| TomlDataError::Validation(format!("Failed to rename temp file: {}", e)))?;
+            .map_err(|e| TomlDataError::Validation(format!("Failed to rename temp file: {e}")))?;
         
         Ok(())
     }
@@ -147,7 +147,7 @@ impl TomlFileManager {
         // Ensure parent directory exists
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
-                .map_err(|e| TomlDataError::Validation(format!("Failed to create directory: {}", e)))?;
+                .map_err(|e| TomlDataError::Validation(format!("Failed to create directory: {e}")))?;
         }
         
         // Serialize to TOML with pretty formatting
@@ -161,22 +161,22 @@ impl TomlFileManager {
             Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
         );
         
-        let final_content = format!("{}{}", header, toml_content);
+        let final_content = format!("{header}{toml_content}");
         
         // Write atomically
         let temp_path = path.with_extension("toml.tmp");
         {
             let mut file = fs::File::create(&temp_path)
-                .map_err(|e| TomlDataError::Validation(format!("Failed to create temp file: {}", e)))?;
+                .map_err(|e| TomlDataError::Validation(format!("Failed to create temp file: {e}")))?;
             file.write_all(final_content.as_bytes())
-                .map_err(|e| TomlDataError::Validation(format!("Failed to write temp file: {}", e)))?;
+                .map_err(|e| TomlDataError::Validation(format!("Failed to write temp file: {e}")))?;
             file.sync_all()
-                .map_err(|e| TomlDataError::Validation(format!("Failed to sync temp file: {}", e)))?;
+                .map_err(|e| TomlDataError::Validation(format!("Failed to sync temp file: {e}")))?;
         }
         
         // Atomic rename
         fs::rename(&temp_path, &path)
-            .map_err(|e| TomlDataError::Validation(format!("Failed to rename temp file: {}", e)))?;
+            .map_err(|e| TomlDataError::Validation(format!("Failed to rename temp file: {e}")))?;
         
         Ok(())
     }
@@ -267,7 +267,7 @@ impl TomlFileManager {
             match self.read_project() {
                 Ok(_) => report.valid_files += 1,
                 Err(e) => {
-                    report.errors.push(format!("project.toml: {}", e));
+                    report.errors.push(format!("project.toml: {e}"));
                     report.invalid_files += 1;
                 }
             }
@@ -282,14 +282,14 @@ impl TomlFileManager {
                     match self.read_chapter(number, &slug) {
                         Ok(_) => report.valid_files += 1,
                         Err(e) => {
-                            report.errors.push(format!("{:02}_{}.toml: {}", number, slug, e));
+                            report.errors.push(format!("{number:02}_{slug}.toml: {e}"));
                             report.invalid_files += 1;
                         }
                     }
                 }
             }
             Err(e) => {
-                report.errors.push(format!("Failed to list chapters: {}", e));
+                report.errors.push(format!("Failed to list chapters: {e}"));
             }
         }
         
@@ -387,7 +387,7 @@ pub mod utils {
             .map(|line| {
                 // Add extra spacing around section headers
                 if line.starts_with('[') && !line.starts_with("[[") {
-                    format!("\n{}", line)
+                    format!("\n{line}")
                 } else {
                     line.to_string()
                 }
@@ -405,7 +405,7 @@ pub mod utils {
         V: std::fmt::Display,
     {
         let entries: Vec<String> = map.iter()
-            .map(|(k, v)| format!("{} = \"{}\"", k, v))
+            .map(|(k, v)| format!("{k} = \"{v}\""))
             .collect();
         
         format!("{{ {} }}", entries.join(", "))

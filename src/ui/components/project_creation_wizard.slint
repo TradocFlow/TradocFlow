@@ -96,9 +96,13 @@ export component ProjectCreationWizard inherits Dialog {
     callback team-member-removed(string /* member-id */);
     callback validate-current-step() -> bool;
     
+    // Helper function for email validation (basic check)
+    pure function is-valid-email(email: string) -> bool {
+        return email != "" && email.character_count > 5;
+    }
+    
     // Keyboard handling and accessibility
-    forward-focus: step-content;
-    accessible-role: dialog;
+    accessible-role: none;
     accessible-label: "Create New Project Wizard";
     accessible-description: "A 7-step wizard to configure and create a new translation project";
     
@@ -153,7 +157,7 @@ export component ProjectCreationWizard inherits Dialog {
                 HorizontalLayout {
                     spacing: 8px;
                     alignment: end;
-                    accessible-role: progressbar;
+                    accessible-role: none;
                     accessible-label: "Wizard progress: step " + current-step + " of " + total-steps;
                     
                     for step in 7: Rectangle {
@@ -164,7 +168,7 @@ export component ProjectCreationWizard inherits Dialog {
                                    step == current-step - 1 ? Colors.primary : Colors.surface-variant;
                         border-width: step == current-step - 1 ? 2px : 1px;
                         border-color: step == current-step - 1 ? Colors.primary : Colors.border;
-                        accessible-role: step < current-step ? "img" : step == current-step - 1 ? "button" : "img";
+                        accessible-role: none;
                         accessible-label: step < current-step ? "Step " + (step + 1) + " completed" :
                                          step == current-step - 1 ? "Step " + (step + 1) + " current" :
                                          "Step " + (step + 1) + " pending";
@@ -262,15 +266,15 @@ export component ProjectCreationWizard inherits Dialog {
                             alignment: space-between;
                             
                             Text {
-                                text: project-details.name.length > 0 && project-details.name.length < 3 ? 
+                                text: project-details.name.character_count > 0 && project-details.name.character_count < 3 ? 
                                       "⚠️ Name too short (minimum 3 characters)" : "";
                                 color: Colors.warning;
                                 font-size: Theme.font-size-small;
                             }
                             
                             Text {
-                                text: project-details.name.length + "/50 characters";
-                                color: project-details.name.length > 45 ? Colors.warning : Colors.text-secondary;
+                                text: project-details.name.character_count + "/50 characters";
+                                color: project-details.name.character_count > 45 ? Colors.warning : Colors.text-secondary;
                                 font-size: Theme.font-size-small;
                             }
                         }
@@ -309,8 +313,8 @@ export component ProjectCreationWizard inherits Dialog {
                         
                         // Character count for description
                         Text {
-                            text: project-details.description.length + "/500 characters";
-                            color: project-details.description.length > 450 ? Colors.warning : Colors.text-secondary;
+                            text: project-details.description.character_count + "/500 characters";
+                            color: project-details.description.character_count > 450 ? Colors.warning : Colors.text-secondary;
                             font-size: Theme.font-size-small;
                             horizontal-alignment: right;
                         }
@@ -375,12 +379,10 @@ export component ProjectCreationWizard inherits Dialog {
                                 
                                 // Date validation feedback
                                 if project-details.due-date != "": Text {
-                                    text: project-details.due-date.length == 10 && 
-                                          project-details.due-date.contains("-") ? 
+                                    text: project-details.due-date.character_count == 10 ? 
                                           "✓ Valid date format" : 
                                           "⚠️ Use YYYY-MM-DD format";
-                                    color: project-details.due-date.length == 10 && 
-                                           project-details.due-date.contains("-") ? 
+                                    color: project-details.due-date.character_count == 10 ? 
                                            Colors.success : Colors.warning;
                                     font-size: Theme.font-size-small;
                                 }
@@ -411,7 +413,7 @@ export component ProjectCreationWizard inherits Dialog {
                             border-radius: Theme.border-radius-md;
                             border-width: selected-template-id == "technical_manual" ? 2px : 1px;
                             border-color: selected-template-id == "technical_manual" ? Colors.primary : Colors.border;
-                            accessible-role: "radio";
+                            accessible-role: none;
                             accessible-label: "Technical Manual template";
                             accessible-description: "Comprehensive technical documentation with installation, configuration, and troubleshooting guides";
                             
@@ -447,7 +449,7 @@ export component ProjectCreationWizard inherits Dialog {
                             border-radius: Theme.border-radius-md;
                             border-width: selected-template-id == "user_guide" ? 2px : 1px;
                             border-color: selected-template-id == "user_guide" ? Colors.primary : Colors.border;
-                            accessible-role: "radio";
+                            accessible-role: none;
                             accessible-label: "User Guide template";
                             accessible-description: "End-user focused documentation with step-by-step instructions and tutorials";
                             
@@ -483,7 +485,7 @@ export component ProjectCreationWizard inherits Dialog {
                             border-radius: Theme.border-radius-md;
                             border-width: selected-template-id == "training_material" ? 2px : 1px;
                             border-color: selected-template-id == "training_material" ? Colors.primary : Colors.border;
-                            accessible-role: "radio";
+                            accessible-role: none;
                             accessible-label: "Training Material template";
                             accessible-description: "Educational content with lessons, exercises, and assessments";
                             
@@ -519,7 +521,7 @@ export component ProjectCreationWizard inherits Dialog {
                             border-radius: Theme.border-radius-md;
                             border-width: selected-template-id == "blank" ? 2px : 1px;
                             border-color: selected-template-id == "blank" ? Colors.primary : Colors.border;
-                            accessible-role: "radio";
+                            accessible-role: none;
                             accessible-label: "Blank Project template";
                             accessible-description: "Start with a clean slate and build your documentation structure from scratch";
                             
@@ -1021,7 +1023,7 @@ export component ProjectCreationWizard inherits Dialog {
                                     }
                                     
                                     // Email validation feedback
-                                    if new-member-email != "" && !new-member-email.contains("@"): Text {
+                                    if new-member-email != "" && !is-valid-email(new-member-email): Text {
                                         text: "⚠️ Please enter a valid email address";
                                         color: Colors.warning;
                                         font-size: Theme.font-size-small;
@@ -1063,12 +1065,12 @@ export component ProjectCreationWizard inherits Dialog {
                                     
                                     add-member-button := Button {
                                         text: "Add Member";
-                                        enabled: new-member-name != "" && new-member-email != "" && new-member-email.contains("@");
+                                        enabled: new-member-name != "" && new-member-email != "" && is-valid-email(new-member-email);
                                         accessible-label: "Add team member";
                                         accessible-description: "Add the specified team member with their role to the project";
                                         
                                         clicked => {
-                                            if (new-member-name != "" && new-member-email != "" && new-member-email.contains("@")) {
+                                            if (new-member-name != "" && new-member-email != "" && is-valid-email(new-member-email)) {
                                                 root.team-member-added(new-member-name, new-member-email, new-member-role);
                                                 root.new-member-name = "";
                                                 root.new-member-email = "";

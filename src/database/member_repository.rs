@@ -153,7 +153,7 @@ impl MemberRepository {
         )?;
         
         let count: i64 = stmt.query_row(params![project_id.to_string(), user_id], |row| {
-            Ok(row.get(0)?)
+            row.get(0)
         })?;
         
         Ok(count > 0)
@@ -167,7 +167,7 @@ impl MemberRepository {
         )?;
         
         let owner_id: String = owner_stmt.query_row(params![project_id.to_string()], |row| {
-            Ok(row.get(0)?)
+            row.get(0)
         })?;
         
         if owner_id == user_id {

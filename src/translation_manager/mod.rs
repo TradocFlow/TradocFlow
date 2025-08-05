@@ -33,6 +33,12 @@ pub struct TranslationManager {
     supported_languages: Vec<String>,
 }
 
+impl Default for TranslationManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TranslationManager {
     pub fn new() -> Self {
         Self {

@@ -91,7 +91,7 @@ impl App {
 
         // Create the main window from Slint
         let main_window = MainWindow::new()
-            .map_err(|e| TradocumentError::SlintError(format!("Failed to create main window: {}", e)))?;
+            .map_err(|e| TradocumentError::SlintError(format!("Failed to create main window: {e}")))?;
 
         // Set up initial state
         main_window.set_current_language("en".into());
@@ -110,9 +110,8 @@ impl App {
             .join("translation_memory");
         let translation_memory_service = Arc::new(
             TranslationMemoryService::new(tm_path).await
-                .map_err(|e| TradocumentError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other, 
-                    format!("Failed to initialize translation memory: {}", e)
+                .map_err(|e| TradocumentError::IoError(std::io::Error::other(
+                    format!("Failed to initialize translation memory: {e}")
                 )))?
         );
         
@@ -152,7 +151,7 @@ impl App {
     /// Run the application - this will block until the window is closed
     pub fn run(&self) -> Result<()> {
         self.main_window.run()
-            .map_err(|e| TradocumentError::SlintError(format!("Failed to run application: {}", e)))
+            .map_err(|e| TradocumentError::SlintError(format!("Failed to run application: {e}")))
     }
 
     /// Set up all the callbacks for the Slint UI
@@ -224,7 +223,7 @@ impl App {
                         if !test_file.exists() {
                             if let Err(e) = tokio::fs::write(&test_file, "# Test Document\n\nThis is a test document for demonstration.\n\nYou can edit this content.").await {
                                 if let Some(window) = window_weak.upgrade() {
-                                    window.set_status_message(format!("Failed to create test file: {}", e).into());
+                                    window.set_status_message(format!("Failed to create test file: {e}").into());
                                     window.set_status_type("error".into());
                                 }
                                 return;
@@ -254,7 +253,7 @@ impl App {
                             },
                             Err(e) => {
                                 if let Some(window) = window_weak.upgrade() {
-                                    window.set_status_message(format!("Failed to open file: {}", e).into());
+                                    window.set_status_message(format!("Failed to open file: {e}").into());
                                     window.set_status_type("error".into());
                                 }
                             }
@@ -316,7 +315,7 @@ impl App {
                             },
                             Err(e) => {
                                 if let Some(window) = window_weak.upgrade() {
-                                    window.set_status_message(format!("Failed to save document: {}", e).into());
+                                    window.set_status_message(format!("Failed to save document: {e}").into());
                                     window.set_status_type("error".into());
                                 }
                             }
@@ -359,7 +358,7 @@ impl App {
                         // Simulate save as dialog
                         let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
                         let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-                        let save_path = current_dir.join(format!("document_{}.md", timestamp));
+                        let save_path = current_dir.join(format!("document_{timestamp}.md"));
 
                         // Save to filesystem
                         match tokio::fs::write(&save_path, &content).await {
@@ -380,7 +379,7 @@ impl App {
                             },
                             Err(e) => {
                                 if let Some(window) = window_weak.upgrade() {
-                                    window.set_status_message(format!("Failed to save document: {}", e).into());
+                                    window.set_status_message(format!("Failed to save document: {e}").into());
                                     window.set_status_type("error".into());
                                 }
                             }
@@ -450,7 +449,7 @@ impl App {
                                         },
                                         Err(e) => {
                                             if let Some(window) = window_weak.upgrade() {
-                                                window.set_status_message(format!("Failed to import document: {}", e).into());
+                                                window.set_status_message(format!("Failed to import document: {e}").into());
                                                 window.set_status_type("error".into());
                                             }
                                         }
@@ -501,7 +500,7 @@ impl App {
                                         Err(e) => {
                                             if let Some(window) = window_weak.upgrade() {
                                                 window.set_status_message(
-                                                    format!("Failed to import Word document: {}", e).into()
+                                                    format!("Failed to import Word document: {e}").into()
                                                 );
                                                 window.set_status_type("error".into());
                                             }
@@ -510,7 +509,7 @@ impl App {
                                 },
                                 _ => {
                                     if let Some(window) = window_weak.upgrade() {
-                                        window.set_status_message(format!("Unsupported file format for import: {}", extension).into());
+                                        window.set_status_message(format!("Unsupported file format for import: {extension}").into());
                                         window.set_status_type("error".into());
                                     }
                                 }
@@ -743,7 +742,7 @@ impl App {
             move |lang| {
                 if let Some(window) = main_window_weak.upgrade() {
                     window.set_current_language(lang.clone());
-                    window.set_status_message(format!("Language changed to {}", lang).into());
+                    window.set_status_message(format!("Language changed to {lang}").into());
                     window.set_status_type("success".into());
                 }
             }
@@ -787,7 +786,7 @@ impl App {
 
                         // Update UI status (don't set document content to avoid circular callback)
                         if let Some(window) = window_weak.upgrade() {
-                            window.set_status_message(format!("Content updated for {}", language_str).into());
+                            window.set_status_message(format!("Content updated for {language_str}").into());
                             window.set_status_type("info".into());
                         }
 
@@ -825,7 +824,7 @@ impl App {
                                     },
                                     Err(e) => {
                                         if let Some(window) = window_weak.upgrade() {
-                                            window.set_status_message(format!("Auto-save failed: {}", e).into());
+                                            window.set_status_message(format!("Auto-save failed: {e}").into());
                                             window.set_status_type("warning".into());
                                         }
                                     }
@@ -925,7 +924,7 @@ impl App {
             let wizard_data = wizard_data.clone();
             move |language_code, enabled| {
                 if let Ok(mut data) = wizard_data.lock() {
-                    let language_name = Self::language_code_to_name(&language_code.to_string());
+                    let language_name = Self::language_code_to_name(language_code.as_ref());
                     if enabled {
                         if !data.target_languages.contains(&language_name) {
                             data.target_languages.push(language_name);
@@ -942,7 +941,7 @@ impl App {
             let wizard_data = wizard_data.clone();
             move |language_code| {
                 if let Ok(mut data) = wizard_data.lock() {
-                    data.source_language = Self::language_code_to_name(&language_code.to_string());
+                    data.source_language = Self::language_code_to_name(language_code.as_ref());
                 }
             }
         });
@@ -1038,7 +1037,7 @@ impl App {
                             }
                             Err(e) => {
                                 if let Some(window) = window_weak.upgrade() {
-                                    window.set_status_message(format!("Failed to create project: {}", e).into());
+                                    window.set_status_message(format!("Failed to create project: {e}").into());
                                     window.set_status_type("error".into());
                                 }
                             }
@@ -1103,7 +1102,7 @@ impl App {
             move |query| {
                 if let Some(window) = main_window_weak.upgrade() {
                     window.set_browser_search_query(query.clone());
-                    window.set_status_message(format!("Searching for: {}", query).into());
+                    window.set_status_message(format!("Searching for: {query}").into());
                     window.set_status_type("info".into());
                     
                     // TODO: Implement actual project search
@@ -1127,7 +1126,7 @@ impl App {
                     window.set_current_project_name(project_name.clone().into());
                     window.set_show_project_browser(false);
                     
-                    window.set_status_message(format!("Opened project: {}", project_name).into());
+                    window.set_status_message(format!("Opened project: {project_name}").into());
                     window.set_status_type("success".into());
                     
                     // Save as last opened project
@@ -1195,7 +1194,7 @@ impl App {
                             Err(e) => {
                                 if let Some(window) = window_weak.upgrade() {
                                     window.set_browser_is_loading(false);
-                                    window.set_status_message(format!("Failed to discover projects: {}", e).into());
+                                    window.set_status_message(format!("Failed to discover projects: {e}").into());
                                     window.set_status_type("error".into());
                                 }
                             }
@@ -1220,7 +1219,7 @@ impl App {
                         // TODO: Load project contents and update the sidebar with project tree
                     }
                     Err(e) => {
-                        self.main_window.set_status_message(format!("Failed to reopen last project: {}", e).into());
+                        self.main_window.set_status_message(format!("Failed to reopen last project: {e}").into());
                         self.main_window.set_status_type("warning".into());
                     }
                 }
@@ -1239,7 +1238,7 @@ impl App {
         
         if last_project_file.exists() {
             let path_str = std::fs::read_to_string(&last_project_file)
-                .map_err(|e| TradocumentError::IoError(e))?;
+                .map_err(TradocumentError::IoError)?;
             Ok(std::path::PathBuf::from(path_str.trim()))
         } else {
             Err(TradocumentError::IoError(std::io::Error::new(std::io::ErrorKind::NotFound, "No last project file found")))
@@ -1253,11 +1252,11 @@ impl App {
             .join("tradocflow");
         
         std::fs::create_dir_all(&settings_dir)
-            .map_err(|e| TradocumentError::IoError(e))?;
+            .map_err(TradocumentError::IoError)?;
         
         let last_project_file = settings_dir.join("last_project.txt");
         std::fs::write(&last_project_file, project_path.to_string_lossy().as_bytes())
-            .map_err(|e| TradocumentError::IoError(e))?;
+            .map_err(TradocumentError::IoError)?;
         
         Ok(())
     }
@@ -1346,7 +1345,7 @@ impl App {
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
                     let word_count = window.get_document_content().to_string().split_whitespace().count();
-                    window.set_status_message(format!("Word count: {}", word_count).into());
+                    window.set_status_message(format!("Word count: {word_count}").into());
                     window.set_status_type("success".into());
                 }
             }
@@ -1446,7 +1445,7 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move |level| {
                 if let Some(window) = main_window_weak.upgrade() {
-                    window.set_status_message(format!("Heading {} applied", level).into());
+                    window.set_status_message(format!("Heading {level} applied").into());
                     window.set_status_type("success".into());
                 }
             }
@@ -1677,7 +1676,7 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move |item_id| {
                 if let Some(window) = main_window_weak.upgrade() {
-                    window.set_status_message(format!("Selected item: {}", item_id).into());
+                    window.set_status_message(format!("Selected item: {item_id}").into());
                     window.set_status_type("info".into());
                 }
             }
@@ -1688,7 +1687,7 @@ impl App {
             move |item_id, expanded| {
                 if let Some(window) = main_window_weak.upgrade() {
                     let action = if expanded { "expanded" } else { "collapsed" };
-                    window.set_status_message(format!("Item {} {}", item_id, action).into());
+                    window.set_status_message(format!("Item {item_id} {action}").into());
                     window.set_status_type("info".into());
                 }
             }
@@ -1698,7 +1697,7 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move |item_id, _x, _y| {
                 if let Some(window) = main_window_weak.upgrade() {
-                    window.set_status_message(format!("Context menu for {}", item_id).into());
+                    window.set_status_message(format!("Context menu for {item_id}").into());
                     window.set_status_type("info".into());
                 }
             }
@@ -1708,7 +1707,7 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move |query| {
                 if let Some(window) = main_window_weak.upgrade() {
-                    window.set_status_message(format!("Searching for: {}", query).into());
+                    window.set_status_message(format!("Searching for: {query}").into());
                     window.set_status_type("info".into());
                 }
             }
@@ -1728,7 +1727,7 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move |doc_id| {
                 if let Some(window) = main_window_weak.upgrade() {
-                    window.set_status_message(format!("Opening recent document: {}", doc_id).into());
+                    window.set_status_message(format!("Opening recent document: {doc_id}").into());
                     window.set_status_type("info".into());
                 }
             }
@@ -1738,7 +1737,7 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move |action_id| {
                 if let Some(window) = main_window_weak.upgrade() {
-                    window.set_status_message(format!("Quick action: {}", action_id).into());
+                    window.set_status_message(format!("Quick action: {action_id}").into());
                     window.set_status_type("info".into());
                 }
             }
@@ -1781,7 +1780,7 @@ impl App {
                     let current_mode = window.get_current_mode().to_string();
                     let new_mode = if current_mode == "markdown" { "wysiwyg" } else { "markdown" };
                     window.set_current_mode(new_mode.into());
-                    window.set_status_message(format!("Mode changed to {}", new_mode).into());
+                    window.set_status_message(format!("Mode changed to {new_mode}").into());
                     window.set_status_type("success".into());
                 }
             }
@@ -1792,7 +1791,7 @@ impl App {
             move |layout| {
                 if let Some(window) = main_window_weak.upgrade() {
                     window.set_current_layout(layout.clone());
-                    window.set_status_message(format!("Layout changed to {}", layout).into());
+                    window.set_status_message(format!("Layout changed to {layout}").into());
                     window.set_status_type("success".into());
                 }
             }
@@ -1823,7 +1822,7 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move |step| {
                 if let Some(window) = main_window_weak.upgrade() {
-                    window.set_status_message(format!("Wizard step {}", step).into());
+                    window.set_status_message(format!("Wizard step {step}").into());
                     window.set_status_type("info".into());
                 }
             }
@@ -1921,7 +1920,7 @@ impl App {
     async fn load_document_from_path(&self, path: &PathBuf) -> Result<()> {
         // Read file content
         let content = tokio::fs::read_to_string(path).await
-            .map_err(|e| TradocumentError::IoError(e))?;
+            .map_err(TradocumentError::IoError)?;
 
         // Update document state
         if let Ok(mut state) = self.document_state.lock() {
@@ -1946,8 +1945,7 @@ impl App {
     async fn save_current_document(&self) -> Result<()> {
         let (path, content) = {
             let state = self.document_state.lock().map_err(|_| 
-                TradocumentError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other, 
+                TradocumentError::IoError(std::io::Error::other(
                     "Failed to lock document state"
                 )))?;
             
@@ -1962,7 +1960,7 @@ impl App {
 
         // Save to filesystem
         tokio::fs::write(&path, &content).await
-            .map_err(|e| TradocumentError::IoError(e))?;
+            .map_err(TradocumentError::IoError)?;
 
         // Update state
         if let Ok(mut state) = self.document_state.lock() {
@@ -1982,8 +1980,7 @@ impl App {
         if let Some(path) = file_path {
             let content = {
                 let state = self.document_state.lock().map_err(|_| 
-                    TradocumentError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::Other, 
+                    TradocumentError::IoError(std::io::Error::other(
                         "Failed to lock document state"
                     )))?;
                 state.content.clone()
@@ -1991,7 +1988,7 @@ impl App {
 
             // Save to filesystem
             tokio::fs::write(&path, &content).await
-                .map_err(|e| TradocumentError::IoError(e))?;
+                .map_err(TradocumentError::IoError)?;
 
             // Update state
             if let Ok(mut state) = self.document_state.lock() {
@@ -2015,9 +2012,8 @@ impl App {
         let file_paths = self.simulate_import_dialog().await?;
         
         if !file_paths.is_empty() {
-            let mut import_service = self.document_import_service.lock().map_err(|_|
-                TradocumentError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+            let import_service = self.document_import_service.lock().map_err(|_|
+                TradocumentError::IoError(std::io::Error::other(
                     "Failed to lock import service"
                 )))?;
 
@@ -2099,7 +2095,7 @@ impl App {
         } else {
             // Create a test file for demonstration
             tokio::fs::write(&test_file, "# Test Document\n\nThis is a test document for demonstration.").await
-                .map_err(|e| TradocumentError::IoError(e))?;
+                .map_err(TradocumentError::IoError)?;
             Ok(Some(test_file))
         }
     }
@@ -2121,7 +2117,7 @@ impl App {
         if !import_file.exists() {
             // Create a test import file
             tokio::fs::write(&import_file, "Sample import content\n\nThis would be imported from Word documents.").await
-                .map_err(|e| TradocumentError::IoError(e))?;
+                .map_err(TradocumentError::IoError)?;
         }
         
         Ok(vec![import_file])
@@ -2163,22 +2159,22 @@ impl App {
 
         // Read the DOCX file
         let mut file = std::fs::File::open(file_path)
-            .map_err(|e| TradocumentError::FileError(format!("Failed to open DOCX file: {}", e)))?;
+            .map_err(|e| TradocumentError::FileError(format!("Failed to open DOCX file: {e}")))?;
         
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)
-            .map_err(|e| TradocumentError::FileError(format!("Failed to read DOCX file: {}", e)))?;
+            .map_err(|e| TradocumentError::FileError(format!("Failed to read DOCX file: {e}")))?;
 
         // Parse the DOCX document
         let docx = read_docx(&buf)
-            .map_err(|e| TradocumentError::ValidationError(format!("Failed to parse DOCX: {}", e)))?;
+            .map_err(|e| TradocumentError::ValidationError(format!("Failed to parse DOCX: {e}")))?;
 
         // Extract document title from filename
         let filename = file_path.file_stem()
             .and_then(|name| name.to_str())
             .unwrap_or("Untitled");
 
-        let mut markdown = format!("# {}\n\n", filename);
+        let mut markdown = format!("# {filename}\n\n");
 
         // Simple text extraction using JSON serialization
         if let Ok(json_str) = serde_json::to_string(&docx) {
@@ -2194,7 +2190,7 @@ impl App {
                         if trimmed.len() > 3 && 
                            (trimmed.chars().all(|c| c.is_uppercase() || c.is_whitespace() || c.is_numeric()) ||
                             trimmed.starts_with("Chapter") || trimmed.starts_with("Section")) {
-                            markdown.push_str(&format!("## {}\n\n", trimmed));
+                            markdown.push_str(&format!("## {trimmed}\n\n"));
                         } else {
                             markdown.push_str(trimmed);
                             markdown.push_str("\n\n");

@@ -58,7 +58,7 @@ impl ApiClient {
 
     /// Get a specific document by ID
     pub async fn get_document(&self, id: Uuid) -> Result<Document, TradocumentError> {
-        let response = self.request(reqwest::Method::GET, &format!("/api/documents/{}", id))
+        let response = self.request(reqwest::Method::GET, &format!("/api/documents/{id}"))
             .send()
             .await?;
             
@@ -103,7 +103,7 @@ impl ApiClient {
 
         let request_body = SaveContentRequest { content, language };
         
-        let response = self.request(reqwest::Method::POST, &format!("/api/editor/{}/content", doc_id))
+        let response = self.request(reqwest::Method::POST, &format!("/api/editor/{doc_id}/content"))
             .json(&request_body)
             .send()
             .await?;

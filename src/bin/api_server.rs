@@ -27,6 +27,7 @@ use tradocflow::{
     },
     models::{
         member::MemberRole,
+        kanban::{CreateKanbanCardRequest, UpdateKanbanCardRequest, MoveCardRequest},
     }
 };
 
@@ -162,6 +163,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/kanban/:id", get(get_kanban_card))
         .route("/api/kanban/:id", put(update_kanban_card))
         .route("/api/kanban/:id", delete(delete_kanban_card))
+        .route("/api/kanban/:id/move", put(move_kanban_card))
+        .route("/api/projects/:id/events", get(project_events_stream))
         
         // Translation progress endpoints
         .route("/api/projects/:id/translation-progress", get(get_translation_progress))
@@ -576,58 +579,112 @@ async fn get_project_summary(
 
 // Kanban endpoints
 async fn get_kanban_cards(
-    State(_state): State<ApiState>,
-    Path(_project_id): Path<Uuid>,
+    State(state): State<ApiState>,
+    Path(project_id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    // Placeholder response
-    Ok(Json(serde_json::json!([])))
+    match state.kanban_repository.get_board(project_id).await {
+        Ok(board) => Ok(Json(serde_json::to_value(board).unwrap())),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 async fn create_kanban_card(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     Path(project_id): Path<Uuid>,
-    Json(_request): Json<serde_json::Value>,
+    Json(request): Json<CreateKanbanCardRequest>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    // Placeholder response
-    Ok(Json(serde_json::json!({
-        "id": Uuid::new_v4(),
-        "project_id": project_id,
-        "title": "New Card",
-        "status": "todo"
-    })))
+    let metadata = std::collections::HashMap::new();
+    match state.kanban_repository.create_card(&project_id, &request, "system", metadata).await {
+        Ok(card) => Ok(Json(serde_json::to_value(card).unwrap())),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 async fn get_kanban_card(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    // Placeholder response
-    Ok(Json(serde_json::json!({
-        "id": id,
-        "title": "Card Title",
-        "status": "todo"
-    })))
+    match state.kanban_repository.get_card(&id).await {
+        Ok(card) => Ok(Json(serde_json::to_value(card).unwrap())),
+        Err(_) => Err(StatusCode::NOT_FOUND),
+    }
 }
 
 async fn update_kanban_card(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     Path(id): Path<Uuid>,
-    Json(_request): Json<serde_json::Value>,
+    Json(request): Json<UpdateKanbanCardRequest>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    // Placeholder response
-    Ok(Json(serde_json::json!({
-        "id": id,
-        "title": "Updated Card",
-        "status": "in_progress"
-    })))
+    match state.kanban_repository.update_card(id, request).await {
+        Ok(Some(card)) => Ok(Json(serde_json::to_value(card).unwrap())),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 async fn delete_kanban_card(
-    State(_state): State<ApiState>,
-    Path(_id): Path<Uuid>,
+    State(state): State<ApiState>,
+    Path(id): Path<Uuid>,
 ) -> Result<StatusCode, StatusCode> {
-    // Placeholder response
-    Ok(StatusCode::NO_CONTENT)
+    match state.kanban_repository.delete_card(id).await {
+        Ok(true) => Ok(StatusCode::NO_CONTENT),
+        Ok(false) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn move_kanban_card(
+    State(state): State<ApiState>,
+    Path(id): Path<Uuid>,
+    Json(mut request): Json<MoveCardRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    request.card_id = id; // Ensure the card_id matches the path parameter
+    match state.kanban_repository.move_card(request).await {
+        Ok(Some(card)) => Ok(Json(serde_json::to_value(card).unwrap())),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn project_events_stream(
+    State(_state): State<ApiState>,
+    Path(_project_id): Path<Uuid>,
+) -> Result<axum::response::Response, StatusCode> {
+    use axum::response::Response;
+    use axum::http::HeaderValue;
+    use std::time::Duration;
+    use tokio::time::interval;
+    use futures::stream::StreamExt;
+
+    // Create a simple SSE response with manual headers
+    let headers = [
+        ("Content-Type", "text/event-stream"),
+        ("Cache-Control", "no-cache"),
+        ("Connection", "keep-alive"),
+        ("Access-Control-Allow-Origin", "*"),
+    ];
+
+    // Create a heartbeat stream that yields Result<String, Error>
+    let stream = async_stream::stream! {
+        let mut interval = interval(Duration::from_secs(30));
+        loop {
+            interval.tick().await;
+            let data = serde_json::json!({
+                "type": "heartbeat",
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            });
+            yield Ok::<String, std::io::Error>(format!("data: {}\n\n", data));
+        }
+    };
+
+    let body = axum::body::Body::from_stream(stream);
+    let mut response = Response::new(body);
+    
+    for (key, value) in headers {
+        response.headers_mut().insert(key, HeaderValue::from_static(value));
+    }
+
+    Ok(response)
 }
 
 // Translation progress endpoints

@@ -1,13 +1,8 @@
 use std::sync::Arc;
-use std::path::PathBuf;
-use tokio;
-use uuid::Uuid;
 
 use crate::services::{
-    TranslationMemoryService, TranslationMemoryIntegrationService, 
-    IntegrationConfig, TextPosition, SearchFilters, IndicatorType
+    TranslationMemoryService, TranslationMemoryIntegrationService
 };
-use crate::models::translation_models::{TranslationUnit, LanguagePair, TranslationMetadata};
 
 /// Integration tests for translation memory editor integration
 #[cfg(test)]

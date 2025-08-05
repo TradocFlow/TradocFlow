@@ -137,7 +137,7 @@
     - Write UI tests for split-view editor functionality
     - _Requirements: 5.2, 5.3, 5.4, 5.6_
 
-  - [-] 7.2 Add translation memory integration to editor
+  - [x] 7.2 Add translation memory integration to editor
     - Implement real-time translation suggestions in editor interface
     - Create translation memory panel with search and insertion capabilities
     - Add automatic translation unit creation when content is modified
@@ -145,7 +145,7 @@
     - Write integration tests for editor-translation memory interaction
     - _Requirements: 3.6, 5.1, 5.5_
 
-  - [ ] 7.3 Implement collaborative editing features
+  - [x] 7.3 Implement collaborative editing features
     - Add real-time change tracking and conflict detection
     - Create user presence indicators and edit notifications
     - Implement change suggestion and review workflow
@@ -153,8 +153,8 @@
     - Write tests for multi-user editing scenarios
     - _Requirements: 5.5, 6.3, 6.6, 6.7_
 
-- [ ] 8. Implement role-based collaboration system
-  - [ ] 8.1 Create user management and role assignment
+- [-] 8. Implement role-based collaboration system
+  - [x] 8.1 Create user management and role assignment
     - Implement UserRole enum with translator, reviewer, project manager, admin roles
     - Create permission system with granular access control
     - Add team member invitation and management functionality
@@ -179,7 +179,7 @@
     - Write API integration tests for all endpoints
     - _Requirements: 7.1, 7.4_
 
-  - [ ] 9.2 Implement JavaScript Kanban board interface
+  - [-] 9.2 Implement JavaScript Kanban board interface
     - Create responsive Kanban board with drag-and-drop functionality
     - Implement task creation, editing, and status management
     - Add real-time updates using WebSocket or Server-Sent Events

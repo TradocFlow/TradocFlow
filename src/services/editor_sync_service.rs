@@ -93,21 +93,21 @@ impl EditorSyncService {
     pub fn get_config(&self) -> Result<SplitPaneConfig, crate::TradocumentError> {
         self.config.lock()
             .map(|config| config.clone())
-            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to get config: {}", e)))
+            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to get config: {e}")))
     }
     
     /// Update configuration
     pub fn update_config(&self, new_config: SplitPaneConfig) -> Result<(), crate::TradocumentError> {
         self.config.lock()
             .map(|mut config| *config = new_config)
-            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to update config: {}", e)))
+            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to update config: {e}")))
     }
     
     /// Get pane state for a language
     pub fn get_pane_state(&self, language: &str) -> Result<Option<LanguagePaneState>, crate::TradocumentError> {
         self.pane_states.lock()
             .map(|states| states.get(language).cloned())
-            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to get pane state: {}", e)))
+            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to get pane state: {e}")))
     }
     
     /// Update pane state for a language
@@ -116,7 +116,7 @@ impl EditorSyncService {
             .map(|mut states| {
                 states.insert(language.to_string(), state);
             })
-            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to update pane state: {}", e)))
+            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to update pane state: {e}")))
     }
     
     /// Handle cursor movement synchronization
@@ -156,7 +156,7 @@ impl EditorSyncService {
         
         // Send sync event
         self.event_sender.send(event)
-            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to send sync event: {}", e)))?;
+            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to send sync event: {e}")))?;
         
         // Update target pane state
         if let Some(mut target_state) = self.get_pane_state(&target_language)? {
@@ -205,7 +205,7 @@ impl EditorSyncService {
         
         // Send sync event
         self.event_sender.send(event)
-            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to send sync event: {}", e)))?;
+            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to send sync event: {e}")))?;
         
         // Update target pane state
         if let Some(mut target_state) = self.get_pane_state(&target_language)? {
@@ -257,7 +257,7 @@ impl EditorSyncService {
         
         // Send sync event
         self.event_sender.send(event)
-            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to send sync event: {}", e)))?;
+            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to send sync event: {e}")))?;
         
         Ok(())
     }
@@ -378,7 +378,7 @@ impl EditorSyncService {
         // Clear all pane states
         self.pane_states.lock()
             .map(|mut states| states.clear())
-            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to reset sync: {}", e)))?;
+            .map_err(|e| crate::TradocumentError::SyncError(format!("Failed to reset sync: {e}")))?;
         
         // Reset cursor and scroll positions to 0
         let config = self.get_config()?;

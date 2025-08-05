@@ -1,0 +1,384 @@
+import { Button, ComboBox, LineEdit, ListView, ScrollView, VerticalBox, HorizontalBox, GroupBox, StandardButton } from "std-widgets.slint";
+
+export enum UserRole {
+    ProjectManager,
+    Translator,
+    Reviewer,
+    Admin,
+}
+
+export struct TeamMember {
+    id: string,
+    name: string,
+    email: string,
+    role: UserRole,
+    languages: [string],
+    joined_at: string,
+    can_edit: bool,
+    can_review: bool,
+    can_manage: bool,
+}
+
+export struct InvitationRequest {
+    email: string,
+    role: UserRole,
+    message: string,
+}
+
+export component TeamManagementPanel inherits Rectangle {
+    in property <[TeamMember]> team_members: [];
+    in property <bool> can_manage_team: false;
+    in property <bool> is_loading: false;
+    
+    callback invite_member(InvitationRequest);
+    callback update_member_role(string /* member_id */, UserRole);
+    callback remove_member(string /* member_id */);
+    callback refresh_team();
+
+    private property <string> invite_email: "";
+    private property <UserRole> invite_role: UserRole.Translator;
+    private property <string> invite_message: "";
+    private property <bool> show_invite_dialog: false;
+
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: #e9ecef;
+
+    VerticalBox {
+        padding: 16px;
+        spacing: 16px;
+
+        // Header
+        HorizontalBox {
+            alignment: space-between;
+            
+            Text {
+                text: "Team Management";
+                font-size: 18px;
+                font-weight: 600;
+                color: #212529;
+            }
+            
+            if can_manage_team: Button {
+                text: "Invite Member";
+                primary: true;
+                clicked => {
+                    show_invite_dialog = true;
+                }
+            }
+        }
+
+        // Team members list
+        GroupBox {
+            title: "Team Members";
+            
+            ScrollView {
+                height: 400px;
+                
+                VerticalBox {
+                    spacing: 8px;
+                    
+                    if team_members.length == 0: Rectangle {
+                        height: 100px;
+                        
+                        Text {
+                            text: "No team members found";
+                            color: #6c757d;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    
+                    for member[index] in team_members: Rectangle {
+                        height: 80px;
+                        background: white;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: #dee2e6;
+                        
+                        HorizontalBox {
+                            padding: 12px;
+                            spacing: 12px;
+                            alignment: space-between;
+                            
+                            VerticalBox {
+                                spacing: 4px;
+                                alignment: start;
+                                
+                                Text {
+                                    text: member.name;
+                                    font-size: 14px;
+                                    font-weight: 600;
+                                    color: #212529;
+                                }
+                                
+                                Text {
+                                    text: member.email;
+                                    font-size: 12px;
+                                    color: #6c757d;
+                                }
+                                
+                                HorizontalBox {
+                                    spacing: 8px;
+                                    
+                                    Rectangle {
+                                        width: 60px;
+                                        height: 20px;
+                                        background: member.role == UserRole.Admin ? #dc3545 : 
+                                                   member.role == UserRole.ProjectManager ? #0d6efd :
+                                                   member.role == UserRole.Reviewer ? #198754 : #ffc107;
+                                        border-radius: 10px;
+                                        
+                                        Text {
+                                            text: member.role == UserRole.Admin ? "Admin" :
+                                                  member.role == UserRole.ProjectManager ? "PM" :
+                                                  member.role == UserRole.Reviewer ? "Reviewer" : "Translator";
+                                            font-size: 10px;
+                                            color: white;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                    
+                                    if member.languages.length > 0: Text {
+                                        text: "Languages: " + member.languages[0]; // Show first language
+                                        font-size: 10px;
+                                        color: #6c757d;
+                                    }
+                                }
+                            }
+                            
+                            if can_manage_team: HorizontalBox {
+                                spacing: 8px;
+                                
+                                ComboBox {
+                                    width: 120px;
+                                    model: ["Translator", "Reviewer", "Project Manager", "Admin"];
+                                    current-index: member.role == UserRole.Translator ? 0 :
+                                                  member.role == UserRole.Reviewer ? 1 :
+                                                  member.role == UserRole.ProjectManager ? 2 : 3;
+                                    selected => {
+                                        if (self.current-index == 0) {
+                                            update_member_role(member.id, UserRole.Translator);
+                                        } else if (self.current-index == 1) {
+                                            update_member_role(member.id, UserRole.Reviewer);
+                                        } else if (self.current-index == 2) {
+                                            update_member_role(member.id, UserRole.ProjectManager);
+                                        } else {
+                                            update_member_role(member.id, UserRole.Admin);
+                                        }
+                                    }
+                                }
+                                
+                                Button {
+                                    text: "Remove";
+                                    width: 70px;
+                                    clicked => {
+                                        remove_member(member.id);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Permissions summary
+        if team_members.length > 0: GroupBox {
+            title: "Permissions Summary";
+            
+            VerticalBox {
+                spacing: 8px;
+                
+                HorizontalBox {
+                    spacing: 16px;
+                    
+                    VerticalBox {
+                        spacing: 4px;
+                        
+                        Text {
+                            text: "Can Edit Documents";
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: #495057;
+                        }
+                        
+                        Text {
+                            text: team_members.filter(m => m.can_edit).length + " members";
+                            font-size: 11px;
+                            color: #6c757d;
+                        }
+                    }
+                    
+                    VerticalBox {
+                        spacing: 4px;
+                        
+                        Text {
+                            text: "Can Review";
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: #495057;
+                        }
+                        
+                        Text {
+                            text: team_members.filter(m => m.can_review).length + " members";
+                            font-size: 11px;
+                            color: #6c757d;
+                        }
+                    }
+                    
+                    VerticalBox {
+                        spacing: 4px;
+                        
+                        Text {
+                            text: "Can Manage";
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: #495057;
+                        }
+                        
+                        Text {
+                            text: team_members.filter(m => m.can_manage).length + " members";
+                            font-size: 11px;
+                            color: #6c757d;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Invite member dialog
+    if show_invite_dialog: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        
+        Rectangle {
+            width: 400px;
+            height: 350px;
+            background: white;
+            border-radius: 8px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            
+            VerticalBox {
+                padding: 20px;
+                spacing: 16px;
+                
+                Text {
+                    text: "Invite Team Member";
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: #212529;
+                }
+                
+                VerticalBox {
+                    spacing: 12px;
+                    
+                    VerticalBox {
+                        spacing: 4px;
+                        
+                        Text {
+                            text: "Email Address";
+                            font-size: 12px;
+                            color: #495057;
+                        }
+                        
+                        LineEdit {
+                            placeholder-text: "Enter email address";
+                            text <=> invite_email;
+                        }
+                    }
+                    
+                    VerticalBox {
+                        spacing: 4px;
+                        
+                        Text {
+                            text: "Role";
+                            font-size: 12px;
+                            color: #495057;
+                        }
+                        
+                        ComboBox {
+                            model: ["Translator", "Reviewer", "Project Manager", "Admin"];
+                            current-index: 0;
+                            selected => {
+                                if (self.current-index == 0) {
+                                    invite_role = UserRole.Translator;
+                                } else if (self.current-index == 1) {
+                                    invite_role = UserRole.Reviewer;
+                                } else if (self.current-index == 2) {
+                                    invite_role = UserRole.ProjectManager;
+                                } else {
+                                    invite_role = UserRole.Admin;
+                                }
+                            }
+                        }
+                    }
+                    
+                    VerticalBox {
+                        spacing: 4px;
+                        
+                        Text {
+                            text: "Message (Optional)";
+                            font-size: 12px;
+                            color: #495057;
+                        }
+                        
+                        LineEdit {
+                            placeholder-text: "Welcome message...";
+                            text <=> invite_message;
+                        }
+                    }
+                }
+                
+                HorizontalBox {
+                    spacing: 12px;
+                    alignment: end;
+                    
+                    Button {
+                        text: "Cancel";
+                        clicked => {
+                            show_invite_dialog = false;
+                            invite_email = "";
+                            invite_message = "";
+                        }
+                    }
+                    
+                    Button {
+                        text: "Send Invitation";
+                        primary: true;
+                        enabled: invite_email != "";
+                        clicked => {
+                            invite_member({
+                                email: invite_email,
+                                role: invite_role,
+                                message: invite_message,
+                            });
+                            show_invite_dialog = false;
+                            invite_email = "";
+                            invite_message = "";
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Loading overlay
+    if is_loading: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        
+        Text {
+            text: "Loading...";
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            color: #6c757d;
+        }
+    }
+}

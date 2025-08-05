@@ -133,6 +133,12 @@ pub struct TemplateManager {
     templates: Vec<ProjectTemplate>,
 }
 
+impl Default for TemplateManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TemplateManager {
     pub fn new() -> Self {
         Self {

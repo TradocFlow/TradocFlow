@@ -72,11 +72,11 @@ impl ProjectRepository {
         let query = match (limit, offset) {
             (Some(l), Some(o)) => format!(
                 "SELECT id, name, description, status, owner_id, created_at, updated_at, due_date, priority, metadata
-                 FROM projects WHERE owner_id = ?1 ORDER BY created_at DESC LIMIT {} OFFSET {}", l, o
+                 FROM projects WHERE owner_id = ?1 ORDER BY created_at DESC LIMIT {l} OFFSET {o}"
             ),
             (Some(l), None) => format!(
                 "SELECT id, name, description, status, owner_id, created_at, updated_at, due_date, priority, metadata
-                 FROM projects WHERE owner_id = ?1 ORDER BY created_at DESC LIMIT {}", l
+                 FROM projects WHERE owner_id = ?1 ORDER BY created_at DESC LIMIT {l}"
             ),
             _ => "SELECT id, name, description, status, owner_id, created_at, updated_at, due_date, priority, metadata
                   FROM projects WHERE owner_id = ?1 ORDER BY created_at DESC".to_string(),
@@ -104,7 +104,7 @@ impl ProjectRepository {
                  LEFT JOIN project_members pm ON p.id = pm.project_id
                  WHERE p.owner_id = ?1 OR pm.user_id = ?1
                  GROUP BY p.id
-                 ORDER BY p.created_at DESC LIMIT {} OFFSET {}", l, o
+                 ORDER BY p.created_at DESC LIMIT {l} OFFSET {o}"
             ),
             (Some(l), None) => format!(
                 "SELECT p.id, p.name, p.description, p.status, p.owner_id, p.created_at, p.updated_at, p.due_date, p.priority, p.metadata
@@ -112,7 +112,7 @@ impl ProjectRepository {
                  LEFT JOIN project_members pm ON p.id = pm.project_id
                  WHERE p.owner_id = ?1 OR pm.user_id = ?1
                  GROUP BY p.id
-                 ORDER BY p.created_at DESC LIMIT {}", l
+                 ORDER BY p.created_at DESC LIMIT {l}"
             ),
             _ => "SELECT p.id, p.name, p.description, p.status, p.owner_id, p.created_at, p.updated_at, p.due_date, p.priority, p.metadata
                   FROM projects p

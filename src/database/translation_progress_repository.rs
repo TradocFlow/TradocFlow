@@ -188,7 +188,7 @@ impl TranslationProgressRepository {
         // Get project name
         let mut project_stmt = conn.prepare("SELECT name FROM projects WHERE id = ?1")?;
         let project_name: String = project_stmt.query_row(params![project_id.to_string()], |row| {
-            Ok(row.get(0)?)
+            row.get(0)
         })?;
         
         // Get overall statistics

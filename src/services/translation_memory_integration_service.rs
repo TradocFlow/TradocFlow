@@ -7,9 +7,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::services::translation_memory_service::{
-    TranslationMemoryService, TranslationSuggestion, TranslationMatch, TranslationSource
+    TranslationMemoryService, TranslationMatch, TranslationSource
 };
-use crate::models::translation_models::{TranslationUnit, LanguagePair, TranslationMetadata};
+use crate::models::translation_models::{TranslationUnit, LanguagePair};
 
 /// Configuration for translation memory integration
 #[derive(Debug, Clone, Serialize, Deserialize)]

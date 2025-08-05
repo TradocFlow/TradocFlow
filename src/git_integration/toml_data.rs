@@ -35,7 +35,9 @@ pub struct ProjectMetadata {
 /// Project status enumeration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ProjectStatus {
+    #[default]
     Active,
     Completed,
     Archived,
@@ -155,7 +157,9 @@ pub struct ChapterMetadata {
 /// Chapter status enumeration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ChapterStatus {
+    #[default]
     Draft,
     InTranslation,
     InReview,
@@ -180,8 +184,10 @@ pub struct ChapterMetadataExtra {
 /// Difficulty level enumeration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum DifficultyLevel {
     Beginner,
+    #[default]
     Intermediate,
     Advanced,
     Expert,
@@ -238,8 +244,10 @@ pub struct TranslationUnit {
 /// Complexity level for translation units
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum ComplexityLevel {
     Low,
+    #[default]
     Medium,
     High,
     Expert,
@@ -278,7 +286,9 @@ pub struct TranslationVersion {
 /// Status of a translation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum TranslationStatus {
+    #[default]
     Draft,
     InProgress,
     Completed,
@@ -306,7 +316,9 @@ pub struct TranslationMetadata {
 /// Method used for translation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum TranslationMethod {
+    #[default]
     Human,
     AiAssisted,
     Machine,
@@ -371,8 +383,10 @@ pub struct TranslationNote {
 /// Priority level enumeration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum Priority {
     Low,
+    #[default]
     Medium,
     High,
     Critical,
@@ -381,7 +395,9 @@ pub enum Priority {
 /// Todo status enumeration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum TodoStatus {
+    #[default]
     Open,
     InProgress,
     Completed,
@@ -391,7 +407,9 @@ pub enum TodoStatus {
 /// Todo type enumeration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum TodoType {
+    #[default]
     Translation,
     Review,
     Terminology,
@@ -419,11 +437,13 @@ pub struct TranslationContext {
 /// Comment type enumeration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum CommentType {
     Suggestion,
     Question,
     Approval,
     Issue,
+    #[default]
     Context,
     Terminology,
 }
@@ -448,9 +468,11 @@ pub struct CommentReply {
 /// Note type enumeration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum NoteType {
     Terminology,
     Grammar,
+    #[default]
     Context,
     Cultural,
     Technical,
@@ -488,71 +510,16 @@ fn default_translation_method() -> TranslationMethod { TranslationMethod::Human 
 fn default_confidence_score() -> f32 { 0.95 }
 fn default_note_visibility() -> NoteVisibility { NoteVisibility::Team }
 
-impl Default for ProjectStatus {
-    fn default() -> Self {
-        ProjectStatus::Active
-    }
-}
 
-impl Default for ChapterStatus {
-    fn default() -> Self {
-        ChapterStatus::Draft
-    }
-}
 
-impl Default for TranslationStatus {
-    fn default() -> Self {
-        TranslationStatus::Draft
-    }
-}
 
-impl Default for ComplexityLevel {
-    fn default() -> Self {
-        ComplexityLevel::Medium
-    }
-}
 
-impl Default for DifficultyLevel {
-    fn default() -> Self {
-        DifficultyLevel::Intermediate
-    }
-}
 
-impl Default for Priority {
-    fn default() -> Self {
-        Priority::Medium
-    }
-}
 
-impl Default for TodoStatus {
-    fn default() -> Self {
-        TodoStatus::Open
-    }
-}
 
-impl Default for TodoType {
-    fn default() -> Self {
-        TodoType::Translation
-    }
-}
 
-impl Default for CommentType {
-    fn default() -> Self {
-        CommentType::Context
-    }
-}
 
-impl Default for NoteType {
-    fn default() -> Self {
-        NoteType::Context
-    }
-}
 
-impl Default for TranslationMethod {
-    fn default() -> Self {
-        TranslationMethod::Human
-    }
-}
 
 /// Error types for TOML data operations
 #[derive(Debug, thiserror::Error)]
@@ -697,33 +664,33 @@ impl ChapterData {
         // Validate translation units
         for (index, unit) in self.units.iter().enumerate() {
             if unit.id.is_empty() {
-                return Err(TomlDataError::MissingField(format!("units[{}].id", index)));
+                return Err(TomlDataError::MissingField(format!("units[{index}].id")));
             }
             
             if unit.source_text.is_empty() {
-                return Err(TomlDataError::MissingField(format!("units[{}].source_text", index)));
+                return Err(TomlDataError::MissingField(format!("units[{index}].source_text")));
             }
             
             // Validate translation versions
             for (lang, translation) in &unit.translations {
                 if translation.text.is_empty() {
-                    return Err(TomlDataError::MissingField(format!("units[{}].translations.{}.text", index, lang)));
+                    return Err(TomlDataError::MissingField(format!("units[{index}].translations.{lang}.text")));
                 }
                 
                 if translation.translator.is_empty() {
-                    return Err(TomlDataError::MissingField(format!("units[{}].translations.{}.translator", index, lang)));
+                    return Err(TomlDataError::MissingField(format!("units[{index}].translations.{lang}.translator")));
                 }
                 
                 // Validate quality score range
                 if let Some(score) = translation.quality_score {
-                    if score < 0.0 || score > 10.0 {
-                        return Err(TomlDataError::Validation(format!("Quality score for units[{}].translations.{} must be between 0.0 and 10.0", index, lang)));
+                    if !(0.0..=10.0).contains(&score) {
+                        return Err(TomlDataError::Validation(format!("Quality score for units[{index}].translations.{lang} must be between 0.0 and 10.0")));
                     }
                 }
                 
                 // Validate confidence score range
                 if translation.metadata.confidence_score < 0.0 || translation.metadata.confidence_score > 1.0 {
-                    return Err(TomlDataError::Validation(format!("Confidence score for units[{}].translations.{} must be between 0.0 and 1.0", index, lang)));
+                    return Err(TomlDataError::Validation(format!("Confidence score for units[{index}].translations.{lang} must be between 0.0 and 1.0")));
                 }
             }
         }

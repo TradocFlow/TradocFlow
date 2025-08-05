@@ -7,7 +7,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::models::translation_models::{
-    TranslationProject, TeamMember, UserRole, ProjectSettings, ValidationError
+    TranslationProject, TeamMember, UserRole
 };
 // Database migrations will be implemented later
 
@@ -180,7 +180,7 @@ impl ProjectService {
 
         for subdir in &subdirs {
             fs::create_dir_all(project_path.join(subdir))
-                .context(format!("Failed to create {} directory", subdir))?;
+                .context(format!("Failed to create {subdir} directory"))?;
         }
 
         // Create language-specific chapter directories
@@ -191,14 +191,14 @@ impl ProjectService {
         let chapters_path = project_path.join("chapters");
         for language in &all_languages {
             fs::create_dir_all(chapters_path.join(language))
-                .context(format!("Failed to create chapter directory for language: {}", language))?;
+                .context(format!("Failed to create chapter directory for language: {language}"))?;
         }
 
         // Create export subdirectories
         let export_path = project_path.join("exports");
         for format in &["pdf", "html", "docx"] {
             fs::create_dir_all(export_path.join(format))
-                .context(format!("Failed to create export directory for format: {}", format))?;
+                .context(format!("Failed to create export directory for format: {format}"))?;
         }
 
         Ok(true)
@@ -258,7 +258,7 @@ impl ProjectService {
                 };
 
                 fs::write(&file_path, content)
-                    .context(format!("Failed to create chapter file: {}", filename))?;
+                    .context(format!("Failed to create chapter file: {filename}"))?;
             }
 
             created_chapters.push(filename);
@@ -545,7 +545,7 @@ impl ProjectService {
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.is_file() && path.extension().map_or(false, |ext| ext == "md") {
+                if path.is_file() && path.extension().is_some_and(|ext| ext == "md") {
                     count += 1;
                 } else if path.is_dir() {
                     count += self.count_markdown_files(&path)?;
@@ -560,8 +560,8 @@ impl ProjectService {
     async fn create_empty_parquet_file(&self, path: &Path, schema_type: &str) -> Result<()> {
         // For now, create a placeholder file
         // In a real implementation, this would create a proper Parquet file with the correct schema
-        fs::write(path, format!("# Empty {} Parquet file\n# Will be populated by the translation memory service", schema_type))
-            .context(format!("Failed to create empty Parquet file: {:?}", path))?;
+        fs::write(path, format!("# Empty {schema_type} Parquet file\n# Will be populated by the translation memory service"))
+            .context(format!("Failed to create empty Parquet file: {path:?}"))?;
         
         Ok(())
     }

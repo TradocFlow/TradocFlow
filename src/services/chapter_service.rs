@@ -1,8 +1,8 @@
-use crate::models::translation_models::{Chapter, ChapterStatus, ChunkMetadata, ValidationError};
+use crate::models::translation_models::{Chapter, ChapterStatus, ChunkMetadata};
 use crate::{TradocumentError, Result};
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use uuid::Uuid;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -102,16 +102,16 @@ impl ChapterService {
         
         if !metadata_path.exists() {
             return Err(TradocumentError::DocumentNotFound(
-                format!("Chapter {} not found", chapter_id)
+                format!("Chapter {chapter_id} not found")
             ));
         }
 
         // Load metadata
         let metadata_content = fs::read_to_string(&metadata_path)
-            .map_err(|e| TradocumentError::IoError(e))?;
+            .map_err(TradocumentError::IoError)?;
         
         let mut chapter: Chapter = serde_json::from_str(&metadata_content)
-            .map_err(|e| TradocumentError::Serialization(e))?;
+            .map_err(TradocumentError::Serialization)?;
 
         // Load content from individual language files
         chapter.content = self.load_chapter_content(chapter_id, &chapter.title).await?;
@@ -129,13 +129,13 @@ impl ChapterService {
 
         let mut chapters = Vec::new();
         let entries = fs::read_dir(&project_path)
-            .map_err(|e| TradocumentError::IoError(e))?;
+            .map_err(TradocumentError::IoError)?;
 
         for entry in entries {
-            let entry = entry.map_err(|e| TradocumentError::IoError(e))?;
+            let entry = entry.map_err(TradocumentError::IoError)?;
             let path = entry.path();
             
-            if path.is_file() && path.extension().map_or(false, |ext| ext == "json") {
+            if path.is_file() && path.extension().is_some_and(|ext| ext == "json") {
                 if let Some(file_stem) = path.file_stem() {
                     if let Some(filename) = file_stem.to_str() {
                         if filename.starts_with("chapter_") && filename.ends_with("_metadata") {
@@ -168,7 +168,7 @@ impl ChapterService {
             let content_path = self.get_chapter_content_path(chapter_id, language);
             if content_path.exists() {
                 fs::remove_file(&content_path)
-                    .map_err(|e| TradocumentError::IoError(e))?;
+                    .map_err(TradocumentError::IoError)?;
             }
         }
 
@@ -176,7 +176,7 @@ impl ChapterService {
         let metadata_path = self.get_chapter_metadata_path(chapter_id);
         if metadata_path.exists() {
             fs::remove_file(&metadata_path)
-                .map_err(|e| TradocumentError::IoError(e))?;
+                .map_err(TradocumentError::IoError)?;
         }
 
         Ok(())
@@ -252,7 +252,7 @@ impl ChapterService {
             
             // Search in titles
             for (lang, title) in &chapter.title {
-                if language.map_or(true, |l| l == lang) && 
+                if language.is_none_or(|l| l == lang) && 
                    title.to_lowercase().contains(&query.to_lowercase()) {
                     results.push(ChapterSearchResult {
                         chapter_id: chapter.id,
@@ -267,7 +267,7 @@ impl ChapterService {
 
             // Search in content
             for (lang, content) in &chapter.content {
-                if language.map_or(true, |l| l == lang) && 
+                if language.is_none_or(|l| l == lang) && 
                    content.to_lowercase().contains(&query.to_lowercase()) {
                     // Find context around the match
                     let context = self.extract_search_context(content, query);
@@ -298,7 +298,7 @@ impl ChapterService {
         // Ensure project directory exists
         let project_path = self.get_project_path(chapter.project_id);
         fs::create_dir_all(&project_path)
-            .map_err(|e| TradocumentError::IoError(e))?;
+            .map_err(TradocumentError::IoError)?;
 
         // Save content for each language
         for (language, content) in &chapter.content {
@@ -307,11 +307,11 @@ impl ChapterService {
             // Ensure language directory exists
             if let Some(parent) = content_path.parent() {
                 fs::create_dir_all(parent)
-                    .map_err(|e| TradocumentError::IoError(e))?;
+                    .map_err(TradocumentError::IoError)?;
             }
 
             fs::write(&content_path, content)
-                .map_err(|e| TradocumentError::IoError(e))?;
+                .map_err(TradocumentError::IoError)?;
         }
 
         Ok(())
@@ -336,10 +336,10 @@ impl ChapterService {
         };
 
         let metadata_json = serde_json::to_string_pretty(&metadata)
-            .map_err(|e| TradocumentError::Serialization(e))?;
+            .map_err(TradocumentError::Serialization)?;
 
         fs::write(&metadata_path, metadata_json)
-            .map_err(|e| TradocumentError::IoError(e))?;
+            .map_err(TradocumentError::IoError)?;
 
         Ok(())
     }
@@ -352,7 +352,7 @@ impl ChapterService {
             
             if content_path.exists() {
                 let file_content = fs::read_to_string(&content_path)
-                    .map_err(|e| TradocumentError::IoError(e))?;
+                    .map_err(TradocumentError::IoError)?;
                 content.insert(language.clone(), file_content);
             }
         }
@@ -365,13 +365,13 @@ impl ChapterService {
     }
 
     fn get_chapter_metadata_path(&self, chapter_id: Uuid) -> PathBuf {
-        self.base_path.join("chapters").join(format!("chapter_{}_metadata.json", chapter_id))
+        self.base_path.join("chapters").join(format!("chapter_{chapter_id}_metadata.json"))
     }
 
     fn get_chapter_content_path(&self, chapter_id: Uuid, language: &str) -> PathBuf {
         self.base_path.join("chapters")
             .join(language)
-            .join(format!("chapter_{}.md", chapter_id))
+            .join(format!("chapter_{chapter_id}.md"))
     }
 
     fn extract_search_context(&self, content: &str, query: &str) -> String {
@@ -383,7 +383,7 @@ impl ChapterService {
             let end = (pos + query.len() + 50).min(content.len());
             let context = &content[start..end];
             
-            format!("...{}...", context)
+            format!("...{context}...")
         } else {
             content.chars().take(100).collect::<String>() + "..."
         }

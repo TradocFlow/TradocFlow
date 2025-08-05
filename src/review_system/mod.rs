@@ -89,6 +89,12 @@ pub struct ReviewSystem {
     notification_service: Option<Arc<NotificationService>>,
 }
 
+impl Default for ReviewSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReviewSystem {
     pub fn new() -> Self {
         Self {
@@ -139,7 +145,7 @@ impl ReviewSystem {
                 assigner_id,
             ).await {
                 // Log error but don't fail the review creation
-                eprintln!("Failed to send review assignment notification: {}", e);
+                eprintln!("Failed to send review assignment notification: {e}");
             }
         }
         
@@ -252,7 +258,7 @@ impl ReviewSystem {
                         &ReviewStatus::Approved,
                         None,
                     ).await {
-                        eprintln!("Failed to send approval notification: {}", e);
+                        eprintln!("Failed to send approval notification: {e}");
                     }
                 }
                 
@@ -293,7 +299,7 @@ impl ReviewSystem {
                 let comment = Comment {
                     id: Uuid::new_v4(),
                     author_id: reviewer_id.clone(),
-                    content: format!("Document rejected: {}", reason),
+                    content: format!("Document rejected: {reason}"),
                     position: CommentPosition {
                         line_start: 0,
                         line_end: 0,
@@ -321,7 +327,7 @@ impl ReviewSystem {
                         &ReviewStatus::Rejected,
                         Some(&reason),
                     ).await {
-                        eprintln!("Failed to send rejection notification: {}", e);
+                        eprintln!("Failed to send rejection notification: {e}");
                     }
                 }
                 
@@ -342,7 +348,7 @@ impl ReviewSystem {
                 let comment = Comment {
                     id: Uuid::new_v4(),
                     author_id: reviewer_id,
-                    content: format!("Document rejected: {}", reason),
+                    content: format!("Document rejected: {reason}"),
                     position: CommentPosition {
                         line_start: 0,
                         line_end: 0,
@@ -395,7 +401,7 @@ impl ReviewSystem {
                         &ReviewStatus::ChangesRequested,
                         None,
                     ).await {
-                        eprintln!("Failed to send changes requested notification: {}", e);
+                        eprintln!("Failed to send changes requested notification: {e}");
                     }
                 }
                 

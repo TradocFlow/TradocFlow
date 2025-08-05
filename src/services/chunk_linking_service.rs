@@ -6,7 +6,6 @@ use anyhow::Result;
 use tokio::sync::RwLock;
 use chrono::{DateTime, Utc};
 
-use crate::models::translation_models::{ChunkMetadata, ChunkType, ValidationError, TranslationUnit};
 use crate::services::translation_memory_service::TranslationMemoryService;
 
 /// Service for managing chunk linking and phrase groups

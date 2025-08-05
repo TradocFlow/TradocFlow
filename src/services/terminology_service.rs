@@ -100,7 +100,7 @@ impl TerminologyService {
         
         let export_path = self.project_path
             .join("terminology")
-            .join(format!("export_{}.csv", project_id));
+            .join(format!("export_{project_id}.csv"));
         
         self.csv_processor.export_to_csv(&terms, &export_path).await?;
         
@@ -162,7 +162,7 @@ impl TerminologyService {
             
             // Check for potential issues
             if term.term.is_empty() {
-                warnings.push(format!("Empty term found"));
+                warnings.push("Empty term found".to_string());
             }
             
             if term.term.len() > 100 {
@@ -308,7 +308,7 @@ impl TerminologyRepository {
              ORDER BY term"
         )?;
         
-        let search_pattern = format!("%{}%", query);
+        let search_pattern = format!("%{query}%");
         let rows = stmt.query_map(
             params![project_id.to_string(), search_pattern, search_pattern],
             |row| {
@@ -334,6 +334,12 @@ impl TerminologyRepository {
 
 /// CSV processor for importing and exporting terminology
 pub struct CsvProcessor;
+
+impl Default for CsvProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl CsvProcessor {
     pub fn new() -> Self {
@@ -374,11 +380,11 @@ impl CsvProcessor {
         let mut writer = csv::Writer::from_path(file_path)?;
         
         // Write header
-        writer.write_record(&["term", "definition", "do_not_translate"])?;
+        writer.write_record(["term", "definition", "do_not_translate"])?;
         
         // Write terms
         for term in terms {
-            writer.write_record(&[
+            writer.write_record([
                 &term.term,
                 term.definition.as_deref().unwrap_or(""),
                 &term.do_not_translate.to_string(),
@@ -407,7 +413,7 @@ impl ParquetConverter {
         project_id: Uuid,
     ) -> Result<PathBuf> {
         let file_path = self.storage_path
-            .join(format!("terms_{}.parquet", project_id));
+            .join(format!("terms_{project_id}.parquet"));
         
         let schema = Arc::new(Schema::new(vec![
             Field::new("id", DataType::Utf8, false),

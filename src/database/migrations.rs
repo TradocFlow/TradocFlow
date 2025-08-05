@@ -28,6 +28,9 @@ pub fn run_all_migrations(pool: &DatabasePool) -> SqlResult<()> {
     run_migration(&conn, "008_create_chapters", create_chapters_table)?;
     run_migration(&conn, "009_create_team_members", create_team_members_table)?;
     run_migration(&conn, "010_create_terminology", create_terminology_table)?;
+    run_migration(&conn, "011_enhance_users_table", enhance_users_table)?;
+    run_migration(&conn, "012_create_team_invitations", create_team_invitations_table)?;
+    run_migration(&conn, "013_create_user_permissions", create_user_permissions_table)?;
     
     Ok(())
 }
@@ -50,7 +53,7 @@ where
             [name],
         )?;
         
-        println!("Applied migration: {}", name);
+        println!("Applied migration: {name}");
     }
     
     Ok(())
@@ -267,6 +270,107 @@ fn create_terminology_table(conn: &Connection) -> SqlResult<()> {
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_terminology_do_not_translate 
          ON terminology(project_id, do_not_translate) WHERE do_not_translate = TRUE",
+        [],
+    )?;
+    
+    Ok(())
+}
+fn enhance_users_table(conn: &Connection) -> SqlResult<()> {
+    // Add new columns to users table for enhanced user management
+    conn.execute(
+        "ALTER TABLE users ADD COLUMN updated_at TEXT",
+        [],
+    ).ok(); // Ignore error if column already exists
+    
+    conn.execute(
+        "ALTER TABLE users ADD COLUMN languages TEXT DEFAULT '[]'",
+        [],
+    ).ok();
+    
+    conn.execute(
+        "ALTER TABLE users ADD COLUMN specializations TEXT DEFAULT '[]'",
+        [],
+    ).ok();
+    
+    conn.execute(
+        "ALTER TABLE users ADD COLUMN timezone TEXT",
+        [],
+    ).ok();
+    
+    // Update existing users with default values
+    conn.execute(
+        "UPDATE users SET updated_at = created_at WHERE updated_at IS NULL",
+        [],
+    )?;
+    
+    Ok(())
+}
+
+fn create_team_invitations_table(conn: &Connection) -> SqlResult<()> {
+    conn.execute(
+        "CREATE TABLE team_invitations (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            inviter_id TEXT NOT NULL,
+            invitee_email TEXT NOT NULL,
+            role TEXT NOT NULL,
+            message TEXT,
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            FOREIGN KEY (project_id) REFERENCES translation_projects (id) ON DELETE CASCADE,
+            FOREIGN KEY (inviter_id) REFERENCES users (id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+    
+    // Create indexes for efficient lookups
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_team_invitations_project_id ON team_invitations(project_id)",
+        [],
+    )?;
+    
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_team_invitations_invitee_email ON team_invitations(invitee_email)",
+        [],
+    )?;
+    
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_team_invitations_status ON team_invitations(status)",
+        [],
+    )?;
+    
+    Ok(())
+}
+
+fn create_user_permissions_table(conn: &Connection) -> SqlResult<()> {
+    conn.execute(
+        "CREATE TABLE user_permissions (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            permission TEXT NOT NULL,
+            granted_by TEXT NOT NULL,
+            granted_at TEXT NOT NULL,
+            expires_at TEXT,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+            FOREIGN KEY (project_id) REFERENCES translation_projects (id) ON DELETE CASCADE,
+            FOREIGN KEY (granted_by) REFERENCES users (id) ON DELETE CASCADE,
+            UNIQUE(user_id, project_id, permission)
+        )",
+        [],
+    )?;
+    
+    // Create indexes for efficient permission lookups
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_user_permissions_user_project 
+         ON user_permissions(user_id, project_id)",
+        [],
+    )?;
+    
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_user_permissions_permission 
+         ON user_permissions(permission)",
         [],
     )?;
     

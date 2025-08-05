@@ -86,7 +86,7 @@ impl NotificationChannel {
                 // In a real implementation, this would send an actual email
                 println!(
                     "EMAIL: Sending {} notification to {} ({}): {}",
-                    notification.notification_type.to_string(),
+                    notification.notification_type,
                     recipient.name,
                     recipient.email,
                     notification.title
@@ -102,7 +102,7 @@ impl NotificationChannel {
                 // In a real implementation, this would send a web push notification or websocket message
                 println!(
                     "WEB: Sending {} notification to {}: {}",
-                    notification.notification_type.to_string(),
+                    notification.notification_type,
                     recipient.name,
                     notification.title
                 );
@@ -194,7 +194,7 @@ impl NotificationService {
             sender_id: assigner_id,
             notification_type: NotificationType::ReviewAssigned,
             title: "New Review Assignment".to_string(),
-            message: format!("You have been assigned to review the document '{}'", document_title),
+            message: format!("You have been assigned to review the document '{document_title}'"),
             metadata: NotificationMetadata {
                 document_id: Some(document_id),
                 document_title: Some(document_title.to_string()),
@@ -202,7 +202,7 @@ impl NotificationService {
                 comment_id: None,
                 priority: NotificationPriority::Normal,
                 action_required: true,
-                action_url: Some(format!("/documents/{}/review/{}", document_id, review_id)),
+                action_url: Some(format!("/documents/{document_id}/review/{review_id}")),
             },
             created_at: Utc::now(),
             read_at: None,
@@ -245,7 +245,7 @@ impl NotificationService {
                 comment_id: Some(comment_id),
                 priority: NotificationPriority::Normal,
                 action_required: false,
-                action_url: Some(format!("/documents/{}/review/{}#comment-{}", document_id, review_id, comment_id)),
+                action_url: Some(format!("/documents/{document_id}/review/{review_id}#comment-{comment_id}")),
             },
             created_at: Utc::now(),
             read_at: None,
@@ -280,7 +280,7 @@ impl NotificationService {
                     reviewer.name, 
                     document_title,
                     if let Some(reason) = reason {
-                        format!(": {}", reason)
+                        format!(": {reason}")
                     } else {
                         String::new()
                     }
@@ -315,7 +315,7 @@ impl NotificationService {
                 comment_id: None,
                 priority,
                 action_required: matches!(new_status, crate::review_system::ReviewStatus::ChangesRequested),
-                action_url: Some(format!("/documents/{}/review/{}", document_id, review_id)),
+                action_url: Some(format!("/documents/{document_id}/review/{review_id}")),
             },
             created_at: Utc::now(),
             read_at: None,

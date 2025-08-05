@@ -133,10 +133,8 @@ impl ThreadSafeRepository {
     /// ```
     pub fn lock(&self) -> std::result::Result<std::sync::MutexGuard<'_, Repository>, GitError> {
         self.inner.lock()
-            .map_err(|_| GitError::LockTimeout(format!(
-                "Failed to acquire lock on repository. \
-                This usually indicates the mutex was poisoned due to a panic.",
-            )))
+            .map_err(|_| GitError::LockTimeout("Failed to acquire lock on repository. \
+                This usually indicates the mutex was poisoned due to a panic.".to_string()))
     }
 
 
@@ -210,7 +208,7 @@ impl GitWorkflowManager {
         // Initialize TOML structure if needed
         if !repo_path_buf.join("content").exists() {
             toml_manager.init_git_toml_structure()
-                .map_err(|e| GitError::InvalidOperation(format!("Failed to initialize TOML structure: {}", e)))?;
+                .map_err(|e| GitError::InvalidOperation(format!("Failed to initialize TOML structure: {e}")))?;
         }
         
         Ok(Self {
@@ -244,8 +242,8 @@ impl GitWorkflowManager {
         language: &str,
     ) -> Result<WorkSession> {
         let session_id = Uuid::new_v4();
-        let branch_name = format!("translate/{}/{}/{}", chapter, language, session_id);
-        let markdown_path = format!("generated/markdown/{}/{}.md", language, chapter);
+        let branch_name = format!("translate/{chapter}/{language}/{session_id}");
+        let markdown_path = format!("generated/markdown/{language}/{chapter}.md");
         
         // Load or create chapter TOML data
         let chapter_data = self.load_or_create_chapter_data(chapter, language).await?;
@@ -486,7 +484,7 @@ impl GitWorkflowManager {
                                 session_id: parts[3].to_string(),
                                 last_commit: commit.id().to_string(),
                                 last_commit_time: DateTime::from_timestamp(commit.time().seconds(), 0)
-                                    .unwrap_or_else(|| Utc::now()),
+                                    .unwrap_or_else(Utc::now),
                                 author: commit.author().name().unwrap_or("unknown").to_string(),
                             });
                         }
@@ -495,7 +493,7 @@ impl GitWorkflowManager {
             }
             
             Ok(branches)
-        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {}", e))))?
+        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {e}"))))?
     }
 
     /// Create a new chapter with initial TOML structure
@@ -518,12 +516,11 @@ impl GitWorkflowManager {
         
         // Create initial commit
         let commit_message = format!(
-            "feat({}): create new chapter
+            "feat({chapter_slug}): create new chapter
 
-Initialize chapter {} with basic structure.
+Initialize chapter {chapter_slug} with basic structure.
 
-Chapter-Number: {}\nChapter-Slug: {}\nSource-Language: {}",
-            chapter_slug, chapter_slug, chapter_number, chapter_slug, source_language
+Chapter-Number: {chapter_number}\nChapter-Slug: {chapter_slug}\nSource-Language: {source_language}"
         );
         
         self.create_commit_with_message(&commit_message).await?;
@@ -543,7 +540,7 @@ Chapter-Number: {}\nChapter-Slug: {}\nSource-Language: {}",
             Err(_) => {
                 // Create new chapter
                 let mut titles = HashMap::new();
-                titles.insert(language.to_string(), format!("Chapter: {}", chapter));
+                titles.insert(language.to_string(), format!("Chapter: {chapter}"));
                 
                 Ok(ChapterData::new(
                     1, // Default chapter number
@@ -607,7 +604,7 @@ Chapter-Number: {}\nChapter-Slug: {}\nSource-Language: {}",
     ) -> Result<()> {
         self.toml_manager.toml_manager
             .write_chapter(chapter_data)
-            .map_err(|e| GitError::InvalidOperation(format!("Failed to save chapter data: {}", e)))?;
+            .map_err(|e| GitError::InvalidOperation(format!("Failed to save chapter data: {e}")))?;
         Ok(())
     }
 
@@ -618,7 +615,7 @@ Chapter-Number: {}\nChapter-Slug: {}\nSource-Language: {}",
             let repo = repo_ref.lock()?;
             let head = repo.head().map_err(GitError::from)?;
             Ok(head.target().ok_or_else(|| GitError::InvalidOperation("HEAD has no target".to_string()))?)
-        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {}", e))))?
+        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {e}"))))?
     }
 
     async fn create_branch(&self, branch_name: &str, commit_oid: &Oid) -> Result<()> {
@@ -631,7 +628,7 @@ Chapter-Number: {}\nChapter-Slug: {}\nSource-Language: {}",
             let commit = repo.find_commit(commit_oid).map_err(GitError::from)?;
             repo.branch(&branch_name, &commit, false).map_err(GitError::from)?;
             Ok(())
-        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {}", e))))?
+        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {e}"))))?
     }
 
     async fn checkout_branch(&self, branch_name: &str) -> Result<()> {
@@ -649,7 +646,7 @@ Chapter-Number: {}\nChapter-Slug: {}\nSource-Language: {}",
             }
             
             Ok(())
-        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {}", e))))?
+        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {e}"))))?
     }
 
     pub async fn create_commit_with_message(&self, message: &str) -> Result<Oid> {
@@ -687,7 +684,7 @@ Chapter-Number: {}\nChapter-Slug: {}\nSource-Language: {}",
             ).map_err(GitError::from)?;
             
             Ok(commit_oid)
-        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {}", e))))?;
+        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {e}"))))?;
         
         commit_oid
     }
@@ -702,11 +699,11 @@ Chapter-Number: {}\nChapter-Slug: {}\nSource-Language: {}",
             let mut remote = repo.find_remote(&remote_name)
                 .map_err(GitError::from)?;
             
-            let refspec = format!("refs/heads/{}:refs/heads/{}", branch_name, branch_name);
+            let refspec = format!("refs/heads/{branch_name}:refs/heads/{branch_name}");
             remote.push(&[&refspec], None).map_err(GitError::from)?;
             
             Ok(())
-        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {}", e))))?
+        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {e}"))))?
     }
 
     async fn merge_branch(&self, branch_name: &str) -> Result<()> {
@@ -740,13 +737,13 @@ Chapter-Number: {}\nChapter-Slug: {}\nSource-Language: {}",
                 }));
             }
             
-            let tree_id = index.write_tree_to(&*repo).map_err(GitError::from)?;
+            let tree_id = index.write_tree_to(&repo).map_err(GitError::from)?;
             let tree = repo.find_tree(tree_id).map_err(GitError::from)?;
             
             let signature = Signature::now(&user_name, &user_email)
                 .map_err(GitError::from)?;
             
-            let merge_message = format!("Merge branch '{}'", branch_name);
+            let merge_message = format!("Merge branch '{branch_name}'");
             
             repo.commit(
                 Some("HEAD"),
@@ -758,7 +755,7 @@ Chapter-Number: {}\nChapter-Slug: {}\nSource-Language: {}",
             ).map_err(GitError::from)?;
             
             Ok(())
-        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {}", e))))?
+        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {e}"))))?
     }
 
     async fn delete_branch(&self, branch_name: &str) -> Result<()> {
@@ -771,7 +768,7 @@ Chapter-Number: {}\nChapter-Slug: {}\nSource-Language: {}",
                 .map_err(GitError::from)?;
             branch.delete().map_err(GitError::from)?;
             Ok(())
-        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {}", e))))?
+        }).await.map_err(|e| TradocumentError::Git(GitError::InvalidOperation(format!("Task join error: {e}"))))?
     }
 }
 

@@ -211,7 +211,7 @@ Git-integrated translation management project.
 4. Approved translations merge to main
 
 See [TRANSLATION_GUIDE.md](docs/TRANSLATION_GUIDE.md) for details.
-"#, project_name = project_name);
+"#);
 
     fs::write(path.join("README.md"), readme_content)?;
     
@@ -231,7 +231,7 @@ See [TRANSLATION_GUIDE.md](docs/TRANSLATION_GUIDE.md) for details.
             Some("HEAD"),
             &signature,
             &signature,
-            &format!("Initial repository setup for {}", project_name),
+            &format!("Initial repository setup for {project_name}"),
             &tree,
             &[],
         ).map_err(GitError::from)?;

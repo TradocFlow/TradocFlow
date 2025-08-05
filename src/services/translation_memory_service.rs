@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
-use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use std::collections::HashMap;
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
@@ -8,14 +8,13 @@ use duckdb::{Connection, params};
 use parquet::arrow::arrow_writer::ArrowWriter;
 use parquet::file::properties::WriterProperties;
 use arrow::array::Array;
-use arrow::array::{RecordBatch, StringArray, Float32Array, Int64Array, UInt64Array};
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch as ArrowRecordBatch;
 use tokio::sync::RwLock;
 use chrono::{DateTime, Utc};
 
 use crate::models::translation_models::{
-    TranslationUnit, LanguagePair, ChunkMetadata, ChunkType, TranslationUnitParquet
+    TranslationUnit, LanguagePair, ChunkMetadata
 };
 
 /// Type of chunk linking operation
@@ -459,7 +458,7 @@ impl TranslationMemoryService {
              LIMIT 10"
         )?;
         
-        let search_pattern = format!("%{}%", text);
+        let search_pattern = format!("%{text}%");
         let rows = stmt.query_map(
             params![
                 language_pair.source, 
@@ -517,11 +516,10 @@ impl TranslationMemoryService {
             "SELECT id, source_text, target_text, confidence_score, context, quality_score
              FROM translation_units
              WHERE source_language = ? AND target_language = ?
-             AND ({})
+             AND ({word_conditions})
              AND source_text != ?
              ORDER BY confidence_score DESC
-             LIMIT 15",
-            word_conditions
+             LIMIT 15"
         );
         
         let mut stmt = conn.prepare(&query)?;
@@ -531,7 +529,7 @@ impl TranslationMemoryService {
             language_pair.target.clone(),
         ];
         for word in &words {
-            params.push(format!("%{}%", word));
+            params.push(format!("%{word}%"));
         }
         params.push(text.to_string());
         

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Translation Project Kanban Board</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <h1 id="project-title">Translation Project Kanban</h1>
+            <div class="header-controls">
+                <div class="search-container">
+                    <input type="text" id="search-input" placeholder="Search tasks..." class="search-input">
+                    <button id="search-btn" class="search-btn">🔍</button>
+                </div>
+                <div class="filter-container">
+                    <select id="assignee-filter" class="filter-select">
+                        <option value="">All Assignees</option>
+                    </select>
+                    <select id="priority-filter" class="filter-select">
+                        <option value="">All Priorities</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+                <button id="add-task-btn" class="add-task-btn">+ Add Task</button>
+                <button id="refresh-btn" class="refresh-btn">🔄</button>
+            </div>
+        </header>
+
+        <main class="kanban-container">
+            <div id="kanban-board" class="kanban-board">
+                <!-- Columns will be dynamically generated -->
+            </div>
+        </main>
+
+        <!-- Task Modal -->
+        <div id="task-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modal-title">Add New Task</h2>
+                    <button id="close-modal" class="close-btn">&times;</button>
+                </div>
+                <form id="task-form" class="task-form">
+                    <div class="form-group">
+                        <label for="task-title">Title *</label>
+                        <input type="text" id="task-title" name="title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="task-description">Description</label>
+                        <textarea id="task-description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="task-priority">Priority</label>
+                            <select id="task-priority" name="priority">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="task-assignee">Assignee</label>
+                            <select id="task-assignee" name="assigned_to">
+                                <option value="">Unassigned</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="task-due-date">Due Date</label>
+                        <input type="datetime-local" id="task-due-date" name="due_date">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" id="cancel-btn" class="cancel-btn">Cancel</button>
+                        <button type="submit" class="submit-btn">Save Task</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Loading indicator -->
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+
+        <!-- Toast notifications -->
+        <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <script src="kanban.js"></script>
+</body>
+</html>

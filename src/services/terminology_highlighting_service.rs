@@ -238,11 +238,11 @@ impl TerminologyHighlightingService {
     async fn get_cached_terms(&self, project_id: Uuid) -> Result<Vec<Term>> {
         let mut cache = self.term_cache.lock().unwrap();
         
-        if !cache.contains_key(&project_id) {
+        if let std::collections::hash_map::Entry::Vacant(e) = cache.entry(project_id) {
             let terms = self.terminology_service
                 .get_non_translatable_terms(project_id)
                 .await?;
-            cache.insert(project_id, terms);
+            e.insert(terms);
         }
         
         Ok(cache.get(&project_id).unwrap().clone())

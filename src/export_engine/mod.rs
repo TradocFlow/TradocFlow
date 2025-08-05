@@ -27,6 +27,12 @@ pub struct ExportEngine {
     fragments: HashMap<String, String>,
 }
 
+impl Default for ExportEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExportEngine {
     pub fn new() -> Self {
         let mut options = ComrakOptions::default();
@@ -68,7 +74,7 @@ impl ExportEngine {
     fn process_fragments(&self, content: &str) -> String {
         let mut processed_content = content.to_string();
         for (key, value) in &self.fragments {
-            let placeholder = format!("§{{{}}}", key);
+            let placeholder = format!("§{{{key}}}");
             processed_content = processed_content.replace(&placeholder, value);
         }
         processed_content
@@ -89,17 +95,17 @@ impl ExportEngine {
                 match config.format {
                     ExportFormat::Html => {
                         let html = self.generate_html(&processed_content, config)?;
-                        results.insert(format!("{}.html", language), html.into_bytes());
+                        results.insert(format!("{language}.html"), html.into_bytes());
                     }
                     ExportFormat::Pdf => {
                         let pdf = self.generate_pdf(&processed_content, config)?;
-                        results.insert(format!("{}.pdf", language), pdf);
+                        results.insert(format!("{language}.pdf"), pdf);
                     }
                     ExportFormat::Both => {
                         let html = self.generate_html(&processed_content, config)?;
                         let pdf = self.generate_pdf(&processed_content, config)?;
-                        results.insert(format!("{}.html", language), html.into_bytes());
-                        results.insert(format!("{}.pdf", language), pdf);
+                        results.insert(format!("{language}.html"), html.into_bytes());
+                        results.insert(format!("{language}.pdf"), pdf);
                     }
                 }
             }
@@ -150,7 +156,7 @@ impl ExportEngine {
         }
 
         // Remove the language variable line from processed content
-        if let Some(_) = self.extract_language_variable(&processed) {
+        if self.extract_language_variable(&processed).is_some() {
             let lines: Vec<&str> = processed.lines().collect();
             let mut filtered_lines = Vec::new();
             for line in lines {
@@ -181,15 +187,14 @@ impl ExportEngine {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <style>{}</style>
+    <style>{css}</style>
 </head>
 <body>
     <div class="document-content">
-        {}
+        {html_body}
     </div>
 </body>
-</html>"#,
-            css, html_body
+</html>"#
         );
 
         Ok(full_html)
@@ -198,7 +203,7 @@ impl ExportEngine {
     fn generate_pdf(&self, content: &str, _config: &ExportConfig) -> Result<Vec<u8>> {
         // Load fonts or return error
         let font_family = fonts::from_files("fonts", "LiberationSans", None)
-            .map_err(|e| crate::TradocumentError::Pdf(format!("Font loading failed: {}", e)))?;
+            .map_err(|e| crate::TradocumentError::Pdf(format!("Font loading failed: {e}")))?;
 
         let mut doc = genpdf::Document::new(font_family);
         doc.set_title("Tradocument Review");
@@ -247,12 +252,10 @@ impl ExportEngine {
             // Use screenshot_creator to generate screenshots for this language
             // This would integrate with the bell_tower_controller web interface
             let screenshot_ref = ScreenshotReference {
-                id: format!("main_screen_{}", language),
+                id: format!("main_screen_{language}"),
                 language: language.to_string(),
                 screen_config: format!(
-                    r#"{{"project_id": "{}", "language": "{}"}}"#,
-                    project_id,
-                    language
+                    r#"{{"project_id": "{project_id}", "language": "{language}"}}"#
                 ),
                 generated_at: Some(chrono::Utc::now()),
             };

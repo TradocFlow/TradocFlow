@@ -149,7 +149,7 @@ impl SessionManager {
             // Note: In a real implementation, we'd update last_activity_at
         } else {
             return Err(TradocumentError::ApiError(
-                format!("Session {} not found", session_id)
+                format!("Session {session_id} not found")
             ));
         }
 
@@ -165,7 +165,7 @@ impl SessionManager {
             Ok(active_session.current_content.clone())
         } else {
             Err(TradocumentError::ApiError(
-                format!("Session {} not found", session_id)
+                format!("Session {session_id} not found")
             ))
         }
     }
@@ -197,7 +197,7 @@ impl SessionManager {
             }
         } else {
             return Err(TradocumentError::ApiError(
-                format!("Session {} not found", session_id)
+                format!("Session {session_id} not found")
             ));
         }
 
@@ -228,7 +228,7 @@ impl SessionManager {
             // In a full implementation, we'd update session status
         } else {
             return Err(TradocumentError::ApiError(
-                format!("Session {} not found", session_id)
+                format!("Session {session_id} not found")
             ));
         }
 
@@ -278,7 +278,7 @@ impl SessionManager {
             })
         } else {
             Err(TradocumentError::ApiError(
-                format!("Session {} not found", session_id)
+                format!("Session {session_id} not found")
             ))
         }
     }
@@ -286,12 +286,12 @@ impl SessionManager {
     // Private helper methods
 
     async fn load_chapter_toml(&self, chapter: &str) -> Result<ChapterData> {
-        let toml_path = format!("content/chapters/{}.toml", chapter);
+        let toml_path = format!("content/chapters/{chapter}.toml");
         
         if Path::new(&toml_path).exists() {
             let toml_content = std::fs::read_to_string(&toml_path)?;
             let chapter_data: ChapterData = toml::from_str(&toml_content)
-                .map_err(|e| TradocumentError::Toml(e))?;
+                .map_err(TradocumentError::Toml)?;
             Ok(chapter_data)
         } else {
             // Create new chapter data structure
@@ -338,9 +338,9 @@ impl SessionManager {
 
         // Add chapter title
         if let Some(title) = toml_data.chapter.title.get(language) {
-            markdown.push_str(&format!("# {}\n\n", title));
+            markdown.push_str(&format!("# {title}\n\n"));
         } else if let Some(en_title) = toml_data.chapter.title.get("en") {
-            markdown.push_str(&format!("# {} [NEEDS TRANSLATION]\n\n", en_title));
+            markdown.push_str(&format!("# {en_title} [NEEDS TRANSLATION]\n\n"));
         }
 
         // Add translation units
@@ -387,8 +387,8 @@ impl SessionManager {
             let mut current_unit_index = 0;
 
             for line in lines {
-                if !line.trim().is_empty() && !line.starts_with('#') && !line.starts_with("<!--") {
-                    if current_unit_index < toml_data.units.len() {
+                if !line.trim().is_empty() && !line.starts_with('#') && !line.starts_with("<!--")
+                    && current_unit_index < toml_data.units.len() {
                         let unit = &mut toml_data.units[current_unit_index];
                         
                         // Update or create translation for this language
@@ -424,7 +424,6 @@ impl SessionManager {
 
                         current_unit_index += 1;
                     }
-                }
             }
 
             // Save updated TOML data
@@ -435,7 +434,7 @@ impl SessionManager {
     }
 
     async fn save_toml_data(&self, chapter: &str, toml_data: &ChapterData) -> Result<()> {
-        let toml_path = format!("content/chapters/{}.toml", chapter);
+        let toml_path = format!("content/chapters/{chapter}.toml");
         
         // Ensure directory exists
         if let Some(parent) = Path::new(&toml_path).parent() {
@@ -443,7 +442,7 @@ impl SessionManager {
         }
 
         let toml_content = toml::to_string_pretty(toml_data)
-            .map_err(|e| TradocumentError::ApiError(format!("TOML serialization error: {}", e)))?;
+            .map_err(|e| TradocumentError::ApiError(format!("TOML serialization error: {e}")))?;
             
         std::fs::write(&toml_path, toml_content)?;
         
@@ -472,7 +471,7 @@ impl SessionManager {
                         // Mark session as needing auto-save
                         // The actual auto-save will be handled by external calls to auto_save_session()
                         active_session.needs_auto_save = true;
-                        println!("Session {} marked for auto-save", session_id);
+                        println!("Session {session_id} marked for auto-save");
                     }
                 } else {
                     // Session no longer exists, stop auto-save task

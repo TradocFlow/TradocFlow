@@ -1,4 +1,4 @@
-use crate::{Document, DocumentStatus, DocumentMetadata as LibDocumentMetadata, DocumentImportRequest, DocumentImportResult, TradocumentError, Result};
+use crate::{Document, DocumentStatus, DocumentImportRequest, DocumentImportResult, TradocumentError, Result};
 use crate::models::translation_models::{Chapter, ChunkMetadata, ChunkType};
 use crate::services::chapter_service::{ChapterService, CreateChapterRequest};
 use std::collections::HashMap;
@@ -54,7 +54,7 @@ impl DocumentImportService {
         
         if !matches!(extension.to_lowercase().as_str(), "docx" | "doc") {
             return Err(TradocumentError::UnsupportedFormat(
-                format!("Unsupported file extension: {}", extension)
+                format!("Unsupported file extension: {extension}")
             ));
         }
 
@@ -62,11 +62,11 @@ impl DocumentImportService {
 
         // Read the DOCX file
         let mut file = File::open(path)
-            .map_err(|e| TradocumentError::DocumentImport(format!("Failed to open file: {}", e)))?;
+            .map_err(|e| TradocumentError::DocumentImport(format!("Failed to open file: {e}")))?;
         
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)
-            .map_err(|e| TradocumentError::DocumentImport(format!("Failed to read file: {}", e)))?;
+            .map_err(|e| TradocumentError::DocumentImport(format!("Failed to read file: {e}")))?;
 
         messages.push("File read successfully".to_string());
 
@@ -83,7 +83,7 @@ impl DocumentImportService {
         )?;
 
         let processing_time = start_time.elapsed().as_millis() as u64;
-        messages.push(format!("Processing completed in {}ms", processing_time));
+        messages.push(format!("Processing completed in {processing_time}ms"));
 
         let result = DocumentImportResult {
             document_id: document.id,
@@ -117,11 +117,11 @@ impl DocumentImportService {
         
         if !matches!(extension.to_lowercase().as_str(), "docx" | "doc") {
             return Err(TradocumentError::UnsupportedFormat(
-                format!("Unsupported file extension: {}", extension)
+                format!("Unsupported file extension: {extension}")
             ));
         }
 
-        messages.push(format!("Starting processing of uploaded file: {}", filename));
+        messages.push(format!("Starting processing of uploaded file: {filename}"));
 
         // Convert DOCX to markdown using markdownify
         let markdown_content = self.convert_docx_to_markdown_legacy(bytes, &import_request, &mut warnings)?;
@@ -136,7 +136,7 @@ impl DocumentImportService {
         )?;
 
         let processing_time = start_time.elapsed().as_millis() as u64;
-        messages.push(format!("Processing completed in {}ms", processing_time));
+        messages.push(format!("Processing completed in {processing_time}ms"));
 
         let result = DocumentImportResult {
             document_id: document.id,
@@ -158,11 +158,11 @@ impl DocumentImportService {
     ) -> Result<String> {
         // Create a temporary file to work with the markdownify library
         let mut temp_file = NamedTempFile::new()
-            .map_err(|e| TradocumentError::DocumentImport(format!("Failed to create temp file: {}", e)))?;
+            .map_err(|e| TradocumentError::DocumentImport(format!("Failed to create temp file: {e}")))?;
         
         // Write the DOCX bytes to the temporary file
         temp_file.write_all(docx_bytes)
-            .map_err(|e| TradocumentError::DocumentImport(format!("Failed to write to temp file: {}", e)))?;
+            .map_err(|e| TradocumentError::DocumentImport(format!("Failed to write to temp file: {e}")))?;
         
         // Get the path to the temporary file
         let temp_path = temp_file.path();
@@ -184,7 +184,7 @@ impl DocumentImportService {
                     Ok("# Imported Document\n\n*Document appears to be empty or contains no convertible content.*".to_string())
                 } else {
                     Err(TradocumentError::DocumentImport(
-                        format!("Failed to convert DOCX to markdown: {}", e)
+                        format!("Failed to convert DOCX to markdown: {e}")
                     ))
                 }
             }
@@ -215,7 +215,7 @@ impl DocumentImportService {
                         source_markdown
                     )
                 );
-                messages.push(format!("Created placeholder content for language: {}", lang));
+                messages.push(format!("Created placeholder content for language: {lang}"));
             }
         }
 
@@ -256,7 +256,7 @@ impl DocumentImportService {
         let start_time = Instant::now();
         let mut results = Vec::new();
         let mut errors = Vec::new();
-        let mut warnings = Vec::new();
+        let warnings = Vec::new();
         let total_files = files.len();
 
         // Validate all files before processing
@@ -335,7 +335,7 @@ impl DocumentImportService {
             successful_imports: results,
             errors,
             warnings,
-            total_files: total_files,
+            total_files,
             processing_time_ms: processing_time,
         })
     }
@@ -360,11 +360,11 @@ impl DocumentImportService {
             }
             DocumentContent::FilePath(path) => {
                 let mut file_handle = File::open(&path)
-                    .map_err(|e| TradocumentError::DocumentImport(format!("Failed to open file: {}", e)))?;
+                    .map_err(|e| TradocumentError::DocumentImport(format!("Failed to open file: {e}")))?;
                 
                 let mut buffer = Vec::new();
                 file_handle.read_to_end(&mut buffer)
-                    .map_err(|e| TradocumentError::DocumentImport(format!("Failed to read file: {}", e)))?;
+                    .map_err(|e| TradocumentError::DocumentImport(format!("Failed to read file: {e}")))?;
                 
                 self.convert_docx_to_markdown(&buffer, &file.filename, &mut warnings)?
             }
@@ -382,7 +382,7 @@ impl DocumentImportService {
         ).await?;
 
         let processing_time = start_time.elapsed().as_millis() as u64;
-        messages.push(format!("Processing completed in {}ms", processing_time));
+        messages.push(format!("Processing completed in {processing_time}ms"));
 
         Ok(SingleDocumentImportResult {
             filename: file.filename,
@@ -485,7 +485,7 @@ impl DocumentImportService {
                 ChunkType::ListItem
             } else if trimmed.starts_with("```") {
                 ChunkType::CodeBlock
-            } else if trimmed.contains('|') && lines.get(line_index + 1).map_or(false, |next| next.contains('|')) {
+            } else if trimmed.contains('|') && lines.get(line_index + 1).is_some_and(|next| next.contains('|')) {
                 ChunkType::Table
             } else {
                 // Split paragraphs into sentences for better translation memory
@@ -560,11 +560,11 @@ impl DocumentImportService {
         
         // Create a temporary file to work with the markdownify library
         let mut temp_file = NamedTempFile::new()
-            .map_err(|e| TradocumentError::DocumentImport(format!("Failed to create temp file: {}", e)))?;
+            .map_err(|e| TradocumentError::DocumentImport(format!("Failed to create temp file: {e}")))?;
         
         // Write the DOCX bytes to the temporary file
         temp_file.write_all(docx_bytes)
-            .map_err(|e| TradocumentError::DocumentImport(format!("Failed to write to temp file: {}", e)))?;
+            .map_err(|e| TradocumentError::DocumentImport(format!("Failed to write to temp file: {e}")))?;
         
         // Get the path to the temporary file
         let temp_path = temp_file.path();
@@ -574,8 +574,8 @@ impl DocumentImportService {
         match markdownify::convert(temp_path, None) {
             Ok(markdown) => {
                 if markdown.trim().is_empty() {
-                    warnings.push(format!("Document {} appears to be empty or contains no convertible content", filename));
-                    Ok(format!("# {}\n\n*No content could be extracted from the document.*", filename))
+                    warnings.push(format!("Document {filename} appears to be empty or contains no convertible content"));
+                    Ok(format!("# {filename}\n\n*No content could be extracted from the document.*"))
                 } else {
                     // Enhanced post-processing with metadata
                     let processed_markdown = self.enhanced_post_process_markdown(markdown, &metadata, warnings);
@@ -584,7 +584,7 @@ impl DocumentImportService {
             }
             Err(e) => {
                 // Fallback to basic conversion if enhanced conversion fails
-                warnings.push(format!("Enhanced conversion failed for {}, falling back to basic conversion: {}", filename, e));
+                warnings.push(format!("Enhanced conversion failed for {filename}, falling back to basic conversion: {e}"));
                 self.fallback_docx_conversion(temp_path, filename, warnings)
             }
         }
@@ -653,8 +653,8 @@ impl DocumentImportService {
         match markdownify::convert(temp_path, None) {
             Ok(markdown) => {
                 if markdown.trim().is_empty() {
-                    warnings.push(format!("Document {} appears to be empty", filename));
-                    Ok(format!("# {}\n\n*Document appears to be empty or contains no convertible content.*", filename))
+                    warnings.push(format!("Document {filename} appears to be empty"));
+                    Ok(format!("# {filename}\n\n*Document appears to be empty or contains no convertible content.*"))
                 } else {
                     // Basic post-processing
                     let processed_markdown = self.post_process_markdown(markdown, warnings);
@@ -663,7 +663,7 @@ impl DocumentImportService {
             }
             Err(e) => {
                 Err(TradocumentError::DocumentImport(
-                    format!("Failed to convert {} to markdown: {}", filename, e)
+                    format!("Failed to convert {filename} to markdown: {e}")
                 ))
             }
         }
@@ -680,8 +680,8 @@ impl DocumentImportService {
         
         // Add document metadata header if available
         if let Some(title) = &metadata.title {
-            if !processed.starts_with(&format!("# {}", title)) {
-                processed = format!("# {}\n\n{}", title, processed);
+            if !processed.starts_with(&format!("# {title}")) {
+                processed = format!("# {title}\n\n{processed}");
             }
         }
         
@@ -731,7 +731,7 @@ impl DocumentImportService {
                 // Detect chapter headings (level 1 or specific keywords)
                 if level == 1 || self.is_chapter_heading(heading_text) {
                     chapter_count += 1;
-                    processed_lines.push(format!("# Chapter {}: {}", chapter_count, heading_text));
+                    processed_lines.push(format!("# Chapter {chapter_count}: {heading_text}"));
                 } else {
                     heading_levels.push(level);
                     
@@ -833,7 +833,7 @@ impl DocumentImportService {
 
     /// Process image references and create placeholders
     fn process_image_references(&self, content: String, warnings: &mut Vec<String>) -> String {
-        let mut processed = content;
+        let processed = content;
         let mut image_count = 0;
         
         // Simple pattern matching for common image references
@@ -846,24 +846,24 @@ impl DocumentImportService {
             // Look for HTML img tags
             if line.contains("<img") {
                 image_count += 1;
-                line_processed = format!("![Image {}](images/image_{}.png \"Image {}\")", image_count, image_count, image_count);
+                line_processed = format!("![Image {image_count}](images/image_{image_count}.png \"Image {image_count}\")");
             }
             // Look for custom image references
             else if line.contains("[image:") || line.contains("[Image:") {
                 image_count += 1;
-                line_processed = format!("![Image {}](images/image_{}.png \"Image {}\")", image_count, image_count, image_count);
+                line_processed = format!("![Image {image_count}](images/image_{image_count}.png \"Image {image_count}\")");
             }
             // Look for word-style image placeholders
             else if line.to_lowercase().contains("image") && (line.contains("[") || line.contains("{")) {
                 image_count += 1;
-                line_processed = format!("{}\n\n![Image {}](images/image_{}.png \"Image {}\")", line, image_count, image_count, image_count);
+                line_processed = format!("{line}\n\n![Image {image_count}](images/image_{image_count}.png \"Image {image_count}\")");
             }
             
             processed_lines.push(line_processed);
         }
         
         if image_count > 0 {
-            warnings.push(format!("Found {} image references - images need to be manually added to images/ directory", image_count));
+            warnings.push(format!("Found {image_count} image references - images need to be manually added to images/ directory"));
         }
         
         processed_lines.join("\n")
@@ -973,7 +973,7 @@ impl DocumentImportService {
                 if trimmed.starts_with('-') || trimmed.starts_with('*') || trimmed.starts_with('+') {
                     // Ensure consistent list marker
                     let content = trimmed[1..].trim();
-                    format!("- {}", content)
+                    format!("- {content}")
                 } else {
                     line.to_string()
                 }

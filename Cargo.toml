@@ -27,6 +27,10 @@ path = "src/bin/api_server.rs"
 name = "terminology_demo"
 path = "src/bin/terminology_demo.rs"
 
+[[bin]]
+name = "simple_markdown_editor"
+path = "src/bin/simple_markdown_editor.rs"
+
 
 
 [dependencies]
@@ -38,9 +42,9 @@ toml = "0.8"
 
 # Database and storage
 rusqlite = { version = "0.31", features = ["bundled"] }
-# duckdb = { version = "1.0", features = ["bundled"] } # Temporarily disabled due to compilation issues
-# arrow = { version = "53.0", features = ["prettyprint"] } # Temporarily disabled due to compilation issues  
-# parquet = { version = "53.0", features = ["arrow", "async"] } # Temporarily disabled due to compilation issues
+duckdb = { version = "0.10", features = ["bundled"] }
+arrow = { version = "50.0", features = ["prettyprint"] }
+parquet = { version = "50.0", features = ["arrow", "async"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 

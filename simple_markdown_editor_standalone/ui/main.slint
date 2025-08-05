@@ -1,0 +1,81 @@
+import { Button, VerticalBox, HorizontalBox, ScrollView, TextEdit } from "std-widgets.slint";
+
+export component MainWindow inherits Window {
+    title: "Simple Markdown Editor - TradocFlow";
+    width: 1200px;
+    height: 800px;
+    
+    in-out property <string> content: "# Welcome to Simple Markdown Editor\n\nStart typing your markdown here...\n\n## Features\n\n- Live markdown editing\n- File save/load\n- Basic formatting\n- Word count\n\n### Getting Started\n\n1. Type your markdown in the editor below\n2. Use File menu buttons to save/load files\n3. Content is automatically tracked\n\n**Bold text** and *italic text* are supported.\n\n```\nCode blocks work too!\n```\n\n> Blockquotes are also available\n\nEnjoy writing! 🚀";
+    
+    callback file-save();
+    callback file-open();
+    callback content-changed(string);
+    
+    VerticalBox {
+        // Header with title and menu
+        Rectangle {
+            height: 60px;
+            background: #2563eb;
+            
+            HorizontalBox {
+                padding: 16px;
+                spacing: 12px;
+                
+                Text {
+                    text: "📝 TradocFlow Markdown Editor";
+                    font-size: 18px;
+                    color: white;
+                }
+                
+                Rectangle { 
+                    // Spacer
+                }
+                
+                Button {
+                    text: "📁 Open";
+                    clicked => { file-open(); }
+                }
+                
+                Button {
+                    text: "💾 Save";
+                    clicked => { file-save(); }
+                }
+            }
+        }
+        
+        // Main editor area
+        ScrollView {
+            TextEdit {
+                text <=> content;
+                font-size: 14px;
+                
+                edited(text) => {
+                    content-changed(text);
+                }
+            }
+        }
+        
+        // Status bar
+        Rectangle {
+            height: 32px;
+            background: #f3f4f6;
+            
+            HorizontalBox {
+                padding: 8px;
+                spacing: 20px;
+                
+                Text {
+                    text: "Ready to edit markdown";
+                    font-size: 12px;
+                    color: #6b7280;
+                }
+                
+                Text {
+                    text: "Ready to edit";
+                    font-size: 12px;
+                    color: #10b981;
+                }
+            }
+        }
+    }
+}

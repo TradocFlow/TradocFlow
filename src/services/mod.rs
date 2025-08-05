@@ -1,15 +1,15 @@
 pub mod project_manager;
 pub mod project_service;
 pub mod translation_service;
-// pub mod translation_memory_service; // Temporarily disabled due to duckdb compilation issues
-// pub mod translation_memory_integration_service; // Temporarily disabled due to duckdb compilation issues
-// pub mod translation_memory_integration_test; // Temporarily disabled due to duckdb compilation issues
-// pub mod terminology_service; // Temporarily disabled due to duckdb compilation issues
-// pub mod terminology_highlighting_service; // Temporarily disabled due to terminology_service dependency
+pub mod translation_memory_service;
+pub mod translation_memory_integration_service;
+pub mod translation_memory_integration_test;
+pub mod terminology_service;
+pub mod terminology_highlighting_service;
 pub mod chapter_service;
-// pub mod document_import_service; // Temporarily disabled due to translation_memory_service dependency
+pub mod document_import_service;
 pub mod chunk_processor;
-// pub mod chunk_linking_service; // Temporarily disabled due to translation_memory_service dependency
+pub mod chunk_linking_service;
 pub mod editor_sync_service;
 pub mod language_syntax_service;
 pub mod split_pane_editor_integration_test;
@@ -30,25 +30,25 @@ pub mod export_service_tests;
 pub use project_manager::ProjectManager;
 pub use project_service::ProjectService;
 pub use translation_service::TranslationService;
-// pub use translation_memory_service::TranslationMemoryService; // Temporarily disabled
-// pub use translation_memory_integration_service::{
-//     TranslationMemoryIntegrationService, IntegrationConfig, EditorSuggestion, 
-//     ConfidenceIndicator, IndicatorType, TextPosition, SearchFilters, TranslationStatistics
-// }; // Temporarily disabled
-// pub use terminology_service::TerminologyService; // Temporarily disabled
-// pub use terminology_highlighting_service::{
-//     TerminologyHighlightingService, TermHighlight, HighlightType, ConsistencyCheckResult,
-//     LanguageInconsistency, TerminologySuggestion
-// }; // Temporarily disabled
+pub use translation_memory_service::TranslationMemoryService;
+pub use translation_memory_integration_service::{
+    TranslationMemoryIntegrationService, IntegrationConfig, EditorSuggestion, 
+    ConfidenceIndicator, IndicatorType, TextPosition, SearchFilters, TranslationStatistics
+};
+pub use terminology_service::TerminologyService;
+pub use terminology_highlighting_service::{
+    TerminologyHighlightingService, TermHighlight, HighlightType, ConsistencyCheckResult,
+    LanguageInconsistency, TerminologySuggestion
+};
 pub use chapter_service::{ChapterService, CreateChapterRequest, UpdateChapterRequest, ChapterSummary, ChapterStatistics, ChapterSearchResult, SearchMatchType};
-// pub use document_import_service::{
-//     DocumentImportService, ImportDocument, ImportConfig, ImportResult, LanguageDocumentMap
-// }; // Temporarily disabled
+pub use document_import_service::{
+    DocumentImportService, ImportDocument, ImportConfig, ImportResult, LanguageDocumentMap
+};
 pub use chunk_processor::{ChunkProcessor, ChunkingConfig, ChunkingStrategy, ProcessedChunk, ChunkingStats};
-// pub use chunk_linking_service::{
-//     ChunkLinkingService, LinkedPhraseGroup, ChunkSelection, SelectionMode, 
-//     LinkingResult, MergeOptions, MergeStrategy, PhraseStatistics
-// }; // Temporarily disabled
+pub use chunk_linking_service::{
+    ChunkLinkingService, LinkedPhraseGroup, ChunkSelection, SelectionMode, 
+    LinkingResult, MergeOptions, MergeStrategy, PhraseStatistics
+};
 pub use editor_sync_service::{
     EditorSyncService, SyncEvent, SyncEventType, SplitPaneConfig, SplitOrientation, LanguagePaneState
 };

@@ -31,6 +31,9 @@ pub fn run_all_migrations(pool: &DatabasePool) -> SqlResult<()> {
     run_migration(&conn, "011_enhance_users_table", enhance_users_table)?;
     run_migration(&conn, "012_create_team_invitations", create_team_invitations_table)?;
     run_migration(&conn, "013_create_user_permissions", create_user_permissions_table)?;
+    run_migration(&conn, "014_create_translation_units", create_translation_units_table)?;
+    run_migration(&conn, "015_create_translation_chunks", create_translation_chunks_table)?;
+    run_migration(&conn, "016_create_chunk_links", create_chunk_links_table)?;
     
     Ok(())
 }
@@ -371,6 +374,155 @@ fn create_user_permissions_table(conn: &Connection) -> SqlResult<()> {
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_user_permissions_permission 
          ON user_permissions(permission)",
+        [],
+    )?;
+    
+    Ok(())
+}
+
+/// Migration 014: Create translation_units table for translation memory
+fn create_translation_units_table(conn: &Connection) -> SqlResult<()> {
+    conn.execute(
+        "CREATE TABLE translation_units (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            chapter_id TEXT NOT NULL,
+            chunk_id TEXT NOT NULL,
+            source_language TEXT NOT NULL,
+            source_text TEXT NOT NULL,
+            target_language TEXT NOT NULL,
+            target_text TEXT NOT NULL,
+            confidence_score REAL NOT NULL CHECK(confidence_score >= 0.0 AND confidence_score <= 1.0),
+            context TEXT,
+            translator_id TEXT,
+            reviewer_id TEXT,
+            quality_score REAL CHECK(quality_score >= 0.0 AND quality_score <= 1.0),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (project_id) REFERENCES translation_projects (id) ON DELETE CASCADE,
+            FOREIGN KEY (chapter_id) REFERENCES chapters (id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+    
+    // Create indexes for efficient translation memory searches
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_translation_units_language_pair 
+         ON translation_units(source_language, target_language)",
+        [],
+    )?;
+    
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_translation_units_source_text 
+         ON translation_units(source_text)",
+        [],
+    )?;
+    
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_translation_units_confidence 
+         ON translation_units(confidence_score DESC)",
+        [],
+    )?;
+    
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_translation_units_project_id 
+         ON translation_units(project_id)",
+        [],
+    )?;
+    
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_translation_units_chapter_id 
+         ON translation_units(chapter_id)",
+        [],
+    )?;
+    
+    Ok(())
+}
+
+/// Migration 015: Create translation_chunks table for chunk metadata
+fn create_translation_chunks_table(conn: &Connection) -> SqlResult<()> {
+    conn.execute(
+        "CREATE TABLE translation_chunks (
+            id TEXT PRIMARY KEY,
+            chapter_id TEXT NOT NULL,
+            original_position INTEGER NOT NULL,
+            chunk_type TEXT NOT NULL, -- 'Sentence', 'Paragraph', 'Heading', etc.
+            sentence_boundaries TEXT, -- JSON array of sentence boundary positions
+            processing_notes TEXT, -- JSON array of processing notes
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (chapter_id) REFERENCES chapters (id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+    
+    // Create indexes for efficient chunk operations
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_translation_chunks_chapter_position 
+         ON translation_chunks(chapter_id, original_position)",
+        [],
+    )?;
+    
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_translation_chunks_type 
+         ON translation_chunks(chunk_type)",
+        [],
+    )?;
+    
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_translation_chunks_chapter_id 
+         ON translation_chunks(chapter_id)",
+        [],
+    )?;
+    
+    Ok(())
+}
+
+/// Migration 016: Create chunk_links table for linking chunks together
+fn create_chunk_links_table(conn: &Connection) -> SqlResult<()> {
+    conn.execute(
+        "CREATE TABLE chunk_links (
+            id TEXT PRIMARY KEY,
+            source_chunk_id TEXT NOT NULL,
+            target_chunk_id TEXT NOT NULL,
+            link_type TEXT NOT NULL, -- 'LinkedPhrase', 'Merged', 'Related', etc.
+            created_at TEXT NOT NULL,
+            created_by TEXT, -- User who created the link
+            FOREIGN KEY (source_chunk_id) REFERENCES translation_chunks (id) ON DELETE CASCADE,
+            FOREIGN KEY (target_chunk_id) REFERENCES translation_chunks (id) ON DELETE CASCADE,
+            UNIQUE(source_chunk_id, target_chunk_id, link_type)
+        )",
+        [],
+    )?;
+    
+    // Create indexes for efficient chunk link queries
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_chunk_links_source 
+         ON chunk_links(source_chunk_id)",
+        [],
+    )?;
+    
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_chunk_links_target 
+         ON chunk_links(target_chunk_id)",
+        [],
+    )?;
+    
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_chunk_links_type 
+         ON chunk_links(link_type)",
+        [],
+    )?;
+    
+    // Create trigger to prevent self-links
+    conn.execute(
+        "CREATE TRIGGER prevent_self_chunk_links
+         BEFORE INSERT ON chunk_links
+         FOR EACH ROW
+         WHEN NEW.source_chunk_id = NEW.target_chunk_id
+         BEGIN
+             SELECT RAISE(ABORT, 'Cannot link chunk to itself');
+         END",
         [],
     )?;
     

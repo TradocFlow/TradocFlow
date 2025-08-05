@@ -149,7 +149,7 @@ impl DocumentImportService {
 
         // Import source language documents first
         let source_docs = documents.documents.get(&config.source_language)
-            .ok_or_else(|| TradocumentError::ValidationError(
+            .ok_or_else(|| TradocumentError::Validation(
                 format!("No documents found for source language: {}", config.source_language)
             ))?;
 
@@ -307,7 +307,7 @@ impl DocumentImportService {
                 fs::read_to_string(file_path)
                     .map_err(|e| TradocumentError::FileError(format!("Failed to read markdown file: {e}")))
             }
-            _ => Err(TradocumentError::ValidationError(
+            _ => Err(TradocumentError::Validation(
                 format!("Unsupported file format: {file_extension}")
             )),
         }
@@ -702,7 +702,7 @@ impl DocumentImportService {
 
         // Use the first language found as source (this should be configurable)
         let source_language = documents.keys().next()
-            .ok_or_else(|| TradocumentError::ValidationError("No documents found".to_string()))?
+            .ok_or_else(|| TradocumentError::Validation("No documents found".to_string()))?
             .clone();
 
         Ok(LanguageDocumentMap {

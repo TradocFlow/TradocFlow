@@ -58,6 +58,7 @@ pub struct App {
     document_state: Arc<Mutex<DocumentState>>,
     auto_save_config: Arc<Mutex<AutoSaveConfig>>,
     auto_save_tx: Option<mpsc::UnboundedSender<()>>,
+    runtime_handle: tokio::runtime::Handle,
 }
 
 /// Data collected during the project creation wizard
@@ -85,6 +86,9 @@ struct WizardTeamMember {
 impl App {
     /// Create a new App instance with the Slint UI
     pub async fn new() -> Result<Self> {
+        // Capture the current Tokio runtime handle
+        let runtime_handle = tokio::runtime::Handle::current();
+
         // Create the main window from Slint
         let main_window = MainWindow::new()
             .map_err(|e| TradocumentError::SlintError(format!("Failed to create main window: {}", e)))?;
@@ -131,6 +135,7 @@ impl App {
             document_state,
             auto_save_config,
             auto_save_tx: None,
+            runtime_handle,
         };
         app.setup_callbacks();
 
@@ -158,13 +163,14 @@ impl App {
         self.main_window.on_file_new({
             let document_state = Arc::clone(&self.document_state);
             let main_window_weak = main_window_weak.clone();
+            let runtime_handle = self.runtime_handle.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
                     // Create async task for new document
                     let document_state = Arc::clone(&document_state);
                     let window_weak = window.as_weak();
                     
-                    tokio::spawn(async move {
+                    runtime_handle.spawn(async move {
                         // Check for unsaved changes and create new document
                         if let Ok(mut state) = document_state.lock() {
                             if state.modified {
@@ -197,12 +203,13 @@ impl App {
         self.main_window.on_file_open({
             let document_state = Arc::clone(&self.document_state);
             let main_window_weak = main_window_weak.clone();
+            let runtime_handle = self.runtime_handle.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
                     let document_state = Arc::clone(&document_state);
                     let window_weak = window.as_weak();
                     
-                    tokio::spawn(async move {
+                    runtime_handle.spawn(async move {
                         // Simulate file dialog and open document
                         if let Some(window) = window_weak.upgrade() {
                             window.set_status_message("Opening file dialog...".into());
@@ -260,12 +267,13 @@ impl App {
         self.main_window.on_file_save({
             let document_state = Arc::clone(&self.document_state);
             let main_window_weak = main_window_weak.clone();
+            let runtime_handle = self.runtime_handle.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
                     let document_state = Arc::clone(&document_state);
                     let window_weak = window.as_weak();
                     
-                    tokio::spawn(async move {
+                    runtime_handle.spawn(async move {
                         let (path, content) = {
                             let state = match document_state.lock() {
                                 Ok(state) => state,
@@ -321,12 +329,13 @@ impl App {
         self.main_window.on_file_save_as({
             let document_state = Arc::clone(&self.document_state);
             let main_window_weak = main_window_weak.clone();
+            let runtime_handle = self.runtime_handle.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
                     let document_state = Arc::clone(&document_state);
                     let window_weak = window.as_weak();
                     
-                    tokio::spawn(async move {
+                    runtime_handle.spawn(async move {
                         // Get current content
                         let content = {
                             let state = match document_state.lock() {
@@ -385,13 +394,14 @@ impl App {
             let document_state = Arc::clone(&self.document_state);
             let document_import_service = Arc::clone(&self.document_import_service);
             let main_window_weak = main_window_weak.clone();
+            let runtime_handle = self.runtime_handle.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
                     let document_state = Arc::clone(&document_state);
                     let _document_import_service = Arc::clone(&document_import_service);
                     let window_weak = window.as_weak();
                     
-                    tokio::spawn(async move {
+                    runtime_handle.spawn(async move {
                         if let Some(window) = window_weak.upgrade() {
                             window.set_status_message("Opening import dialog...".into());
                             window.set_status_type("info".into());
@@ -743,6 +753,7 @@ impl App {
             let document_state = Arc::clone(&self.document_state);
             let auto_save_config = Arc::clone(&self.auto_save_config);
             let main_window_weak = main_window_weak.clone();
+            let runtime_handle = self.runtime_handle.clone();
             move |content, language| {
                 if let Some(window) = main_window_weak.upgrade() {
                     let document_state = Arc::clone(&document_state);
@@ -751,7 +762,7 @@ impl App {
                     let content_str = content.to_string();
                     let language_str = language.to_string();
                     
-                    tokio::spawn(async move {
+                    runtime_handle.spawn(async move {
                         // Update document state
                         let should_auto_save = if let Ok(mut state) = document_state.lock() {
                             let content_changed = state.content != content_str;
@@ -774,9 +785,8 @@ impl App {
                             false
                         };
 
-                        // Update UI
+                        // Update UI status (don't set document content to avoid circular callback)
                         if let Some(window) = window_weak.upgrade() {
-                            window.set_document_content(content_str.clone().into());
                             window.set_status_message(format!("Content updated for {}", language_str).into());
                             window.set_status_type("info".into());
                         }
@@ -971,6 +981,7 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             let wizard_data = wizard_data.clone();
             let project_service = project_service.clone();
+            let runtime_handle = self.runtime_handle.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
                     // Create project in background
@@ -1005,33 +1016,34 @@ impl App {
                         return; // Exit if we can't get wizard data
                     };
                     
-                    // Spawn async task for project creation
-                    let rt = tokio::runtime::Runtime::new().unwrap();
-                    match rt.block_on(project_service.create_project(request)) {
-                        Ok(result) => {
-                            if let Some(window) = window_weak.upgrade() {
-                                window.set_status_message(format!("Project '{}' created successfully!", result.project.name).into());
-                                window.set_status_type("success".into());
-                                window.set_has_project_loaded(true);
-                                window.set_current_project_name(result.project.name.clone().into());
-                                
-                                // Save as last opened project
-                                if let Some(settings_dir) = dirs::config_dir() {
-                                    let settings_dir = settings_dir.join("tradocflow");
-                                    if std::fs::create_dir_all(&settings_dir).is_ok() {
-                                        let last_project_file = settings_dir.join("last_project.txt");
-                                        let _ = std::fs::write(&last_project_file, result.project.project_path.to_string_lossy().as_bytes());
+                    // Spawn async task for project creation using the runtime handle
+                    runtime_handle.spawn(async move {
+                        match project_service.create_project(request).await {
+                            Ok(result) => {
+                                if let Some(window) = window_weak.upgrade() {
+                                    window.set_status_message(format!("Project '{}' created successfully!", result.project.name).into());
+                                    window.set_status_type("success".into());
+                                    window.set_has_project_loaded(true);
+                                    window.set_current_project_name(result.project.name.clone().into());
+                                    
+                                    // Save as last opened project
+                                    if let Some(settings_dir) = dirs::config_dir() {
+                                        let settings_dir = settings_dir.join("tradocflow");
+                                        if std::fs::create_dir_all(&settings_dir).is_ok() {
+                                            let last_project_file = settings_dir.join("last_project.txt");
+                                            let _ = std::fs::write(&last_project_file, result.project.project_path.to_string_lossy().as_bytes());
+                                        }
                                     }
                                 }
                             }
-                        }
-                        Err(e) => {
-                            if let Some(window) = window_weak.upgrade() {
-                                window.set_status_message(format!("Failed to create project: {}", e).into());
-                                window.set_status_type("error".into());
+                            Err(e) => {
+                                if let Some(window) = window_weak.upgrade() {
+                                    window.set_status_message(format!("Failed to create project: {}", e).into());
+                                    window.set_status_type("error".into());
+                                }
                             }
                         }
-                    }
+                    });
                 }
             }
         });
@@ -1138,6 +1150,7 @@ impl App {
         self.main_window.on_browser_refresh_projects({
             let main_window_weak = main_window_weak.clone();
             let project_service = project_service.clone();
+            let runtime_handle = self.runtime_handle.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
                     window.set_browser_is_loading(true);
@@ -1148,45 +1161,46 @@ impl App {
                     let window_weak = window.as_weak();
                     let project_service = project_service.clone();
                     
-                    // Use tokio runtime for async operation
-                    let rt = tokio::runtime::Runtime::new().unwrap();
-                    match rt.block_on(project_service.discover_projects(None)) {
-                        Ok(summaries) => {
-                            if let Some(window) = window_weak.upgrade() {
-                                // Convert ProjectSummary to ProjectData
-                                let project_data_vec = summaries.iter().map(|summary| {
-                                    crate::ProjectData {
-                                        name: summary.name.clone().into(),
-                                        description: summary.description.clone().unwrap_or_default().into(),
-                                        path: summary.path.to_string_lossy().to_string().into(),
-                                        source_language: summary.source_language.clone().into(),
-                                        target_languages: ModelRc::new(VecModel::from(
-                                            summary.target_languages.iter()
-                                                .map(|lang| lang.clone().into())
-                                                .collect::<Vec<_>>()
-                                        )),
-                                        team_member_count: summary.team_member_count as i32,
-                                        chapter_count: summary.chapter_count as i32,
-                                        template_id: summary.template_id.clone().into(),
-                                        created: summary.created_at.format("%Y-%m-%d").to_string().into(),
-                                    }
-                                }).collect::<Vec<_>>();
-                                
-                                let model_rc = ModelRc::new(VecModel::from(project_data_vec));
-                                window.set_browser_projects(model_rc);
-                                window.set_browser_is_loading(false);
-                                window.set_status_message(format!("Found {} projects", summaries.len()).into());
-                                window.set_status_type("success".into());
+                    // Use runtime handle for async operation
+                    runtime_handle.spawn(async move {
+                        match project_service.discover_projects(None).await {
+                            Ok(summaries) => {
+                                if let Some(window) = window_weak.upgrade() {
+                                    // Convert ProjectSummary to ProjectData
+                                    let project_data_vec = summaries.iter().map(|summary| {
+                                        crate::ProjectData {
+                                            name: summary.name.clone().into(),
+                                            description: summary.description.clone().unwrap_or_default().into(),
+                                            path: summary.path.to_string_lossy().to_string().into(),
+                                            source_language: summary.source_language.clone().into(),
+                                            target_languages: ModelRc::new(VecModel::from(
+                                                summary.target_languages.iter()
+                                                    .map(|lang| lang.clone().into())
+                                                    .collect::<Vec<_>>()
+                                            )),
+                                            team_member_count: summary.team_member_count as i32,
+                                            chapter_count: summary.chapter_count as i32,
+                                            template_id: summary.template_id.clone().into(),
+                                            created: summary.created_at.format("%Y-%m-%d").to_string().into(),
+                                        }
+                                    }).collect::<Vec<_>>();
+                                    
+                                    let model_rc = ModelRc::new(VecModel::from(project_data_vec));
+                                    window.set_browser_projects(model_rc);
+                                    window.set_browser_is_loading(false);
+                                    window.set_status_message(format!("Found {} projects", summaries.len()).into());
+                                    window.set_status_type("success".into());
+                                }
+                            }
+                            Err(e) => {
+                                if let Some(window) = window_weak.upgrade() {
+                                    window.set_browser_is_loading(false);
+                                    window.set_status_message(format!("Failed to discover projects: {}", e).into());
+                                    window.set_status_type("error".into());
+                                }
                             }
                         }
-                        Err(e) => {
-                            if let Some(window) = window_weak.upgrade() {
-                                window.set_browser_is_loading(false);
-                                window.set_status_message(format!("Failed to discover projects: {}", e).into());
-                                window.set_status_type("error".into());
-                            }
-                        }
-                    }
+                    });
                 }
             }
         });

@@ -1,6 +1,7 @@
 import { Colors } from "../styles/colors.slint";
 import { Theme } from "../styles/default.slint";
 import { ScrollView, TextEdit } from "std-widgets.slint";
+import { TermHighlight } from "./terminology_panel.slint";
 
 // Text manipulation operations for enhanced editing
 export struct TextOperation {
@@ -25,38 +26,61 @@ struct LanguageItem {
     flag: string,
 }
 
-// Toolbar button component
+// Enhanced toolbar button component with accessibility
 component ToolbarButton inherits Rectangle {
     in property <string> text;
     in property <string> tooltip;
     in property <int> font-weight: 400;
+    in property <bool> active: false;
+    in property <bool> disabled: false;
     
     callback clicked();
+    callback focus-gained();
+    callback focus-lost();
     
     width: 32px;
     height: 28px;
     border-radius: Theme.border-radius-sm;
     
     states [
-        hover when touch-area.has-hover: {
+        disabled when root.disabled: {
+            background: Colors.surface;
+            opacity: 0.5;
+        }
+        active when root.active: {
+            background: Colors.primary-light;
+            border-width: 1px;
+            border-color: Colors.primary;
+        }
+        hover when touch-area.has-hover && !root.disabled: {
             background: Colors.surface-hover;
         }
-        pressed when touch-area.pressed: {
+        pressed when touch-area.pressed && !root.disabled: {
             background: Colors.primary-light;
         }
+        // Focus state would be managed by Rust backend
     ]
     
     touch-area := TouchArea {
-        clicked => { root.clicked(); }
+        enabled: !root.disabled;
+        clicked => { 
+            if (!root.disabled) {
+                root.clicked(); 
+            }
+        }
+        
+        // Focus and keyboard handling would be implemented in Rust backend
     }
     
     Text {
         text: root.text;
         font-size: Theme.font-size-base;
         font-weight: root.font-weight;
-        color: Colors.text-primary;
+        color: root.disabled ? Colors.text-muted : Colors.text-primary;
         horizontal-alignment: center;
         vertical-alignment: center;
+        accessible-role: AccessibleRole.button;
+        accessible-label: root.tooltip;
     }
 }
 
@@ -221,22 +245,47 @@ export component EnhancedTextEditor inherits Rectangle {
     in property <bool> read-only: false;
     in property <string> placeholder: "Start typing...";
     in property <string> editor-mode: "markdown"; // "markdown" or "presentation"
+    in property <[TermHighlight]> term-highlights: [];
+    in property <bool> highlighting-enabled: true;
     
-    // Selection and cursor properties
+    // Enhanced selection and cursor properties
     in-out property <int> cursor-position: 0;
     in-out property <TextSelection> selection: { start: 0, end: 0, selected_text: "" };
+    
+    // Markdown-specific properties
+    in property <bool> auto-list-continuation: true;
+    in property <bool> smart-quotes: true;
+    in property <bool> auto-link-detection: true;
+    in property <bool> live-preview: false;
+    
+    // Performance and UX properties
+    in property <int> undo-history-size: 50;
+    in property <bool> auto-save: false;
+    in property <duration> auto-save-interval: 30s;
     
     // Callbacks for text operations
     callback text-changed(string);
     callback selection-changed(TextSelection);
     callback cursor-moved(int);
     callback text-operation(TextOperation);
+    callback term-highlight-clicked(TermHighlight);
     
-    // Formatting callbacks
+    // Accessibility callbacks
+    callback focus-gained();
+    callback focus-lost();
+    callback screen-reader-announce(string);
+    
+    // Enhanced formatting callbacks with context
     callback format-text(string, int, int); // format_type, start, end
     callback insert-text-at-cursor(string);
     callback replace-selection(string);
     callback delete-selection();
+    
+    // Smart editing callbacks
+    callback auto-complete-triggered(string /* context */);
+    callback link-detected(string /* url */, int /* position */);
+    callback markdown-syntax-help-requested();
+    callback live-preview-toggled(bool);
     
     // Undo/Redo callbacks
     callback undo();
@@ -250,15 +299,33 @@ export component EnhancedTextEditor inherits Rectangle {
             font-size: Theme.font-size-base;
             wrap: word-wrap;
             read-only: root.read-only;
+            horizontal-alignment: left;
             
             edited(text) => {
                 root.text-changed(text);
+                
+                // Enhanced text processing
+                if (root.auto-link-detection) {
+                    // Detect URLs and trigger link detection callback
+                    // This would be implemented in the backend
+                }
+                
+                if (root.auto-save && text != root.content) {
+                    // Trigger auto-save after delay
+                }
+                
+                if (root.live-preview) {
+                    // Trigger live preview update
+                }
             }
             
-            // Enhanced keyboard handling
+            // Focus and cursor tracking would be implemented in Rust backend
+            // Enhanced accessibility features would be handled there
+            
+            // Enhanced keyboard handling with comprehensive markdown shortcuts
             key-pressed(event) => {
                 if (event.modifiers.control) {
-                    if (event.text == "z") {
+                    if (event.text == "z" && !event.modifiers.shift) {
                         root.undo();
                         return accept;
                     } else if (event.text == "y" || (event.modifiers.shift && event.text == "z")) {
@@ -267,14 +334,130 @@ export component EnhancedTextEditor inherits Rectangle {
                     } else if (event.text == "a") {
                         // Select all - would need to be implemented in Rust
                         return accept;
+                    } else if (event.text == "b") {
+                        root.format-text("bold", 0, 0);
+                        return accept;
+                    } else if (event.text == "i") {
+                        root.format-text("italic", 0, 0);
+                        return accept;
+                    } else if (event.text == "u" && root.editor-mode == "presentation") {
+                        root.format-text("underline", 0, 0);
+                        return accept;
+                    } else if (event.text == "k") {
+                        root.insert-text-at-cursor("[]()");
+                        return accept;
+                    } else if (event.text == "e") {
+                        root.format-text("code", 0, 0);
+                        return accept;
+                    } else if (event.text == "d") {
+                        // Duplicate line
+                        return accept;
+                    } else if (event.text == "/") {
+                        // Toggle comment/uncomment
+                        return accept;
                     }
+                } else if (event.modifiers.alt) {
+                    if (event.text == Key.UpArrow) {
+                        // Move line up
+                        return accept;
+                    } else if (event.text == Key.DownArrow) {
+                        // Move line down
+                        return accept;
+                    }
+                } else if (event.text == Key.Tab) {
+                    if (event.modifiers.shift) {
+                        root.format-text("decrease_indent", 0, 0);
+                    } else {
+                        root.format-text("increase_indent", 0, 0);
+                    }
+                    return accept;
+                } else if (event.text == Key.Return && root.editor-mode == "markdown") {
+                    // Smart enter for markdown lists
+                    return accept;
+                } else if (event.text == Key.Escape) {
+                    // Clear selection or exit mode
+                    return accept;
                 }
                 return reject;
             }
         }
+        
+        // Enhanced terminology highlighting overlay with better UX
+        if root.highlighting-enabled && root.term-highlights.length > 0: Rectangle {
+            // This overlay provides visual feedback for terminology management
+            
+            for highlight[index] in root.term-highlights: Rectangle {
+                // Position calculated based on text metrics (simplified for demo)
+                x: 10px * index; // Simplified positioning
+                y: 20px * index; // Simplified positioning
+                width: 100px; // Fixed width for demo
+                height: 18px;
+                
+                // Enhanced visual styling based on highlight type
+                background: highlight.highlight_type == "do_not_translate" ? Colors.warning-light :
+                           highlight.highlight_type == "inconsistent" ? Colors.error-light :
+                           highlight.highlight_type == "suggestion" ? Colors.info-light :
+                           highlight.highlight_type == "approved" ? Colors.success-light :
+                           Colors.primary-light;
+                
+                border-width: 1px;
+                border-color: highlight.highlight_type == "do_not_translate" ? Colors.warning :
+                             highlight.highlight_type == "inconsistent" ? Colors.error :
+                             highlight.highlight_type == "suggestion" ? Colors.info :
+                             highlight.highlight_type == "approved" ? Colors.success :
+                             Colors.primary;
+                
+                border-radius: 3px;
+                opacity: 0.4;
+                
+                // Enhanced interaction
+                states [
+                    hover when highlight-touch.has-hover: {
+                        opacity: 0.6;
+                        drop-shadow-blur: 2px;
+                        drop-shadow-color: #00000020;
+                    }
+                ]
+                
+                highlight-touch := TouchArea {
+                    clicked => {
+                        root.term-highlight-clicked(highlight);
+                    }
+                    
+                    // Tooltip on hover
+                    mouse-cursor: pointer;
+                }
+                
+                // Highlight indicator icon
+                if highlight.highlight_type == "do_not_translate": Text {
+                    text: "🚫";
+                    font-size: 10px;
+                    x: parent.width - 12px;
+                    y: -2px;
+                }
+                if highlight.highlight_type == "inconsistent": Text {
+                    text: "⚠";
+                    font-size: 10px;
+                    x: parent.width - 12px;
+                    y: -2px;
+                }
+                if highlight.highlight_type == "suggestion": Text {
+                    text: "💡";
+                    font-size: 10px;
+                    x: parent.width - 12px;
+                    y: -2px;
+                }
+                if highlight.highlight_type == "approved": Text {
+                    text: "✓";
+                    font-size: 10px;
+                    x: parent.width - 12px;
+                    y: -2px;
+                }
+            }
+        }
     }
     
-    // Visual feedback for empty editor
+    // Enhanced visual feedback for empty editor with accessibility
     if root.content == "": Rectangle {
         x: Theme.spacing-md;
         y: Theme.spacing-md;
@@ -283,8 +466,12 @@ export component EnhancedTextEditor inherits Rectangle {
             text: root.placeholder;
             color: Colors.text-muted;
             font-size: Theme.font-size-base;
+            accessible-role: AccessibleRole.text;
+            accessible-label: "Text editor placeholder: " + root.placeholder;
         }
     }
+    
+    // Accessibility features would be implemented in the Rust backend
 }
 
 // Enhanced toolbar with text manipulation capabilities
@@ -372,28 +559,32 @@ component EnhancedToolbar inherits Rectangle {
             background: Colors.border;
         }
         
-        // Basic formatting section
+        // Basic formatting section with enhanced accessibility
         ToolbarButton { 
             text: "B"; 
             tooltip: "Bold (Ctrl+B)"; 
             font-weight: 700;
+            active: root.has-selection;
             clicked => { root.format-bold(); }
         }
         ToolbarButton { 
             text: "I"; 
             tooltip: "Italic (Ctrl+I)"; 
+            active: root.has-selection;
             clicked => { root.format-italic(); }
         }
         
         if root.mode == "presentation": ToolbarButton { 
             text: "U"; 
             tooltip: "Underline (Ctrl+U)"; 
+            active: root.has-selection;
             clicked => { root.format-underline(); }
         }
         
         ToolbarButton { 
             text: "</>"; 
-            tooltip: "Code"; 
+            tooltip: "Code (Ctrl+E)"; 
+            active: root.has-selection;
             clicked => { root.format-code(); }
         }
         
@@ -532,11 +723,14 @@ export component ProfessionalEditor inherits Rectangle {
     in property <string> mode: "markdown"; // "markdown" or "presentation"  
     in property <string> language: "en";
     in property <bool> read-only: false;
+    in property <[TermHighlight]> term-highlights: [];
+    in property <bool> highlighting-enabled: true;
     
     // Text operation callbacks
     callback content-changed(string);
     callback language-changed(string);
     callback text-operation(TextOperation);
+    callback term-highlight-clicked(TermHighlight);
     
     // Formatting callbacks
     callback format-bold();
@@ -616,6 +810,8 @@ export component ProfessionalEditor inherits Rectangle {
             content: root.content;
             read-only: root.read-only;
             editor-mode: root.mode;
+            term-highlights: root.term-highlights;
+            highlighting-enabled: root.highlighting-enabled;
             placeholder: root.mode == "markdown" ? 
                 "Start writing in Markdown..." : 
                 "Start writing your presentation...";
@@ -626,6 +822,10 @@ export component ProfessionalEditor inherits Rectangle {
             
             text-operation(op) => {
                 root.text-operation(op);
+            }
+            
+            term-highlight-clicked(highlight) => {
+                root.term-highlight-clicked(highlight);
             }
             
             undo => { root.undo(); }

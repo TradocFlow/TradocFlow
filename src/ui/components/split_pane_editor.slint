@@ -1,0 +1,894 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { ScrollView, TextEdit } from "std-widgets.slint";
+import { ProfessionalEditor, TextOperation } from "enhanced_text_editor.slint";
+import { TermHighlight } from "./terminology_panel.slint";
+
+// Split view configuration
+export enum SplitOrientation {
+    Horizontal, // Side by side
+    Vertical,   // Top and bottom
+}
+
+// Language pane data structure
+export struct LanguagePane {
+    language: string,
+    content: string,
+    read_only: bool,
+    cursor_position: int,
+    scroll_position: length,
+}
+
+// Synchronization event structure
+export struct SyncEvent {
+    event_type: string, // "cursor", "scroll", "content"
+    source_language: string,
+    cursor_position: int,
+    scroll_position: length,
+    content: string,
+}
+
+// Split-pane editor component with language synchronization
+export component SplitPaneEditor inherits Rectangle {
+    // Configuration properties
+    in property <SplitOrientation> orientation: SplitOrientation.Horizontal;
+    in property <string> mode: "markdown"; // "markdown" or "presentation"
+    in property <bool> sync_enabled: true;
+    in property <bool> sync_cursor: true;
+    in property <bool> sync_scroll: true;
+    
+    // Language panes
+    in-out property <LanguagePane> left_pane: {
+        language: "en",
+        content: "",
+        read_only: false,
+        cursor_position: 0,
+        scroll_position: 0px,
+    };
+    
+    in-out property <LanguagePane> right_pane: {
+        language: "de", 
+        content: "",
+        read_only: false,
+        cursor_position: 0,
+        scroll_position: 0px,
+    };
+    
+    // Terminology highlighting
+    in property <[TermHighlight]> left_term_highlights: [];
+    in property <[TermHighlight]> right_term_highlights: [];
+    in property <bool> highlighting_enabled: true;
+    
+    // Enhanced splitter properties
+    in-out property <length> split_position: 50%;
+    property <bool> is_dragging: false;
+    property <bool> show_sync_indicators: true;
+    property <bool> highlight_active_pane: true;
+    
+    // Real-time sync properties
+    in property <bool> real_time_sync: false;
+    in property <duration> sync_delay: 500ms;
+    
+    // Callbacks for content changes
+    callback content_changed(string /* content */, string /* language */);
+    callback language_changed(string /* old_language */, string /* new_language */);
+    callback sync_event(SyncEvent);
+    callback term_highlight_clicked(TermHighlight, string /* language */);
+    
+    // Formatting callbacks
+    callback format_bold(string /* language */);
+    callback format_italic(string /* language */);
+    callback format_underline(string /* language */);
+    callback format_heading(int /* level */, string /* language */);
+    callback format_code(string /* language */);
+    callback format_quote(string /* language */);
+    
+    // List callbacks
+    callback insert_bullet_list(string /* language */);
+    callback insert_numbered_list(string /* language */);
+    callback insert_checklist(string /* language */);
+    
+    // Insert callbacks
+    callback insert_link(string /* language */);
+    callback insert_image(string /* language */);
+    callback insert_table(string /* language */);
+    callback insert_code_block(string /* language */);
+    
+    // Text manipulation callbacks
+    callback increase_indent(string /* language */);
+    callback decrease_indent(string /* language */);
+    callback align_left(string /* language */);
+    callback align_center(string /* language */);
+    callback align_right(string /* language */);
+    
+    // Undo/Redo callbacks
+    callback undo(string /* language */);
+    callback redo(string /* language */);
+    
+    // Text operation callback
+    callback text_operation(TextOperation, string /* language */);
+    
+    background: Colors.editor_background;
+    
+    // Split layout based on orientation
+    if root.orientation == SplitOrientation.Horizontal: Rectangle {
+        // Left pane (source language)
+        left_editor := ProfessionalEditor {
+            x: 0;
+            y: 0;
+            width: root.split_position - 2px;
+            height: parent.height;
+            content: root.left_pane.content;
+            mode: root.mode;
+            language: root.left_pane.language;
+            read_only: root.left_pane.read_only;
+            term_highlights: root.left_term_highlights;
+            highlighting_enabled: root.highlighting_enabled;
+            
+            content_changed(text) => {
+                root.left_pane.content = text;
+                root.content_changed(text, root.left_pane.language);
+                
+                // Trigger sync event if enabled
+                if (root.sync_enabled) {
+                    root.sync_event({
+                        event_type: "content",
+                        source_language: root.left_pane.language,
+                        cursor_position: 0, // Would need to get actual cursor position
+                        scroll_position: 0px, // Would need to get actual scroll position
+                        content: text,
+                    });
+                }
+            }
+            
+            language_changed(lang) => {
+                let old_lang = root.left_pane.language;
+                root.left_pane.language = lang;
+                root.language_changed(old_lang, lang);
+            }
+            
+            text_operation(op) => {
+                root.text_operation(op, root.left_pane.language);
+            }
+            
+            term_highlight_clicked(highlight) => {
+                root.term_highlight_clicked(highlight, root.left_pane.language);
+            }
+            
+            // Formatting callbacks
+            format_bold => { root.format_bold(root.left_pane.language); }
+            format_italic => { root.format_italic(root.left_pane.language); }
+            format_underline => { root.format_underline(root.left_pane.language); }
+            format_heading(level) => { root.format_heading(level, root.left_pane.language); }
+            format_code => { root.format_code(root.left_pane.language); }
+            format_quote => { root.format_quote(root.left_pane.language); }
+            
+            // List callbacks
+            insert_bullet_list => { root.insert_bullet_list(root.left_pane.language); }
+            insert_numbered_list => { root.insert_numbered_list(root.left_pane.language); }
+            insert_checklist => { root.insert_checklist(root.left_pane.language); }
+            
+            // Insert callbacks
+            insert_link => { root.insert_link(root.left_pane.language); }
+            insert_image => { root.insert_image(root.left_pane.language); }
+            insert_table => { root.insert_table(root.left_pane.language); }
+            insert_code_block => { root.insert_code_block(root.left_pane.language); }
+            
+            // Text manipulation callbacks
+            increase_indent => { root.increase_indent(root.left_pane.language); }
+            decrease_indent => { root.decrease_indent(root.left_pane.language); }
+            align_left => { root.align_left(root.left_pane.language); }
+            align_center => { root.align_center(root.left_pane.language); }
+            align_right => { root.align_right(root.left_pane.language); }
+            
+            // Undo/Redo callbacks
+            undo => { root.undo(root.left_pane.language); }
+            redo => { root.redo(root.left_pane.language); }
+        }
+        
+        // Enhanced splitter with visual feedback
+        splitter := Rectangle {
+            x: root.split_position - 2px;
+            y: 0;
+            width: 4px;
+            height: parent.height;
+            background: Colors.border;
+            
+            states [
+                hover when splitter_touch.has_hover: {
+                    background: Colors.primary;
+                    width: 6px;
+                    x: root.split_position - 3px;
+                }
+                dragging when root.is_dragging: {
+                    background: Colors.primary;
+                    width: 6px;
+                    x: root.split_position - 3px;
+                    drop_shadow_blur: 4px;
+                    drop_shadow_color: #00000040;
+                }
+            ]
+            
+            // Splitter grip indicator
+            Rectangle {
+                width: 2px;
+                height: 20px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                background: Colors.text_muted;
+                border_radius: 1px;
+                opacity: root.is_dragging || splitter_touch.has_hover ? 1.0 : 0.3;
+                
+                animate opacity {
+                    duration: Theme.animation_fast;
+                }
+            }
+            
+            splitter_touch := TouchArea {
+                mouse_cursor: col_resize;
+                
+                pointer_event(event) => {
+                    if (event.kind == PointerEventKind.down) {
+                        root.is_dragging = true;
+                    } else if (event.kind == PointerEventKind.up) {
+                        root.is_dragging = false;
+                    } else if (event.kind == PointerEventKind.move && root.is_dragging) {
+                        // Calculate new split position based on mouse position
+                        let new_position = event.position.x / parent.width * 100%;
+                        // Constrain between 15% and 85% for better usability
+                        root.split_position = max(15%, min(85%, new_position));
+                    }
+                }
+                
+                // Double-click to reset to 50/50
+                double_clicked => {
+                    root.split_position = 50%;
+                }
+            }
+        }
+        
+        // Right pane (target language)
+        right_editor := ProfessionalEditor {
+            x: root.split_position + 2px;
+            y: 0;
+            width: parent.width - root.split_position - 2px;
+            height: parent.height;
+            content: root.right_pane.content;
+            mode: root.mode;
+            language: root.right_pane.language;
+            read_only: root.right_pane.read_only;
+            term_highlights: root.right_term_highlights;
+            highlighting_enabled: root.highlighting_enabled;
+            
+            content_changed(text) => {
+                root.right_pane.content = text;
+                root.content_changed(text, root.right_pane.language);
+                
+                // Trigger sync event if enabled
+                if (root.sync_enabled) {
+                    root.sync_event({
+                        event_type: "content",
+                        source_language: root.right_pane.language,
+                        cursor_position: 0, // Would need to get actual cursor position
+                        scroll_position: 0px, // Would need to get actual scroll position
+                        content: text,
+                    });
+                }
+            }
+            
+            language_changed(lang) => {
+                let old_lang = root.right_pane.language;
+                root.right_pane.language = lang;
+                root.language_changed(old_lang, lang);
+            }
+            
+            text_operation(op) => {
+                root.text_operation(op, root.right_pane.language);
+            }
+            
+            term_highlight_clicked(highlight) => {
+                root.term_highlight_clicked(highlight, root.right_pane.language);
+            }
+            
+            // Formatting callbacks
+            format_bold => { root.format_bold(root.right_pane.language); }
+            format_italic => { root.format_italic(root.right_pane.language); }
+            format_underline => { root.format_underline(root.right_pane.language); }
+            format_heading(level) => { root.format_heading(level, root.right_pane.language); }
+            format_code => { root.format_code(root.right_pane.language); }
+            format_quote => { root.format_quote(root.right_pane.language); }
+            
+            // List callbacks
+            insert_bullet_list => { root.insert_bullet_list(root.right_pane.language); }
+            insert_numbered_list => { root.insert_numbered_list(root.right_pane.language); }
+            insert_checklist => { root.insert_checklist(root.right_pane.language); }
+            
+            // Insert callbacks
+            insert_link => { root.insert_link(root.right_pane.language); }
+            insert_image => { root.insert_image(root.right_pane.language); }
+            insert_table => { root.insert_table(root.right_pane.language); }
+            insert_code_block => { root.insert_code_block(root.right_pane.language); }
+            
+            // Text manipulation callbacks
+            increase_indent => { root.increase_indent(root.right_pane.language); }
+            decrease_indent => { root.decrease_indent(root.right_pane.language); }
+            align_left => { root.align_left(root.right_pane.language); }
+            align_center => { root.align_center(root.right_pane.language); }
+            align_right => { root.align_right(root.right_pane.language); }
+            
+            // Undo/Redo callbacks
+            undo => { root.undo(root.right_pane.language); }
+            redo => { root.redo(root.right_pane.language); }
+        }
+    }
+    
+    if root.orientation == SplitOrientation.Vertical: Rectangle {
+        // Top pane (source language)
+        top_editor := ProfessionalEditor {
+            x: 0;
+            y: 0;
+            width: parent.width;
+            height: root.split_position - 2px;
+            content: root.left_pane.content;
+            mode: root.mode;
+            language: root.left_pane.language;
+            read_only: root.left_pane.read_only;
+            term_highlights: root.left_term_highlights;
+            highlighting_enabled: root.highlighting_enabled;
+            
+            content_changed(text) => {
+                root.left_pane.content = text;
+                root.content_changed(text, root.left_pane.language);
+                
+                // Trigger sync event if enabled
+                if (root.sync_enabled) {
+                    root.sync_event({
+                        event_type: "content",
+                        source_language: root.left_pane.language,
+                        cursor_position: 0,
+                        scroll_position: 0px,
+                        content: text,
+                    });
+                }
+            }
+            
+            language_changed(lang) => {
+                let old_lang = root.left_pane.language;
+                root.left_pane.language = lang;
+                root.language_changed(old_lang, lang);
+            }
+            
+            text_operation(op) => {
+                root.text_operation(op, root.left_pane.language);
+            }
+            
+            term_highlight_clicked(highlight) => {
+                root.term_highlight_clicked(highlight, root.left_pane.language);
+            }
+            
+            // Formatting callbacks
+            format_bold => { root.format_bold(root.left_pane.language); }
+            format_italic => { root.format_italic(root.left_pane.language); }
+            format_underline => { root.format_underline(root.left_pane.language); }
+            format_heading(level) => { root.format_heading(level, root.left_pane.language); }
+            format_code => { root.format_code(root.left_pane.language); }
+            format_quote => { root.format_quote(root.left_pane.language); }
+            
+            // List callbacks
+            insert_bullet_list => { root.insert_bullet_list(root.left_pane.language); }
+            insert_numbered_list => { root.insert_numbered_list(root.left_pane.language); }
+            insert_checklist => { root.insert_checklist(root.left_pane.language); }
+            
+            // Insert callbacks
+            insert_link => { root.insert_link(root.left_pane.language); }
+            insert_image => { root.insert_image(root.left_pane.language); }
+            insert_table => { root.insert_table(root.left_pane.language); }
+            insert_code_block => { root.insert_code_block(root.left_pane.language); }
+            
+            // Text manipulation callbacks
+            increase_indent => { root.increase_indent(root.left_pane.language); }
+            decrease_indent => { root.decrease_indent(root.left_pane.language); }
+            align_left => { root.align_left(root.left_pane.language); }
+            align_center => { root.align_center(root.left_pane.language); }
+            align_right => { root.align_right(root.left_pane.language); }
+            
+            // Undo/Redo callbacks
+            undo => { root.undo(root.left_pane.language); }
+            redo => { root.redo(root.left_pane.language); }
+        }
+        
+        // Horizontal splitter
+        h_splitter := Rectangle {
+            x: 0;
+            y: root.split_position - 2px;
+            width: parent.width;
+            height: 4px;
+            background: Colors.border;
+            
+            states [
+                hover when h_splitter_touch.has_hover: {
+                    background: Colors.primary;
+                }
+                dragging when root.is_dragging: {
+                    background: Colors.primary;
+                }
+            ]
+            
+            h_splitter_touch := TouchArea {
+                mouse_cursor: row_resize;
+                
+                pointer_event(event) => {
+                    if (event.kind == PointerEventKind.down) {
+                        root.is_dragging = true;
+                    } else if (event.kind == PointerEventKind.up) {
+                        root.is_dragging = false;
+                    } else if (event.kind == PointerEventKind.move && root.is_dragging) {
+                        // Calculate new split position based on mouse position
+                        let new_position = event.position.y / parent.height * 100%;
+                        // Constrain between 20% and 80%
+                        root.split_position = max(20%, min(80%, new_position));
+                    }
+                }
+            }
+        }
+        
+        // Bottom pane (target language)
+        bottom_editor := ProfessionalEditor {
+            x: 0;
+            y: root.split_position + 2px;
+            width: parent.width;
+            height: parent.height - root.split_position - 2px;
+            content: root.right_pane.content;
+            mode: root.mode;
+            language: root.right_pane.language;
+            read_only: root.right_pane.read_only;
+            term_highlights: root.right_term_highlights;
+            highlighting_enabled: root.highlighting_enabled;
+            
+            content_changed(text) => {
+                root.right_pane.content = text;
+                root.content_changed(text, root.right_pane.language);
+                
+                // Trigger sync event if enabled
+                if (root.sync_enabled) {
+                    root.sync_event({
+                        event_type: "content",
+                        source_language: root.right_pane.language,
+                        cursor_position: 0,
+                        scroll_position: 0px,
+                        content: text,
+                    });
+                }
+            }
+            
+            language_changed(lang) => {
+                let old_lang = root.right_pane.language;
+                root.right_pane.language = lang;
+                root.language_changed(old_lang, lang);
+            }
+            
+            text_operation(op) => {
+                root.text_operation(op, root.right_pane.language);
+            }
+            
+            term_highlight_clicked(highlight) => {
+                root.term_highlight_clicked(highlight, root.right_pane.language);
+            }
+            
+            // Formatting callbacks
+            format_bold => { root.format_bold(root.right_pane.language); }
+            format_italic => { root.format_italic(root.right_pane.language); }
+            format_underline => { root.format_underline(root.right_pane.language); }
+            format_heading(level) => { root.format_heading(level, root.right_pane.language); }
+            format_code => { root.format_code(root.right_pane.language); }
+            format_quote => { root.format_quote(root.right_pane.language); }
+            
+            // List callbacks
+            insert_bullet_list => { root.insert_bullet_list(root.right_pane.language); }
+            insert_numbered_list => { root.insert_numbered_list(root.right_pane.language); }
+            insert_checklist => { root.insert_checklist(root.right_pane.language); }
+            
+            // Insert callbacks
+            insert_link => { root.insert_link(root.right_pane.language); }
+            insert_image => { root.insert_image(root.right_pane.language); }
+            insert_table => { root.insert_table(root.right_pane.language); }
+            insert_code_block => { root.insert_code_block(root.right_pane.language); }
+            
+            // Text manipulation callbacks
+            increase_indent => { root.increase_indent(root.right_pane.language); }
+            decrease_indent => { root.decrease_indent(root.right_pane.language); }
+            align_left => { root.align_left(root.right_pane.language); }
+            align_center => { root.align_center(root.right_pane.language); }
+            align_right => { root.align_right(root.right_pane.language); }
+            
+            // Undo/Redo callbacks
+            undo => { root.undo(root.right_pane.language); }
+            redo => { root.redo(root.right_pane.language); }
+        }
+    }
+    
+    // Synchronization status indicator
+    if root.sync_enabled: Rectangle {
+        x: parent.width - 120px;
+        y: 10px;
+        width: 110px;
+        height: 24px;
+        background: Colors.success_light;
+        border_radius: Theme.border_radius_sm;
+        border_width: 1px;
+        border_color: Colors.success;
+        
+        HorizontalLayout {
+            padding: 4px;
+            spacing: 4px;
+            alignment: center;
+            
+            Text {
+                text: "🔄";
+                font_size: Theme.font_size_small;
+                vertical_alignment: center;
+            }
+            
+            Text {
+                text: "Sync Active";
+                font_size: Theme.font_size_small;
+                color: Colors.success;
+                vertical_alignment: center;
+            }
+        }
+    }
+}
+
+// Enhanced language synchronization toolbar component
+export component SyncToolbar inherits Rectangle {
+    in property <bool> sync_enabled: true;
+    in property <bool> sync_cursor: true;
+    in property <bool> sync_scroll: true;
+    in property <bool> real_time_sync: false;
+    in property <SplitOrientation> orientation: SplitOrientation.Horizontal;
+    in property <string> sync_status: "Active";
+    in property <int> sync_conflicts: 0;
+    
+    callback sync_toggled(bool);
+    callback sync_cursor_toggled(bool);
+    callback sync_scroll_toggled(bool);
+    callback real_time_sync_toggled(bool);
+    callback orientation_changed(SplitOrientation);
+    callback reset_sync();
+    callback resolve_conflicts();
+    
+    background: Colors.surface;
+    height: Theme.toolbar_height;
+    border_width: 1px;
+    border_color: Colors.border;
+    
+    HorizontalLayout {
+        padding: Theme.spacing_sm;
+        spacing: Theme.spacing_xs;
+        alignment: start;
+        
+        // Enhanced sync toggle button with status
+        sync_button := Rectangle {
+            width: 90px;
+            height: 28px;
+            background: root.sync_enabled ? Colors.success_light : Colors.surface;
+            border_width: 1px;
+            border_color: root.sync_enabled ? Colors.success : Colors.border;
+            border_radius: Theme.border_radius_sm;
+            
+            states [
+                hover when sync_touch.has_hover: {
+                    background: root.sync_enabled ? Colors.success : Colors.surface_hover;
+                    drop_shadow_blur: 2px;
+                    drop_shadow_color: #00000020;
+                }
+                conflicts when root.sync_conflicts > 0: {
+                    border_color: Colors.warning;
+                    background: Colors.warning_light;
+                }
+            ]
+            
+            sync_touch := TouchArea {
+                clicked => {
+                    root.sync_toggled(!root.sync_enabled);
+                }
+            }
+            
+            HorizontalLayout {
+                padding: 6px;
+                spacing: 4px;
+                alignment: center;
+                
+                Text {
+                    text: root.sync_conflicts > 0 ? "⚠" :
+                          root.sync_enabled ? "🔄" : "⏸";
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                    
+                    animate rotation {
+                        duration: 2s;
+                        iteration_count: -1;
+                        easing: linear;
+                    }
+                    rotation: root.real_time_sync && root.sync_enabled ? 360deg : 0deg;
+                }
+                
+                VerticalLayout {
+                    spacing: 1px;
+                    alignment: center;
+                    
+                    Text {
+                        text: "Sync";
+                        font_size: Theme.font_size_small;
+                        color: root.sync_conflicts > 0 ? Colors.warning :
+                               root.sync_enabled ? Colors.success : Colors.text_muted;
+                        vertical_alignment: center;
+                        font_weight: 500;
+                    }
+                    
+                    if root.sync_conflicts > 0: Text {
+                        text: root.sync_conflicts + " conflict" + (root.sync_conflicts > 1 ? "s" : "");
+                        font_size: 9px;
+                        color: Colors.warning;
+                    }
+                }
+            }
+            
+            // Conflict indicator
+            if root.sync_conflicts > 0: Rectangle {
+                width: 8px;
+                height: 8px;
+                x: parent.width - 12px;
+                y: 2px;
+                background: Colors.error;
+                border_radius: 4px;
+                
+                animate opacity {
+                    duration: 1s;
+                    iteration_count: -1;
+                    easing: ease_in_out;
+                }
+                opacity: 1.0;
+            }
+        }
+        
+        // Separator
+        Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        // Cursor sync toggle
+        cursor_sync_button := Rectangle {
+            width: 70px;
+            height: 24px;
+            background: root.sync_cursor ? Colors.info_light : Colors.surface;
+            border_width: 1px;
+            border_color: root.sync_cursor ? Colors.info : Colors.border;
+            border_radius: Theme.border_radius_sm;
+            
+            states [
+                hover when cursor_sync_touch.has_hover: {
+                    background: root.sync_cursor ? Colors.info : Colors.surface_hover;
+                }
+            ]
+            
+            cursor_sync_touch := TouchArea {
+                clicked => {
+                    root.sync_cursor_toggled(!root.sync_cursor);
+                }
+            }
+            
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 4px;
+                alignment: center;
+                
+                Text {
+                    text: "📍";
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                }
+                
+                Text {
+                    text: "Cursor";
+                    font_size: Theme.font_size_small;
+                    color: root.sync_cursor ? Colors.info : Colors.text_muted;
+                    vertical_alignment: center;
+                }
+            }
+        }
+        
+        // Scroll sync toggle
+        scroll_sync_button := Rectangle {
+            width: 70px;
+            height: 24px;
+            background: root.sync_scroll ? Colors.info_light : Colors.surface;
+            border_width: 1px;
+            border_color: root.sync_scroll ? Colors.info : Colors.border;
+            border_radius: Theme.border_radius_sm;
+            
+            states [
+                hover when scroll_sync_touch.has_hover: {
+                    background: root.sync_scroll ? Colors.info : Colors.surface_hover;
+                }
+            ]
+            
+            scroll_sync_touch := TouchArea {
+                clicked => {
+                    root.sync_scroll_toggled(!root.sync_scroll);
+                }
+            }
+            
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 4px;
+                alignment: center;
+                
+                Text {
+                    text: "📜";
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                }
+                
+                Text {
+                    text: "Scroll";
+                    font_size: Theme.font_size_small;
+                    color: root.sync_scroll ? Colors.info : Colors.text_muted;
+                    vertical_alignment: center;
+                }
+            }
+        }
+        
+        // Separator
+        Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        // Orientation toggle
+        orientation_button := Rectangle {
+            width: 90px;
+            height: 24px;
+            background: Colors.surface;
+            border_width: 1px;
+            border_color: Colors.border;
+            border_radius: Theme.border_radius_sm;
+            
+            states [
+                hover when orientation_touch.has_hover: {
+                    background: Colors.surface_hover;
+                }
+            ]
+            
+            orientation_touch := TouchArea {
+                clicked => {
+                    let new_orientation = root.orientation == SplitOrientation.Horizontal ? 
+                        SplitOrientation.Vertical : SplitOrientation.Horizontal;
+                    root.orientation_changed(new_orientation);
+                }
+            }
+            
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 4px;
+                alignment: center;
+                
+                Text {
+                    text: root.orientation == SplitOrientation.Horizontal ? "⬌" : "⬍";
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                }
+                
+                Text {
+                    text: root.orientation == SplitOrientation.Horizontal ? "H-Split" : "V-Split";
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_primary;
+                    vertical_alignment: center;
+                }
+            }
+        }
+        
+        // Separator
+        Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        // Real-time sync toggle
+        realtime_sync_button := Rectangle {
+            width: 75px;
+            height: 24px;
+            background: root.real_time_sync ? Colors.info_light : Colors.surface;
+            border_width: 1px;
+            border_color: root.real_time_sync ? Colors.info : Colors.border;
+            border_radius: Theme.border_radius_sm;
+            
+            states [
+                hover when realtime_sync_touch.has_hover: {
+                    background: root.real_time_sync ? Colors.info : Colors.surface_hover;
+                }
+            ]
+            
+            realtime_sync_touch := TouchArea {
+                clicked => {
+                    root.real_time_sync_toggled(!root.real_time_sync);
+                }
+            }
+            
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 4px;
+                alignment: center;
+                
+                Text {
+                    text: "⚡";
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                }
+                
+                Text {
+                    text: "Real-time";
+                    font_size: Theme.font_size_small;
+                    color: root.real_time_sync ? Colors.info : Colors.text_muted;
+                    vertical_alignment: center;
+                }
+            }
+        }
+        
+        // Separator
+        Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        // Reset/Resolve conflicts button
+        reset_button := Rectangle {
+            width: root.sync_conflicts > 0 ? 80px : 60px;
+            height: 24px;
+            background: root.sync_conflicts > 0 ? Colors.warning_light : Colors.surface;
+            border_width: 1px;
+            border_color: root.sync_conflicts > 0 ? Colors.warning : Colors.border;
+            border_radius: Theme.border_radius_sm;
+            
+            states [
+                hover when reset_touch.has_hover: {
+                    background: root.sync_conflicts > 0 ? Colors.warning : Colors.surface_hover;
+                }
+            ]
+            
+            reset_touch := TouchArea {
+                clicked => {
+                    if (root.sync_conflicts > 0) {
+                        root.resolve_conflicts();
+                    } else {
+                        root.reset_sync();
+                    }
+                }
+            }
+            
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 4px;
+                alignment: center;
+                
+                Text {
+                    text: root.sync_conflicts > 0 ? "🛠" : "🔄";
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                }
+                
+                Text {
+                    text: root.sync_conflicts > 0 ? "Resolve" : "Reset";
+                    font_size: Theme.font_size_small;
+                    color: root.sync_conflicts > 0 ? Colors.warning : Colors.text_primary;
+                    vertical_alignment: center;
+                }
+            }
+        }
+    }
+}

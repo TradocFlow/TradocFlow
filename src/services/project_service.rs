@@ -447,6 +447,115 @@ impl ProjectService {
         codes
     }
 
+    /// Discover existing translation projects in a directory or system
+    pub async fn discover_projects(&self, search_paths: Option<Vec<PathBuf>>) -> Result<Vec<ProjectSummary>> {
+        let mut projects = Vec::new();
+        
+        // Default search paths if none provided
+        let paths = search_paths.unwrap_or_else(|| vec![
+            self.projects_root.clone(),
+            std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")).join("Documents"),
+        ]);
+        
+        for search_path in paths {
+            if !search_path.exists() {
+                continue;
+            }
+            
+            // Look for project.json files in directories
+            if let Ok(entries) = fs::read_dir(&search_path) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        let project_config = path.join("project.json");
+                        if project_config.exists() {
+                            if let Ok(summary) = self.load_project_summary(&project_config).await {
+                                projects.push(summary);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Sort projects by last modified time (most recent first)
+        projects.sort_by(|a, b| b.last_modified.cmp(&a.last_modified));
+        
+        Ok(projects)
+    }
+
+    /// Load a project from its configuration file
+    pub async fn load_project(&self, project_path: &Path) -> Result<TranslationProject> {
+        let config_path = project_path.join("project.json");
+        
+        if !config_path.exists() {
+            return Err(anyhow::anyhow!("Project configuration not found: {:?}", config_path));
+        }
+        
+        let config_content = fs::read_to_string(&config_path)
+            .context("Failed to read project configuration")?;
+            
+        let config: ProjectConfiguration = serde_json::from_str(&config_content)
+            .context("Failed to parse project configuration")?;
+            
+        Ok(config.project)
+    }
+
+    /// Load a project summary from its configuration file
+    async fn load_project_summary(&self, config_path: &Path) -> Result<ProjectSummary> {
+        let config_content = fs::read_to_string(config_path)
+            .context("Failed to read project configuration")?;
+            
+        let config: ProjectConfiguration = serde_json::from_str(&config_content)
+            .context("Failed to parse project configuration")?;
+        
+        let project_dir = config_path.parent().unwrap();
+        let last_modified = fs::metadata(config_path)
+            .ok()
+            .and_then(|meta| meta.modified().ok())
+            .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+            
+        // Count chapters
+        let chapters_path = project_dir.join("chapters");
+        let chapter_count = if chapters_path.exists() {
+            self.count_markdown_files(&chapters_path).unwrap_or(0)
+        } else {
+            0
+        };
+        
+        Ok(ProjectSummary {
+            name: config.project.name,
+            description: config.project.description,
+            path: project_dir.to_path_buf(),
+            source_language: config.project.source_language,
+            target_languages: config.project.target_languages,
+            team_member_count: config.project.team_members.len(),
+            chapter_count,
+            template_id: config.template_id,
+            last_modified,
+            created_at: config.created_at,
+        })
+    }
+
+    /// Count markdown files in a directory recursively
+    fn count_markdown_files(&self, dir: &Path) -> Result<usize> {
+        let mut count = 0;
+        
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() && path.extension().map_or(false, |ext| ext == "md") {
+                    count += 1;
+                } else if path.is_dir() {
+                    count += self.count_markdown_files(&path)?;
+                }
+            }
+        }
+        
+        Ok(count)
+    }
+
     /// Create an empty Parquet file with the appropriate schema
     async fn create_empty_parquet_file(&self, path: &Path, schema_type: &str) -> Result<()> {
         // For now, create a placeholder file
@@ -482,6 +591,21 @@ struct ChapterTemplate {
     title: String,
     slug: String,
     description: String,
+}
+
+/// Project summary for project browser
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectSummary {
+    pub name: String,
+    pub description: Option<String>,
+    pub path: PathBuf,
+    pub source_language: String,
+    pub target_languages: Vec<String>,
+    pub team_member_count: usize,
+    pub chapter_count: usize,
+    pub template_id: String,
+    pub last_modified: std::time::SystemTime,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[cfg(test)]

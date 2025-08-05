@@ -246,9 +246,13 @@ impl TerminologyRepository {
         let conn = self.connection.lock().unwrap();
         
         conn.execute(
-            "INSERT OR REPLACE INTO terms 
+            "INSERT INTO terms 
              (id, project_id, term, definition, do_not_translate, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
+             VALUES (?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(project_id, term) DO UPDATE SET
+             definition = excluded.definition,
+             do_not_translate = excluded.do_not_translate,
+             updated_at = excluded.updated_at",
             params![
                 term.id.to_string(),
                 project_id.to_string(),

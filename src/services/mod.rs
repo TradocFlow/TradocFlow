@@ -2,6 +2,8 @@ pub mod project_manager;
 pub mod project_service;
 pub mod translation_service;
 pub mod translation_memory_service;
+pub mod translation_memory_integration_service;
+pub mod translation_memory_integration_test;
 pub mod terminology_service;
 pub mod terminology_highlighting_service;
 pub mod chapter_service;
@@ -9,11 +11,17 @@ pub mod document_import_service;
 pub mod chunk_processor;
 pub mod chunk_linking_service;
 pub mod editor_sync_service;
+pub mod language_syntax_service;
+pub mod split_pane_editor_integration_test;
 
 pub use project_manager::ProjectManager;
 pub use project_service::ProjectService;
 pub use translation_service::TranslationService;
 pub use translation_memory_service::TranslationMemoryService;
+pub use translation_memory_integration_service::{
+    TranslationMemoryIntegrationService, IntegrationConfig, EditorSuggestion, 
+    ConfidenceIndicator, IndicatorType, TextPosition, SearchFilters, TranslationStatistics
+};
 pub use terminology_service::TerminologyService;
 pub use terminology_highlighting_service::{
     TerminologyHighlightingService, TermHighlight, HighlightType, ConsistencyCheckResult,
@@ -30,4 +38,8 @@ pub use chunk_linking_service::{
 };
 pub use editor_sync_service::{
     EditorSyncService, SyncEvent, SyncEventType, SplitPaneConfig, SplitOrientation, LanguagePaneState
+};
+pub use language_syntax_service::{
+    LanguageSyntaxService, LanguageSyntaxConfig, TextDirection, MarkdownExtension, 
+    SpecialCharacter, SyntaxTheme
 };

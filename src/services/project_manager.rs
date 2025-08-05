@@ -6,7 +6,7 @@ use serde_json;
 use anyhow::{Result, Context};
 use chrono::Utc;
 
-use crate::models::project::Project;
+use crate::models::project::{Project, ProjectStatus, Priority};
 use crate::models::document::{Chapter, TranslationUnit, ProjectStructure, ChapterInfo};
 
 #[derive(Clone)]

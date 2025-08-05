@@ -96,8 +96,11 @@ export component ProjectCreationWizard inherits Dialog {
     callback team-member-removed(string /* member-id */);
     callback validate-current-step() -> bool;
     
-    // Keyboard handling
-    // forward-focus: step-content;
+    // Keyboard handling and accessibility
+    forward-focus: step-content;
+    accessible-role: dialog;
+    accessible-label: "Create New Project Wizard";
+    accessible-description: "A 7-step wizard to configure and create a new translation project";
     
     // Main layout
     VerticalLayout {
@@ -146,10 +149,12 @@ export component ProjectCreationWizard inherits Dialog {
                     }
                 }
                 
-                // Step progress indicator
+                // Step progress indicator with accessibility
                 HorizontalLayout {
                     spacing: 8px;
                     alignment: end;
+                    accessible-role: progressbar;
+                    accessible-label: "Wizard progress: step " + current-step + " of " + total-steps;
                     
                     for step in 7: Rectangle {
                         width: 32px;
@@ -159,6 +164,10 @@ export component ProjectCreationWizard inherits Dialog {
                                    step == current-step - 1 ? Colors.primary : Colors.surface-variant;
                         border-width: step == current-step - 1 ? 2px : 1px;
                         border-color: step == current-step - 1 ? Colors.primary : Colors.border;
+                        accessible-role: step < current-step ? "img" : step == current-step - 1 ? "button" : "img";
+                        accessible-label: step < current-step ? "Step " + (step + 1) + " completed" :
+                                         step == current-step - 1 ? "Step " + (step + 1) + " current" :
+                                         "Step " + (step + 1) + " pending";
                         
                         Text {
                             text: (step + 1);
@@ -238,10 +247,31 @@ export component ProjectCreationWizard inherits Dialog {
                             text: project-details.name;
                             placeholder-text: "Enter a descriptive project name";
                             font-size: Theme.font-size-base;
+                            accessible-label: "Project name, required field";
+                            accessible-description: "Enter a clear, descriptive name for your translation project";
                             
                             edited(text) => {
                                 project-details.name = text;
                                 has-unsaved-changes = true;
+                            }
+                        }
+                        
+                        // Character count and validation
+                        HorizontalLayout {
+                            spacing: Theme.spacing-md;
+                            alignment: space-between;
+                            
+                            Text {
+                                text: project-details.name.length > 0 && project-details.name.length < 3 ? 
+                                      "⚠️ Name too short (minimum 3 characters)" : "";
+                                color: Colors.warning;
+                                font-size: Theme.font-size-small;
+                            }
+                            
+                            Text {
+                                text: project-details.name.length + "/50 characters";
+                                color: project-details.name.length > 45 ? Colors.warning : Colors.text-secondary;
+                                font-size: Theme.font-size-small;
                             }
                         }
                         
@@ -268,11 +298,21 @@ export component ProjectCreationWizard inherits Dialog {
                             font-size: Theme.font-size-base;
                             preferred-height: 80px;
                             wrap: word-wrap;
+                            accessible-label: "Project description, optional field";
+                            accessible-description: "Describe the goals and scope of your translation project";
                             
                             edited(text) => {
                                 project-details.description = text;
                                 has-unsaved-changes = true;
                             }
+                        }
+                        
+                        // Character count for description
+                        Text {
+                            text: project-details.description.length + "/500 characters";
+                            color: project-details.description.length > 450 ? Colors.warning : Colors.text-secondary;
+                            font-size: Theme.font-size-small;
+                            horizontal-alignment: right;
                         }
                     }
                     
@@ -295,6 +335,8 @@ export component ProjectCreationWizard inherits Dialog {
                                 current-value: project-details.priority == "low" ? "Low" :
                                               project-details.priority == "medium" ? "Medium" :
                                               project-details.priority == "high" ? "High" : "Urgent";
+                                accessible-label: "Project priority selection";
+                                accessible-description: "Choose the priority level for this translation project";
                                 
                                 selected(value) => {
                                     project-details.priority = value == "Low" ? "low" :
@@ -315,14 +357,32 @@ export component ProjectCreationWizard inherits Dialog {
                                 color: Colors.text-primary;
                             }
                             
-                            due-date-input := LineEdit {
-                                text: project-details.due-date;
-                                placeholder-text: "YYYY-MM-DD";
-                                font-size: Theme.font-size-base;
+                            VerticalLayout {
+                                spacing: 4px;
                                 
-                                edited(text) => {
-                                    project-details.due-date = text;
-                                    has-unsaved-changes = true;
+                                due-date-input := LineEdit {
+                                    text: project-details.due-date;
+                                    placeholder-text: "YYYY-MM-DD (e.g., 2024-12-31)";
+                                    font-size: Theme.font-size-base;
+                                    accessible-label: "Project due date, optional field";
+                                    accessible-description: "Enter due date in YYYY-MM-DD format, or leave blank";
+                                    
+                                    edited(text) => {
+                                        project-details.due-date = text;
+                                        has-unsaved-changes = true;
+                                    }
+                                }
+                                
+                                // Date validation feedback
+                                if project-details.due-date != "": Text {
+                                    text: project-details.due-date.length == 10 && 
+                                          project-details.due-date.contains("-") ? 
+                                          "✓ Valid date format" : 
+                                          "⚠️ Use YYYY-MM-DD format";
+                                    color: project-details.due-date.length == 10 && 
+                                           project-details.due-date.contains("-") ? 
+                                           Colors.success : Colors.warning;
+                                    font-size: Theme.font-size-small;
                                 }
                             }
                         }
@@ -351,6 +411,9 @@ export component ProjectCreationWizard inherits Dialog {
                             border-radius: Theme.border-radius-md;
                             border-width: selected-template-id == "technical_manual" ? 2px : 1px;
                             border-color: selected-template-id == "technical_manual" ? Colors.primary : Colors.border;
+                            accessible-role: "radio";
+                            accessible-label: "Technical Manual template";
+                            accessible-description: "Comprehensive technical documentation with installation, configuration, and troubleshooting guides";
                             
                             touch-area := TouchArea {
                                 clicked => {
@@ -384,6 +447,9 @@ export component ProjectCreationWizard inherits Dialog {
                             border-radius: Theme.border-radius-md;
                             border-width: selected-template-id == "user_guide" ? 2px : 1px;
                             border-color: selected-template-id == "user_guide" ? Colors.primary : Colors.border;
+                            accessible-role: "radio";
+                            accessible-label: "User Guide template";
+                            accessible-description: "End-user focused documentation with step-by-step instructions and tutorials";
                             
                             TouchArea {
                                 clicked => {
@@ -417,6 +483,9 @@ export component ProjectCreationWizard inherits Dialog {
                             border-radius: Theme.border-radius-md;
                             border-width: selected-template-id == "training_material" ? 2px : 1px;
                             border-color: selected-template-id == "training_material" ? Colors.primary : Colors.border;
+                            accessible-role: "radio";
+                            accessible-label: "Training Material template";
+                            accessible-description: "Educational content with lessons, exercises, and assessments";
                             
                             TouchArea {
                                 clicked => {
@@ -450,6 +519,9 @@ export component ProjectCreationWizard inherits Dialog {
                             border-radius: Theme.border-radius-md;
                             border-width: selected-template-id == "blank" ? 2px : 1px;
                             border-color: selected-template-id == "blank" ? Colors.primary : Colors.border;
+                            accessible-role: "radio";
+                            accessible-label: "Blank Project template";
+                            accessible-description: "Start with a clean slate and build your documentation structure from scratch";
                             
                             TouchArea {
                                 clicked => {
@@ -502,10 +574,14 @@ export component ProjectCreationWizard inherits Dialog {
                                 placeholder-text: "Select a folder for your project";
                                 font-size: Theme.font-size-base;
                                 enabled: false;
+                                accessible-label: "Selected project folder path";
+                                accessible-description: "The file system path where your project will be created";
                             }
                             
                             select-folder-button := Button {
                                 text: "Browse...";
+                                accessible-label: "Browse for project folder";
+                                accessible-description: "Open file browser to select where to create your project";
                                 clicked => {
                                     root.select-folder();
                                 }
@@ -558,6 +634,8 @@ export component ProjectCreationWizard inherits Dialog {
                             model: ["Create New", "Import Existing", "None"];
                             current-value: project-details.translation-memory == "none" ? "None" :
                                           project-details.translation-memory == "import" ? "Import Existing" : "Create New";
+                            accessible-label: "Translation memory configuration";
+                            accessible-description: "Choose how to handle translation memory for this project";
                             
                             selected(value) => {
                                 project-details.translation-memory = value == "None" ? "none" :
@@ -663,6 +741,8 @@ export component ProjectCreationWizard inherits Dialog {
                         source-language-combo := ComboBox {
                             model: ["English", "Spanish", "French", "German", "Italian", "Portuguese", "Dutch", "Chinese", "Japanese"];
                             current-value: source-language;
+                            accessible-label: "Source language selection, required";
+                            accessible-description: "Select the primary language that will be translated from";
                             
                             selected(value) => {
                                 root.source-language = value;
@@ -708,6 +788,8 @@ export component ProjectCreationWizard inherits Dialog {
                                     CheckBox {
                                         text: "Spanish";
                                         checked: target-spanish;
+                                        accessible-label: "Spanish target language";
+                                        accessible-description: "Include Spanish as a translation target";
                                         toggled => {
                                             root.target-spanish = self.checked;
                                             root.language-toggled("es", self.checked);
@@ -722,6 +804,8 @@ export component ProjectCreationWizard inherits Dialog {
                                     CheckBox {
                                         text: "French";
                                         checked: target-french;
+                                        accessible-label: "French target language";
+                                        accessible-description: "Include French as a translation target";
                                         toggled => {
                                             root.target-french = self.checked;
                                             root.language-toggled("fr", self.checked);
@@ -736,6 +820,8 @@ export component ProjectCreationWizard inherits Dialog {
                                     CheckBox {
                                         text: "German";
                                         checked: target-german;
+                                        accessible-label: "German target language";
+                                        accessible-description: "Include German as a translation target";
                                         toggled => {
                                             root.target-german = self.checked;
                                             root.language-toggled("de", self.checked);
@@ -902,6 +988,8 @@ export component ProjectCreationWizard inherits Dialog {
                                         text: new-member-name;
                                         placeholder-text: "Enter full name";
                                         font-size: Theme.font-size-base;
+                                        accessible-label: "Team member name, required";
+                                        accessible-description: "Enter the full name of the team member";
                                         
                                         edited(text) => {
                                             root.new-member-name = text;
@@ -924,10 +1012,19 @@ export component ProjectCreationWizard inherits Dialog {
                                         text: new-member-email;
                                         placeholder-text: "Enter email address";
                                         font-size: Theme.font-size-base;
+                                        accessible-label: "Team member email, required";
+                                        accessible-description: "Enter a valid email address for the team member";
                                         
                                         edited(text) => {
                                             root.new-member-email = text;
                                         }
+                                    }
+                                    
+                                    // Email validation feedback
+                                    if new-member-email != "" && !new-member-email.contains("@"): Text {
+                                        text: "⚠️ Please enter a valid email address";
+                                        color: Colors.warning;
+                                        font-size: Theme.font-size-small;
                                     }
                                 }
                                 
@@ -945,6 +1042,8 @@ export component ProjectCreationWizard inherits Dialog {
                                     member-role-combo := ComboBox {
                                         model: ["Translator", "Reviewer", "Project Manager", "Admin"];
                                         current-value: new-member-role;
+                                        accessible-label: "Team member role selection";
+                                        accessible-description: "Choose the role and permissions for this team member";
                                         
                                         selected(value) => {
                                             root.new-member-role = value;
@@ -964,10 +1063,12 @@ export component ProjectCreationWizard inherits Dialog {
                                     
                                     add-member-button := Button {
                                         text: "Add Member";
-                                        enabled: new-member-name != "" && new-member-email != "";
+                                        enabled: new-member-name != "" && new-member-email != "" && new-member-email.contains("@");
+                                        accessible-label: "Add team member";
+                                        accessible-description: "Add the specified team member with their role to the project";
                                         
                                         clicked => {
-                                            if (new-member-name != "" && new-member-email != "") {
+                                            if (new-member-name != "" && new-member-email != "" && new-member-email.contains("@")) {
                                                 root.team-member-added(new-member-name, new-member-email, new-member-role);
                                                 root.new-member-name = "";
                                                 root.new-member-email = "";
@@ -1784,6 +1885,8 @@ export component ProjectCreationWizard inherits Dialog {
                 // Cancel button
                 cancel-button := Button {
                     text: "Cancel";
+                    accessible-label: "Cancel project creation";
+                    accessible-description: "Discard changes and close the project creation wizard";
                     
                     clicked => {
                         root.wizard-cancel();
@@ -1797,6 +1900,8 @@ export component ProjectCreationWizard inherits Dialog {
                     back-button := Button {
                         text: "← Back";
                         enabled: can-go-back;
+                        accessible-label: "Go to previous step";
+                        accessible-description: "Navigate back to step " + (current-step - 1) + " of the wizard";
                         
                         clicked => {
                             if current-step > 1 {
@@ -1809,6 +1914,8 @@ export component ProjectCreationWizard inherits Dialog {
                     if !can-finish: next-button := Button {
                         text: "Next →";
                         enabled: can-go-next;
+                        accessible-label: "Go to next step";
+                        accessible-description: "Navigate forward to step " + (current-step + 1) + " of the wizard";
                         
                         clicked => {
                             if current-step < total-steps {
@@ -1821,6 +1928,8 @@ export component ProjectCreationWizard inherits Dialog {
                     if can-finish: finish-button := Button {
                         text: "Create Project";
                         enabled: !has-validation-errors;
+                        accessible-label: "Create the translation project";
+                        accessible-description: "Finalize and create the project with the configured settings";
                         
                         clicked => {
                             root.wizard-finish();

@@ -7,6 +7,7 @@ import { TextOperation } from "components/enhanced_text_editor.slint";
 import { ProjectCreationWizard } from "components/project_creation_wizard.slint";
 import { SimpleProjectBrowser, ProjectData } from "components/simple_project_browser.slint";
 import { ChunkLinkingPanel, ChunkInfo, PhraseGroup, SelectionMode, MergeStrategy } from "components/chunk_linking_panel.slint";
+import { ExportDialog, ExportFormat, ExportLayout, ExportLanguageOption, ExportProgress } from "components/export_dialog.slint";
 
 export component MainWindow inherits Window {
     // Window properties
@@ -112,6 +113,29 @@ export component MainWindow inherits Window {
     in-out property <string> chunk-session-id: "";
     in-out property <bool> is-linking-mode: false;
     
+    // Export dialog state
+    in-out property <bool> show-export-dialog: false;
+    in-out property <ExportFormat> export-selected-format: ExportFormat.PDF;
+    in-out property <ExportLayout> export-selected-layout: ExportLayout.SingleLanguage;
+    in-out property <[ExportLanguageOption]> export-available-languages: [];
+    in-out property <string> export-output-directory: "";
+    in-out property <string> export-filename-prefix: "document";
+    in-out property <bool> export-include-metadata: true;
+    in-out property <bool> export-include-table-of-contents: true;
+    in-out property <string> export-custom-css-path: "";
+    in-out property <bool> export-in-progress: false;
+    in-out property <ExportProgress> export-progress: {
+        current_step: "",
+        progress: 0.0,
+        total_files: 0,
+        completed_files: 0,
+        is_complete: false,
+        error_message: "",
+    };
+    in-out property <int> export-queue-position: 0;
+    in-out property <int> export-queue-total: 0;
+    in-out property <bool> export-show-queue-info: false;
+    
     callback toggle-mode();
     callback set-layout(string);
     callback content-changed(string, string); // content, language
@@ -195,6 +219,18 @@ export component MainWindow inherits Window {
     callback phrase-group-selected(string /* phrase-group-id */);
     callback chunk-merge-options-changed(MergeStrategy /* strategy */, bool /* preserve-formatting */, bool /* add-spacing */);
     
+    // Export dialog callbacks
+    callback open-export-dialog();
+    callback export-format-changed(ExportFormat);
+    callback export-layout-changed(ExportLayout);
+    callback export-language-toggled(string /* language-code */, bool /* enabled */);
+    callback export-browse-output-directory();
+    callback export-browse-custom-css();
+    callback export-start();
+    callback export-cancel();
+    callback export-close-dialog();
+    callback export-view-history();
+    
     // Keyboard shortcuts
     forward-focus: key-handler;
     
@@ -211,7 +247,8 @@ export component MainWindow inherits Window {
                     root.file-save();
                     return accept;
                 } else if (event.text == "e") {
-                    root.file-export();
+                    root.show-export-dialog = true;
+                    root.open-export-dialog();
                     return accept;
                 } else if (event.text == "m") {
                     root.toggle-mode();
@@ -274,7 +311,10 @@ export component MainWindow inherits Window {
             file-save => { root.file-save(); }
             file-save-as => { root.file-save-as(); }
             file-import => { root.file-import(); }
-            file-export => { root.file-export(); }
+            file-export => { 
+                root.show-export-dialog = true;
+                root.open-export-dialog();
+            }
             file-print => { root.file-print(); }
             file-exit => { root.file-exit(); }
             
@@ -316,8 +356,16 @@ export component MainWindow inherits Window {
             tools-screenshot => { root.tools-screenshot(); }
             tools-spell-check => { root.tools-spell-check(); }
             tools-word-count => { root.tools-word-count(); }
-            tools-export-pdf => { root.tools-export-pdf(); }
-            tools-export-html => { root.tools-export-html(); }
+            tools-export-pdf => { 
+                root.export-selected-format = ExportFormat.PDF;
+                root.show-export-dialog = true;
+                root.open-export-dialog();
+            }
+            tools-export-html => { 
+                root.export-selected-format = ExportFormat.HTML;
+                root.show-export-dialog = true;
+                root.open-export-dialog();
+            }
             tools-chunk-linking => { 
                 root.show-chunk-linking = !root.show-chunk-linking;
                 if (root.show-chunk-linking) {
@@ -359,7 +407,10 @@ export component MainWindow inherits Window {
                 show-projects => { root.show-projects(); }
                 show-kanban => { root.show-kanban(); }
                 show-reviews => { root.show-reviews(); }
-                export-document => { root.file-export(); }
+                export-document => { 
+                    root.show-export-dialog = true;
+                    root.open-export-dialog();
+                }
                 
                 // Project tree callbacks
                 tree-item-clicked(item-id) => { 
@@ -801,6 +852,54 @@ export component MainWindow inherits Window {
             close-dialog => { 
                 root.show-project-browser = false;
                 root.close-project-browser(); 
+            }
+        }
+        
+        // Export Dialog (modal dialog)
+        if show-export-dialog: export-dialog := ExportDialog {
+            selected-format: root.export-selected-format;
+            selected-layout: root.export-selected-layout;
+            available-languages: root.export-available-languages;
+            output-directory: root.export-output-directory;
+            filename-prefix: root.export-filename-prefix;
+            include-metadata: root.export-include-metadata;
+            include-table-of-contents: root.export-include-table-of-contents;
+            custom-css-path: root.export-custom-css-path;
+            export-in-progress: root.export-in-progress;
+            export-progress: root.export-progress;
+            queue-position: root.export-queue-position;
+            queue-total: root.export-queue-total;
+            show-queue-info: root.export-show-queue-info;
+            
+            format-changed(format) => { 
+                root.export-selected-format = format;
+                root.export-format-changed(format); 
+            }
+            layout-changed(layout) => { 
+                root.export-selected-layout = layout;
+                root.export-layout-changed(layout); 
+            }
+            language-toggled(code, enabled) => { 
+                root.export-language-toggled(code, enabled); 
+            }
+            browse-output-directory => { 
+                root.export-browse-output-directory(); 
+            }
+            browse-custom-css => { 
+                root.export-browse-custom-css(); 
+            }
+            start-export => { 
+                root.export-start(); 
+            }
+            cancel-export => { 
+                root.export-cancel(); 
+            }
+            close-dialog => { 
+                root.show-export-dialog = false;
+                root.export-close-dialog(); 
+            }
+            view-export-history => { 
+                root.export-view-history(); 
             }
         }
     }

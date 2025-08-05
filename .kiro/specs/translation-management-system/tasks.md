@@ -179,7 +179,7 @@
     - Write API integration tests for all endpoints
     - _Requirements: 7.1, 7.4_
 
-  - [-] 9.2 Implement JavaScript Kanban board interface
+  - [x] 9.2 Implement JavaScript Kanban board interface
     - Create responsive Kanban board with drag-and-drop functionality
     - Implement task creation, editing, and status management
     - Add real-time updates using WebSocket or Server-Sent Events
@@ -195,7 +195,7 @@
     - Write integration tests for desktop-web synchronization
     - _Requirements: 7.4, 7.6_
 
-- [-] 10. Implement PDF export functionality
+- [x] 10. Implement PDF export functionality
   - [x] 10.1 Create multi-language PDF generation system
     - Enhance existing PDF export to support multiple languages
     - Implement layout options for single-language and side-by-side formats
@@ -204,7 +204,7 @@
     - Write tests for PDF generation with various content types
     - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-  - [ ] 10.2 Implement export configuration and processing
+  - [x] 10.2 Implement export configuration and processing
     - Create export dialog with language selection and format options
     - Implement asynchronous PDF generation with progress tracking
     - Add export queue management for large documents

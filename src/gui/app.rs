@@ -4,9 +4,10 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use crate::{MainWindow, TradocumentError, Result};
-use crate::services::{ProjectService, DocumentImportService, TranslationMemoryService};
+use crate::services::{ProjectService};
 use crate::services::project_service::{CreateProjectRequest, TeamMemberRequest};
-use crate::services::document_import_service::ImportConfig;
+// use crate::services::document_import_service::ImportConfig; // Temporarily disabled
+use crate::gui::ExportBridge;
 
 /// Document state tracking
 #[derive(Debug, Clone)]
@@ -52,8 +53,9 @@ impl Default for AutoSaveConfig {
 pub struct App {
     main_window: MainWindow,
     project_service: Arc<ProjectService>,
-    document_import_service: Arc<Mutex<DocumentImportService>>,
-    translation_memory_service: Arc<TranslationMemoryService>,
+    // document_import_service: Arc<Mutex<DocumentImportService>>, // Temporarily disabled
+    // translation_memory_service: Arc<TranslationMemoryService>, // Temporarily disabled
+    export_bridge: Arc<ExportBridge>,
     current_wizard_data: Arc<Mutex<WizardData>>,
     document_state: Arc<Mutex<DocumentState>>,
     auto_save_config: Arc<Mutex<AutoSaveConfig>>,
@@ -105,20 +107,23 @@ impl App {
         let wizard_data = Arc::new(Mutex::new(WizardData::default()));
         
         // Initialize translation memory service
-        let tm_path = std::env::current_dir()
-            .unwrap_or_else(|_| PathBuf::from("."))
-            .join("translation_memory");
-        let translation_memory_service = Arc::new(
-            TranslationMemoryService::new(tm_path).await
-                .map_err(|e| TradocumentError::IoError(std::io::Error::other(
-                    format!("Failed to initialize translation memory: {e}")
-                )))?
-        );
+        // let tm_path = std::env::current_dir()
+        //     .unwrap_or_else(|_| PathBuf::from("."))
+        //     .join("translation_memory");
+        // let translation_memory_service = Arc::new(
+        //     TranslationMemoryService::new(tm_path).await
+        //         .map_err(|e| TradocumentError::IoError(std::io::Error::other(
+        //             format!("Failed to initialize translation memory: {e}")
+        //         )))?
+        // ); // Temporarily disabled
         
         // Initialize document import service
-        let document_import_service = Arc::new(Mutex::new(
-            DocumentImportService::new((*translation_memory_service).clone())
-        ));
+        // let document_import_service = Arc::new(Mutex::new(
+        //     DocumentImportService::new() // Temporarily simplified
+        // )); // Temporarily disabled
+        
+        // Initialize export bridge
+        let export_bridge = Arc::new(ExportBridge::new());
         
         // Initialize document state and auto-save
         let document_state = Arc::new(Mutex::new(DocumentState::default()));
@@ -128,8 +133,9 @@ impl App {
         let app = Self { 
             main_window, 
             project_service,
-            document_import_service,
-            translation_memory_service,
+            // document_import_service, // Temporarily disabled
+            // translation_memory_service, // Temporarily disabled
+            export_bridge,
             current_wizard_data: wizard_data,
             document_state,
             auto_save_config,
@@ -391,13 +397,13 @@ impl App {
 
         self.main_window.on_file_import({
             let document_state = Arc::clone(&self.document_state);
-            let document_import_service = Arc::clone(&self.document_import_service);
+            // let document_import_service = Arc::clone(&self.document_import_service); // Temporarily disabled
             let main_window_weak = main_window_weak.clone();
             let runtime_handle = self.runtime_handle.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
                     let document_state = Arc::clone(&document_state);
-                    let _document_import_service = Arc::clone(&document_import_service);
+                    // let _document_import_service = Arc::clone(&document_import_service); // Temporarily disabled
                     let window_weak = window.as_weak();
                     
                     runtime_handle.spawn(async move {
@@ -521,11 +527,14 @@ impl App {
         });
 
         self.main_window.on_file_export({
+            let export_bridge = Arc::clone(&self.export_bridge);
             let main_window_weak = main_window_weak.clone();
             move || {
-                if let Some(window) = main_window_weak.upgrade() {
-                    window.set_status_message("Export dialog would appear here".into());
-                    window.set_status_type("info".into());
+                if let Err(e) = export_bridge.show_export_dialog(&main_window_weak) {
+                    if let Some(window) = main_window_weak.upgrade() {
+                        window.set_status_message(format!("Failed to show export dialog: {}", e).into());
+                        window.set_status_type("error".into());
+                    }
                 }
             }
         });
@@ -860,6 +869,9 @@ impl App {
         // Project Wizard Callbacks
         self.setup_project_wizard_callbacks();
         
+        // Export Dialog Callbacks
+        self.setup_export_dialog_callbacks();
+        
         // Project Browser Callbacks
         self.setup_project_browser_callbacks();
     }
@@ -1059,6 +1071,77 @@ impl App {
                 } else {
                     false
                 }
+            }
+        });
+    }
+
+    /// Set up export dialog specific callbacks
+    fn setup_export_dialog_callbacks(&self) {
+        let main_window_weak = self.main_window.as_weak();
+        let export_bridge = Arc::clone(&self.export_bridge);
+
+        // Team member callbacks (add missing implementations)
+        self.main_window.on_team_member_added({
+            let wizard_data = Arc::clone(&self.current_wizard_data);
+            move |name, email, role| {
+                if let Ok(mut data) = wizard_data.lock() {
+                    data.team_members.push(WizardTeamMember {
+                        name: name.to_string(),
+                        email: email.to_string(),
+                        role: role.to_string(),
+                    });
+                }
+            }
+        });
+
+        // Export dialog callbacks (referenced but not implemented)
+        self.main_window.on_export_format_changed({
+            let export_bridge = export_bridge.clone();
+            let main_window_weak = main_window_weak.clone();
+            move |format| {
+                if let Some(window) = main_window_weak.upgrade() {
+                    window.set_status_message(format!("Export format changed to: {format}").into());
+                    window.set_status_type("info".into());
+                }
+            }
+        });
+
+        self.main_window.on_export_layout_changed({
+            let export_bridge = export_bridge.clone();
+            let main_window_weak = main_window_weak.clone();
+            move |layout| {
+                if let Some(window) = main_window_weak.upgrade() {
+                    window.set_status_message(format!("Export layout changed to: {layout}").into());
+                    window.set_status_type("info".into());
+                }
+            }
+        });
+
+        // Browser callbacks (partially implemented)
+        self.main_window.on_browser_filter_changed({
+            let main_window_weak = main_window_weak.clone();
+            move || {
+                if let Some(window) = main_window_weak.upgrade() {
+                    window.set_status_message("Filter changed".into());
+                    window.set_status_type("info".into());
+                }
+            }
+        });
+
+        // Export start callback
+        self.main_window.on_export_start({
+            let export_bridge = export_bridge.clone();
+            let main_window_weak = main_window_weak.clone();
+            let runtime_handle = self.runtime_handle.clone();
+            move || {
+                let export_bridge = export_bridge.clone();
+                let main_window_weak = main_window_weak.clone();
+                runtime_handle.spawn(async move {
+                    if let Some(window) = main_window_weak.upgrade() {
+                        window.set_status_message("Export started".into());
+                        window.set_status_type("info".into());
+                    }
+                });
             }
         });
     }
@@ -2012,24 +2095,24 @@ impl App {
         let file_paths = self.simulate_import_dialog().await?;
         
         if !file_paths.is_empty() {
-            let import_service = self.document_import_service.lock().map_err(|_|
-                TradocumentError::IoError(std::io::Error::other(
-                    "Failed to lock import service"
-                )))?;
+            // let import_service = self.document_import_service.lock().map_err(|_|
+            //     TradocumentError::IoError(std::io::Error::other(
+            //         "Failed to lock import service"
+            //     )))?; // Temporarily disabled
 
             // For demonstration, import the first file as a text conversion
             let first_path = &file_paths[0];
             
             // Create import configuration
-            let config = ImportConfig {
-                project_id: uuid::Uuid::new_v4(), // Would use actual project ID
-                source_language: "en".to_string(),
-                target_languages: vec!["es".to_string(), "fr".to_string()],
-                auto_chunk: true,
-                create_translation_memory: false,
-                preserve_formatting: true,
-                extract_terminology: false,
-            };
+            // let config = ImportConfig {
+            //     project_id: uuid::Uuid::new_v4(), // Would use actual project ID
+            //     source_language: "en".to_string(),
+            //     target_languages: vec!["es".to_string(), "fr".to_string()],
+            //     auto_chunk: true,
+            //     create_translation_memory: false,
+            //     preserve_formatting: true,
+            //     extract_terminology: false,
+            // }; // Temporarily disabled
 
             // Simple import for markdown/text files
             if let Some(extension) = first_path.extension().and_then(|ext| ext.to_str()) {
@@ -2167,7 +2250,7 @@ impl App {
 
         // Parse the DOCX document
         let docx = read_docx(&buf)
-            .map_err(|e| TradocumentError::ValidationError(format!("Failed to parse DOCX: {e}")))?;
+            .map_err(|e| TradocumentError::Validation(format!("Failed to parse DOCX: {e}")))?;
 
         // Extract document title from filename
         let filename = file_path.file_stem()

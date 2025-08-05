@@ -38,7 +38,7 @@ pub struct MarkdownMetadata {
 }
 
 pub struct MarkdownService {
-    options: ComrakOptions,
+    options: ComrakOptions<'static>,
 }
 
 impl Default for MarkdownService {

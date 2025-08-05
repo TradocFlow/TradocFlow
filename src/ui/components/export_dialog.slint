@@ -1,0 +1,389 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { LineEdit, Button, CheckBox, ScrollView, GroupBox } from "std-widgets.slint";
+
+export enum ExportFormat {
+    PDF,
+    HTML,
+    Both,
+}
+
+export enum ExportLayout {
+    SingleLanguage,
+    SideBySide,
+    Sequential,
+}
+
+export struct ExportLanguageOption {
+    code: string,
+    name: string,
+    enabled: bool,
+}
+
+export struct ExportProgress {
+    current_step: string,
+    progress: float, // 0.0 to 1.0
+    total_files: int,
+    completed_files: int,
+    is_complete: bool,
+    error_message: string,
+}
+
+export component ExportDialog inherits Dialog {
+    // Dialog properties
+    title: "Export Document";
+    width: 600px;
+    height: 500px;
+    
+    // Export configuration
+    in-out property <ExportFormat> selected-format: ExportFormat.PDF;
+    in-out property <ExportLayout> selected-layout: ExportLayout.SingleLanguage;
+    in-out property <[ExportLanguageOption]> available-languages: [];
+    in-out property <string> output-directory: "";
+    in-out property <string> filename-prefix: "document";
+    in-out property <bool> include-metadata: true;
+    in-out property <bool> include-table-of-contents: true;
+    in-out property <string> custom-css-path: "";
+    
+    // Progress tracking
+    in-out property <bool> export-in-progress: false;
+    in-out property <ExportProgress> export-progress: {
+        current_step: "",
+        progress: 0.0,
+        total_files: 0,
+        completed_files: 0,
+        is_complete: false,
+        error_message: "",
+    };
+    
+    // Queue management
+    in-out property <int> queue-position: 0;
+    in-out property <int> queue-total: 0;
+    in-out property <bool> show-queue-info: false;
+    
+    // Callbacks
+    callback format-changed(ExportFormat);
+    callback layout-changed(ExportLayout);
+    callback language-toggled(string /* language-code */, bool /* enabled */);
+    callback browse-output-directory();
+    callback browse-custom-css();
+    callback start-export();
+    callback cancel-export();
+    callback close-dialog();
+    callback view-export-history();
+    
+    VerticalLayout {
+        spacing: 20px;
+        padding: 20px;
+        
+        // Header
+        Text {
+            text: "Export Configuration";
+            font-size: 18px;
+            font-weight: 700;
+            color: Colors.text-primary;
+        }
+        
+        // Main configuration area
+        ScrollView {
+            height: 300px;
+            
+            VerticalLayout {
+                spacing: 15px;
+                
+                // Format selection
+                GroupBox {
+                    title: "Export Format";
+                    
+                    VerticalLayout {
+                        spacing: 8px;
+                        
+                        HorizontalLayout {
+                            CheckBox {
+                                text: "PDF";
+                                checked: root.selected-format == ExportFormat.PDF;
+                                toggled => {
+                                    if (self.checked) {
+                                        root.selected-format = ExportFormat.PDF;
+                                        root.format-changed(ExportFormat.PDF);
+                                    }
+                                }
+                            }
+                            
+                            CheckBox {
+                                text: "HTML";
+                                checked: root.selected-format == ExportFormat.HTML;
+                                toggled => {
+                                    if (self.checked) {
+                                        root.selected-format = ExportFormat.HTML;
+                                        root.format-changed(ExportFormat.HTML);
+                                    }
+                                }
+                            }
+                            
+                            CheckBox {
+                                text: "Both";
+                                checked: root.selected-format == ExportFormat.Both;
+                                toggled => {
+                                    if (self.checked) {
+                                        root.selected-format = ExportFormat.Both;
+                                        root.format-changed(ExportFormat.Both);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Layout selection (only for PDF)
+                if root.selected-format == ExportFormat.PDF || root.selected-format == ExportFormat.Both: GroupBox {
+                    title: "PDF Layout";
+                    
+                    VerticalLayout {
+                        spacing: 8px;
+                        
+                        CheckBox {
+                            text: "Single Language (separate files)";
+                            checked: root.selected-layout == ExportLayout.SingleLanguage;
+                            toggled => {
+                                if (self.checked) {
+                                    root.selected-layout = ExportLayout.SingleLanguage;
+                                    root.layout-changed(ExportLayout.SingleLanguage);
+                                }
+                            }
+                        }
+                        
+                        CheckBox {
+                            text: "Side-by-Side (source and target)";
+                            checked: root.selected-layout == ExportLayout.SideBySide;
+                            toggled => {
+                                if (self.checked) {
+                                    root.selected-layout = ExportLayout.SideBySide;
+                                    root.layout-changed(ExportLayout.SideBySide);
+                                }
+                            }
+                        }
+                        
+                        CheckBox {
+                            text: "Sequential (all languages in order)";
+                            checked: root.selected-layout == ExportLayout.Sequential;
+                            toggled => {
+                                if (self.checked) {
+                                    root.selected-layout = ExportLayout.Sequential;
+                                    root.layout-changed(ExportLayout.Sequential);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Language selection
+                GroupBox {
+                    title: "Languages to Export";
+                    
+                    VerticalLayout {
+                        spacing: 8px;
+                        
+                        for language in root.available-languages: HorizontalLayout {
+                            CheckBox {
+                                text: language.name + " (" + language.code + ")";
+                                checked: language.enabled;
+                                toggled => {
+                                    root.language-toggled(language.code, self.checked);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Output configuration
+                GroupBox {
+                    title: "Output Settings";
+                    
+                    VerticalLayout {
+                        spacing: 10px;
+                        
+                        // Output directory
+                        HorizontalLayout {
+                            Text {
+                                text: "Output Directory:";
+                                vertical-alignment: center;
+                                width: 120px;
+                            }
+                            
+                            LineEdit {
+                                text: root.output-directory;
+                                placeholder-text: "Select output directory...";
+                                read-only: true;
+                                horizontal-stretch: 1;
+                            }
+                            
+                            Button {
+                                text: "Browse";
+                                clicked => { root.browse-output-directory(); }
+                            }
+                        }
+                        
+                        // Filename prefix
+                        HorizontalLayout {
+                            Text {
+                                text: "Filename Prefix:";
+                                vertical-alignment: center;
+                                width: 120px;
+                            }
+                            
+                            LineEdit {
+                                text: root.filename-prefix;
+                                placeholder-text: "document";
+                                horizontal-stretch: 1;
+                                edited(text) => {
+                                    root.filename-prefix = text;
+                                }
+                            }
+                        }
+                        
+                        // Custom CSS (for HTML export)
+                        if root.selected-format == ExportFormat.HTML || root.selected-format == ExportFormat.Both: HorizontalLayout {
+                            Text {
+                                text: "Custom CSS:";
+                                vertical-alignment: center;
+                                width: 120px;
+                            }
+                            
+                            LineEdit {
+                                text: root.custom-css-path;
+                                placeholder-text: "Optional custom CSS file...";
+                                read-only: true;
+                                horizontal-stretch: 1;
+                            }
+                            
+                            Button {
+                                text: "Browse";
+                                clicked => { root.browse-custom-css(); }
+                            }
+                        }
+                    }
+                }
+                
+                // Additional options
+                GroupBox {
+                    title: "Additional Options";
+                    
+                    VerticalLayout {
+                        spacing: 8px;
+                        
+                        CheckBox {
+                            text: "Include document metadata";
+                            checked: root.include-metadata;
+                            toggled => {
+                                root.include-metadata = self.checked;
+                            }
+                        }
+                        
+                        CheckBox {
+                            text: "Include table of contents";
+                            checked: root.include-table-of-contents;
+                            toggled => {
+                                root.include-table-of-contents = self.checked;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Progress section (shown during export)
+        if root.export-in-progress: Rectangle {
+            background: Colors.surface;
+            border-radius: 8px;
+            padding: 15px;
+            
+            VerticalLayout {
+                spacing: 10px;
+                
+                // Queue information
+                if root.show-queue-info: HorizontalLayout {
+                    Text {
+                        text: "Queue position: " + root.queue-position + " of " + root.queue-total;
+                        color: Colors.text-secondary;
+                        font-size: 12px;
+                    }
+                }
+                
+                // Current step
+                Text {
+                    text: root.export-progress.current-step;
+                    color: Colors.text-primary;
+                    font-weight: 600;
+                }
+                
+                // Progress bar
+                Rectangle {
+                    height: 8px;
+                    background: Colors.surface-variant;
+                    border-radius: 4px;
+                    
+                    Rectangle {
+                        width: parent.width * root.export-progress.progress;
+                        height: parent.height;
+                        background: Colors.primary;
+                        border-radius: 4px;
+                    }
+                }
+                
+                // Progress text
+                HorizontalLayout {
+                    Text {
+                        text: Math.round(root.export-progress.progress * 100) + "%";
+                        color: Colors.text-secondary;
+                        font-size: 12px;
+                    }
+                    
+                    Rectangle { horizontal-stretch: 1; }
+                    
+                    Text {
+                        text: root.export-progress.completed-files + " / " + root.export-progress.total-files + " files";
+                        color: Colors.text-secondary;
+                        font-size: 12px;
+                    }
+                }
+                
+                // Error message
+                if root.export-progress.error-message != "": Text {
+                    text: "Error: " + root.export-progress.error-message;
+                    color: Colors.error;
+                    font-size: 12px;
+                    wrap: word-wrap;
+                }
+            }
+        }
+        
+        // Button area
+        HorizontalLayout {
+            spacing: 10px;
+            
+            Button {
+                text: "Export History";
+                clicked => { root.view-export-history(); }
+            }
+            
+            Rectangle { horizontal-stretch: 1; }
+            
+            if root.export-in-progress: Button {
+                text: "Cancel";
+                clicked => { root.cancel-export(); }
+            }
+            
+            if !root.export-in-progress: Button {
+                text: "Cancel";
+                clicked => { root.close-dialog(); }
+            }
+            
+            if !root.export-in-progress: Button {
+                text: "Export";
+                enabled: root.available-languages.length > 0 && root.output-directory != "";
+                clicked => { root.start-export(); }
+            }
+        }
+    }
+}

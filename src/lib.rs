@@ -8,10 +8,10 @@
 rust_i18n::i18n!("locales", fallback = "en");
 
 pub mod review_system;
-pub mod translation_manager;
+// pub mod translation_manager; // Temporarily disabled due to document references
 pub mod export_engine;
 pub mod integration;
-pub mod document_import_service;
+// pub mod document_import_service; // Temporarily disabled
 pub mod notification_system;
 pub mod i18n;
 pub mod database;
@@ -27,12 +27,12 @@ slint::include_modules!();
 mod test_i18n;
 
 pub use review_system::*;
-pub use translation_manager::{TranslationManager, TranslationProject};
+// pub use translation_manager::{TranslationManager, TranslationProject}; // Temporarily disabled
 pub use export_engine::*;
-pub use document_import_service::{
-    DocumentImportService, DocumentFile, DocumentContent, MultiDocumentImportResult,
-    SingleDocumentImportResult, ImportError
-};
+// pub use document_import_service::{
+//     DocumentImportService, DocumentFile, DocumentContent, MultiDocumentImportResult,
+//     SingleDocumentImportResult, ImportError
+// }; // Temporarily disabled
 pub use notification_system::{
     NotificationService, 
     Notification, 
@@ -73,31 +73,17 @@ pub struct User {
     pub active: bool,
 }
 
+// Export-compatible Document type (kept for backward compatibility with export engine)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
-    pub id: Uuid,
     pub title: String,
     pub content: HashMap<String, String>, // language -> markdown content
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub version: u32,
-    pub status: DocumentStatus,
     pub metadata: DocumentMetadata,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum DocumentStatus {
-    Draft,
-    InReview,
-    Approved,
-    Published,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentMetadata {
-    pub languages: Vec<String>,
-    pub tags: Vec<String>,
-    pub project_id: Option<Uuid>, // Enhanced to use proper UUID for project relationships
+    pub project_id: Option<String>,
     pub screenshots: Vec<ScreenshotReference>,
 }
 
@@ -230,7 +216,7 @@ pub enum TradocumentError {
     #[error("Database error: {0}")]
     DatabaseError(String),
     #[error("Validation error: {0}")]
-    ValidationError(String),
+    Validation(String),
     #[error("File error: {0}")]
     FileError(String),
     #[error("Sync error: {0}")]
@@ -239,10 +225,12 @@ pub enum TradocumentError {
     TranslationMemory(String),
     #[error("Terminology error: {0}")]
     Terminology(String),
-    #[error("DuckDB error: {0}")]
-    DuckDB(#[from] duckdb::Error),
-    #[error("Parquet error: {0}")]
-    Parquet(String),
+    #[error("UI error: {0}")]
+    Ui(String),
+    // #[error("DuckDB error: {0}")]
+    // DuckDB(#[from] duckdb::Error), // Temporarily disabled
+    // #[error("Parquet error: {0}")]
+    // Parquet(String), // Temporarily disabled
     #[error("CSV error: {0}")]
     Csv(#[from] csv::Error),
 }

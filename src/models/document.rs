@@ -9,6 +9,7 @@ pub struct Document {
     pub project_id: Uuid,
     pub title: String,
     pub description: Option<String>,
+    pub content: HashMap<String, String>, // language -> markdown content
     pub document_type: DocumentType,
     pub source_language: String, // ISO 639-1 code
     pub target_languages: Vec<String>, // ISO 639-1 codes

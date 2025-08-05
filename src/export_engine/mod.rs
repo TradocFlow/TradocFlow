@@ -27,6 +27,10 @@ pub struct ExportEngine {
     fragments: HashMap<String, String>,
 }
 
+// Explicitly implement Send and Sync for ExportEngine
+unsafe impl Send for ExportEngine {}
+unsafe impl Sync for ExportEngine {}
+
 impl Default for ExportEngine {
     fn default() -> Self {
         Self::new()

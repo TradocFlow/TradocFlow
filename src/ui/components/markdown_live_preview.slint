@@ -1,0 +1,640 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { ScrollView, TextEdit } from "std-widgets.slint";
+
+// Markdown element for inline editing
+export struct MarkdownElement {
+    element_type: string,
+    content: string,
+    start_line: int,
+    start_col: int,
+    end_line: int,
+    end_col: int,
+    editable: bool,
+    element_id: string,
+}
+
+// Rendered HTML content structure
+export struct RenderedContent {
+    html: string,
+    elements: [MarkdownElement],
+    word_count: int,
+    heading_count: int,
+}
+
+// Inline editor component for live editing
+component InlineEditor inherits Rectangle {
+    in property <string> content: "";
+    in property <string> element_type: "";
+    in property <bool> is_editing: false;
+    in property <string> placeholder: "Start typing...";
+    
+    callback edit_started();
+    callback edit_finished(string /* new_content */);
+    callback edit_cancelled();
+    
+    width: parent.width;
+    height: self.is_editing ? text_input.preferred_height + 20px : content_display.height;
+    
+    states [
+        editing when root.is_editing: {
+            background: Colors.background;
+            border_width: 2px;
+            border_color: Colors.primary;
+            border_radius: Theme.border_radius_sm;
+        }
+        hover when !root.is_editing && touch_area.has_hover: {
+            background: Colors.surface_hover;
+            border_width: 1px;
+            border_color: Colors.border_active;
+            border_radius: Theme.border_radius_sm;
+        }
+    ]
+    
+    // Display content when not editing
+    if !root.is_editing: content_display := Rectangle {
+        width: parent.width;
+        height: content_text.preferred_height + 10px;
+        
+        content_text := Text {
+            text: root.content.length > 0 ? root.content : root.placeholder;
+            color: root.content.length > 0 ? Colors.text_primary : Colors.text_muted;
+            font_size: root.element_type == "heading1" ? Theme.font_size_xxl :
+                       root.element_type == "heading2" ? Theme.font_size_xl :
+                       root.element_type == "heading3" ? Theme.font_size_lg :
+                       Theme.font_size_base;
+            font_weight: root.element_type.starts_with("heading") ? 700 : 400;
+            wrap: word_wrap;
+            horizontal_alignment: left;
+            vertical_alignment: top;
+            x: Theme.spacing_sm;
+            y: Theme.spacing_xs;
+            width: parent.width - 2 * Theme.spacing_sm;
+        }
+        
+        touch_area := TouchArea {
+            double_clicked => {
+                root.edit_started();
+            }
+        }
+    }
+    
+    // Text input when editing
+    if root.is_editing: text_input := TextEdit {
+        text: root.content;
+        font_size: root.element_type == "heading1" ? Theme.font_size_xxl :
+                   root.element_type == "heading2" ? Theme.font_size_xl :
+                   root.element_type == "heading3" ? Theme.font_size_lg :
+                   Theme.font_size_base;
+        font_weight: root.element_type.starts_with("heading") ? 700 : 400;
+        wrap: word_wrap;
+        horizontal_alignment: left;
+        x: Theme.spacing_sm;
+        y: Theme.spacing_xs;
+        width: parent.width - 2 * Theme.spacing_sm;
+        
+        key_pressed(event) => {
+            if (event.text == Key.Return && event.modifiers.control) {
+                root.edit_finished(self.text);
+                return accept;
+            } else if (event.text == Key.Escape) {
+                root.edit_cancelled();
+                return accept;
+            }
+            return reject;
+        }
+        
+        focus_changed => {
+            if (!self.has_focus && root.is_editing) {
+                root.edit_finished(self.text);
+            }
+        }
+    }
+    
+    // Edit controls when editing
+    if root.is_editing: edit_controls := Rectangle {
+        x: parent.width - 120px;
+        y: 5px;
+        width: 110px;
+        height: 24px;
+        background: Colors.surface;
+        border_radius: Theme.border_radius_sm;
+        border_width: 1px;
+        border_color: Colors.border;
+        
+        HorizontalLayout {
+            padding: 2px;
+            spacing: 2px;
+            
+            save_button := Rectangle {
+                width: 50px;
+                height: 20px;
+                background: Colors.success_light;
+                border_radius: Theme.border_radius_sm;
+                
+                states [
+                    hover when save_touch.has_hover: {
+                        background: Colors.success;
+                    }
+                ]
+                
+                save_touch := TouchArea {
+                    clicked => {
+                        root.edit_finished(text_input.text);
+                    }
+                }
+                
+                Text {
+                    text: "Save";
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_primary;
+                    horizontal_alignment: center;
+                    vertical_alignment: center;
+                }
+            }
+            
+            cancel_button := Rectangle {
+                width: 50px;
+                height: 20px;
+                background: Colors.error_light;
+                border_radius: Theme.border_radius_sm;
+                
+                states [
+                    hover when cancel_touch.has_hover: {
+                        background: Colors.error;
+                    }
+                ]
+                
+                cancel_touch := TouchArea {
+                    clicked => {
+                        root.edit_cancelled();
+                    }
+                }
+                
+                Text {
+                    text: "Cancel";
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_primary;
+                    horizontal_alignment: center;
+                    vertical_alignment: center;
+                }
+            }
+        }
+    }
+}
+
+// Live preview component with inline editing
+export component MarkdownLivePreview inherits Rectangle {
+    in property <string> markdown_content: "";
+    in property <RenderedContent> rendered_content;
+    in property <bool> enable_inline_editing: true;
+    in property <bool> show_element_borders: false;
+    in property <string> current_editing_element: "";
+    
+    callback content_changed(string /* new_content */);
+    callback element_edit_started(string /* element_id */);
+    callback element_edit_finished(string /* element_id */, string /* new_content */);
+    callback render_markdown_requested(string /* markdown */);
+    
+    // Internal state
+    property <int> current_editing_index: -1;
+    
+    background: Colors.background;
+    
+    ScrollView {
+        preview_content := Rectangle {
+            width: parent.width;
+            height: content_layout.preferred_height;
+            
+            content_layout := VerticalLayout {
+                spacing: Theme.spacing_xs;
+                padding: Theme.spacing_md;
+                alignment: start;
+                
+                // Render each markdown element as an inline editable component
+                for element[index] in root.rendered_content.elements: Rectangle {
+                    width: parent.width - 2 * Theme.spacing_md;
+                    height: inline_editor.height;
+                    
+                    // Element border for debugging/development
+                    if root.show_element_borders: Rectangle {
+                        border_width: 1px;
+                        border_color: Colors.info_light;
+                        border_radius: 2px;
+                        opacity: 0.3;
+                    }
+                    
+                    inline_editor := InlineEditor {
+                        content: element.content;
+                        element_type: element.element_type;
+                        is_editing: root.current_editing_index == index;
+                        placeholder: element.element_type == "heading1" ? "Heading 1" :
+                                   element.element_type == "heading2" ? "Heading 2" :
+                                   element.element_type == "heading3" ? "Heading 3" :
+                                   element.element_type == "paragraph" ? "Paragraph text..." :
+                                   element.element_type == "list_item" ? "List item..." :
+                                   element.element_type == "blockquote" ? "Quote..." :
+                                   "Content...";
+                        
+                        edit_started => {
+                            if (root.enable_inline_editing) {
+                                root.current_editing_index = index;
+                                root.element_edit_started(element.element_id);
+                            }
+                        }
+                        
+                        edit_finished(new_content) => {
+                            root.current_editing_index = -1;
+                            root.element_edit_finished(element.element_id, new_content);
+                        }
+                        
+                        edit_cancelled => {
+                            root.current_editing_index = -1;
+                        }
+                    }
+                }
+                
+                // Add button for new content
+                if root.enable_inline_editing: add_content_button := Rectangle {
+                    width: parent.width - 2 * Theme.spacing_md;
+                    height: 40px;
+                    background: Colors.surface;
+                    border_width: 2px;
+                    border_color: Colors.border_dashed;
+                    border_radius: Theme.border_radius_sm;
+                    
+                    states [
+                        hover when add_touch.has_hover: {
+                            background: Colors.surface_hover;
+                            border_color: Colors.primary;
+                        }
+                    ]
+                    
+                    add_touch := TouchArea {
+                        clicked => {
+                            // Add a new paragraph element
+                            root.element_edit_finished("new", "\n\nNew paragraph");
+                        }
+                    }
+                    
+                    HorizontalLayout {
+                        spacing: Theme.spacing_xs;
+                        alignment: center;
+                        
+                        Text {
+                            text: "+";
+                            font_size: Theme.font_size_lg;
+                            color: Colors.primary;
+                            vertical_alignment: center;
+                        }
+                        
+                        Text {
+                            text: "Add content";
+                            font_size: Theme.font_size_base;
+                            color: Colors.text_muted;
+                            vertical_alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Preview controls and metadata
+    preview_controls := Rectangle {
+        x: parent.width - 200px;
+        y: 10px;
+        width: 190px;
+        height: 120px;
+        background: Colors.surface;
+        border_width: 1px;
+        border_color: Colors.border;
+        border_radius: Theme.border_radius_sm;
+        drop_shadow_blur: 4px;
+        drop_shadow_color: #00000020;
+        opacity: 0.9;
+        
+        VerticalLayout {
+            padding: Theme.spacing_sm;
+            spacing: Theme.spacing_xs;
+            
+            // Title
+            Text {
+                text: "Live Preview";
+                font_size: Theme.font_size_base;
+                color: Colors.text_primary;
+                font_weight: 600;
+                horizontal_alignment: center;
+            }
+            
+            // Separator
+            Rectangle {
+                height: 1px;
+                background: Colors.border;
+            }
+            
+            // Metadata
+            HorizontalLayout {
+                spacing: Theme.spacing_sm;
+                alignment: space_between;
+                
+                Text {
+                    text: "Words:";
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_muted;
+                }
+                
+                Text {
+                    text: root.rendered_content.word_count;
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_primary;
+                }
+            }
+            
+            HorizontalLayout {
+                spacing: Theme.spacing_sm;
+                alignment: space_between;
+                
+                Text {
+                    text: "Headings:";
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_muted;
+                }
+                
+                Text {
+                    text: root.rendered_content.heading_count;
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_primary;
+                }
+            }
+            
+            // Toggle buttons
+            HorizontalLayout {
+                spacing: Theme.spacing_xs;
+                
+                inline_edit_toggle := Rectangle {
+                    width: 80px;
+                    height: 24px;
+                    background: root.enable_inline_editing ? Colors.success_light : Colors.surface;
+                    border_width: 1px;
+                    border_color: root.enable_inline_editing ? Colors.success : Colors.border;
+                    border_radius: Theme.border_radius_sm;
+                    
+                    states [
+                        hover when inline_edit_touch.has_hover: {
+                            background: root.enable_inline_editing ? Colors.success : Colors.surface_hover;
+                        }
+                    ]
+                    
+                    inline_edit_touch := TouchArea {
+                        clicked => {
+                            root.enable_inline_editing = !root.enable_inline_editing;
+                        }
+                    }
+                    
+                    Text {
+                        text: "Inline Edit";
+                        font_size: Theme.font_size_small;
+                        color: root.enable_inline_editing ? Colors.success : Colors.text_muted;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                    }
+                }
+                
+                borders_toggle := Rectangle {
+                    width: 60px;
+                    height: 24px;
+                    background: root.show_element_borders ? Colors.info_light : Colors.surface;
+                    border_width: 1px;
+                    border_color: root.show_element_borders ? Colors.info : Colors.border;
+                    border_radius: Theme.border_radius_sm;
+                    
+                    states [
+                        hover when borders_touch.has_hover: {
+                            background: root.show_element_borders ? Colors.info : Colors.surface_hover;
+                        }
+                    ]
+                    
+                    borders_touch := TouchArea {
+                        clicked => {
+                            root.show_element_borders = !root.show_element_borders;
+                        }
+                    }
+                    
+                    Text {
+                        text: "Borders";
+                        font_size: Theme.font_size_small;
+                        color: root.show_element_borders ? Colors.info : Colors.text_muted;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Combined markdown editor with live preview
+export component MarkdownEditorWithPreview inherits Rectangle {
+    in property <string> content: "";
+    in property <bool> live_preview_enabled: true;
+    in property <bool> show_preview_only: false;
+    in property <string> mode: "markdown";
+    in property <string> language: "en";
+    
+    // Split pane properties
+    in-out property <length> split_position: 50%;
+    property <bool> is_dragging: false;
+    
+    callback content_changed(string);
+    callback preview_updated(RenderedContent);
+    callback element_edited(string /* element_id */, string /* new_content */);
+    
+    // Mock rendered content - in real implementation this would come from Rust backend
+    property <RenderedContent> mock_rendered: {
+        html: "<h1>Sample</h1><p>Content</p>",
+        elements: [
+            {
+                element_type: "heading1",
+                content: "Sample Heading",
+                start_line: 0,
+                start_col: 0,
+                end_line: 0,
+                end_col: 15,
+                editable: true,
+                element_id: "h1-0",
+            },
+            {
+                element_type: "paragraph",
+                content: "This is sample content that demonstrates the live preview functionality.",
+                start_line: 2,
+                start_col: 0,
+                end_line: 2,
+                end_col: 72,
+                editable: true,
+                element_id: "p-1",
+            }
+        ],
+        word_count: 12,
+        heading_count: 1,
+    };
+    
+    background: Colors.editor_background;
+    
+    if !root.show_preview_only: HorizontalLayout {
+        spacing: 0px;
+        
+        // Markdown source editor
+        editor_pane := Rectangle {
+            width: root.split_position - 2px;
+            background: Colors.background;
+            
+            VerticalLayout {
+                spacing: 0px;
+                
+                // Editor toolbar
+                toolbar := Rectangle {
+                    height: Theme.toolbar_height;
+                    background: Colors.surface;
+                    border_width: 1px;
+                    border_color: Colors.border;
+                    
+                    HorizontalLayout {
+                        padding: Theme.spacing_sm;
+                        spacing: Theme.spacing_xs;
+                        alignment: start;
+                        
+                        Text {
+                            text: "Markdown Editor";
+                            font_size: Theme.font_size_base;
+                            color: Colors.text_primary;
+                            font_weight: 600;
+                            vertical_alignment: center;
+                        }
+                        
+                        Rectangle {
+                            width: 1px;
+                            height: 20px;
+                            background: Colors.border;
+                        }
+                        
+                        preview_toggle := Rectangle {
+                            width: 100px;
+                            height: 24px;
+                            background: root.live_preview_enabled ? Colors.success_light : Colors.surface;
+                            border_width: 1px;
+                            border_color: root.live_preview_enabled ? Colors.success : Colors.border;
+                            border_radius: Theme.border_radius_sm;
+                            
+                            states [
+                                hover when preview_toggle_touch.has_hover: {
+                                    background: root.live_preview_enabled ? Colors.success : Colors.surface_hover;
+                                }
+                            ]
+                            
+                            preview_toggle_touch := TouchArea {
+                                clicked => {
+                                    root.live_preview_enabled = !root.live_preview_enabled;
+                                }
+                            }
+                            
+                            Text {
+                                text: "Live Preview";
+                                font_size: Theme.font_size_small;
+                                color: root.live_preview_enabled ? Colors.success : Colors.text_muted;
+                                horizontal_alignment: center;
+                                vertical_alignment: center;
+                            }
+                        }
+                    }
+                }
+                
+                // Text editor
+                ScrollView {
+                    markdown_editor := TextEdit {
+                        text: root.content;
+                        font_family: "Consolas, 'Courier New', monospace";
+                        font_size: Theme.font_size_base;
+                        wrap: word_wrap;
+                        
+                        edited(text) => {
+                            root.content_changed(text);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Splitter
+        if root.live_preview_enabled: splitter := Rectangle {
+            x: root.split_position - 2px;
+            width: 4px;
+            height: parent.height;
+            background: Colors.border;
+            
+            states [
+                hover when splitter_touch.has_hover: {
+                    background: Colors.primary;
+                    width: 6px;
+                    x: root.split_position - 3px;
+                }
+                dragging when root.is_dragging: {
+                    background: Colors.primary;
+                    width: 6px;
+                    x: root.split_position - 3px;
+                }
+            ]
+            
+            splitter_touch := TouchArea {
+                mouse_cursor: col_resize;
+                
+                pointer_event(event) => {
+                    if (event.kind == PointerEventKind.down) {
+                        root.is_dragging = true;
+                    } else if (event.kind == PointerEventKind.up) {
+                        root.is_dragging = false;
+                    } else if (event.kind == PointerEventKind.move && root.is_dragging) {
+                        let new_position = event.position.x / parent.width * 100%;
+                        root.split_position = max(25%, min(75%, new_position));
+                    }
+                }
+            }
+        }
+        
+        // Live preview pane
+        if root.live_preview_enabled: preview_pane := Rectangle {
+            x: root.split_position + (root.live_preview_enabled ? 2px : 0px);
+            width: parent.width - root.split_position - (root.live_preview_enabled ? 2px : 0px);
+            background: Colors.background;
+            
+            live_preview := MarkdownLivePreview {
+                markdown_content: root.content;
+                rendered_content: root.mock_rendered;
+                enable_inline_editing: true;
+                
+                element_edit_finished(element_id, new_content) => {
+                    root.element_edited(element_id, new_content);
+                }
+                
+                content_changed(new_content) => {
+                    root.content_changed(new_content);
+                }
+            }
+        }
+    }
+    
+    // Preview-only mode
+    if root.show_preview_only: MarkdownLivePreview {
+        markdown_content: root.content;
+        rendered_content: root.mock_rendered;
+        enable_inline_editing: true;
+        
+        element_edit_finished(element_id, new_content) => {
+            root.element_edited(element_id, new_content);
+        }
+        
+        content_changed(new_content) => {
+            root.content_changed(new_content);
+        }
+    }
+}

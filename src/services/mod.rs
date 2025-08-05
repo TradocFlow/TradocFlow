@@ -13,6 +13,7 @@ pub mod chunk_linking_service;
 pub mod editor_sync_service;
 pub mod language_syntax_service;
 pub mod split_pane_editor_integration_test;
+pub mod markdown_service;
 pub mod collaborative_editing_service;
 #[cfg(test)]
 pub mod collaborative_editing_service_tests;
@@ -22,6 +23,9 @@ pub mod permission_service;
 pub mod user_management_service_tests;
 #[cfg(test)]
 pub mod permission_service_tests;
+pub mod export_service;
+#[cfg(test)]
+pub mod export_service_tests;
 
 pub use project_manager::ProjectManager;
 pub use project_service::ProjectService;
@@ -66,4 +70,11 @@ pub use user_management_service::{
 pub use permission_service::{
     PermissionService, PermissionContext, PermissionGrant, GrantPermissionRequest,
     PermissionError
+};
+pub use markdown_service::{
+    MarkdownService, MarkdownElement, Position, RenderedMarkdown, MarkdownMetadata
+};
+pub use export_service::{
+    ExportService, ExportRequest, ExportConfiguration, ExportLayout, ExportJob,
+    ExportStatus, ExportProgress, ExportedFile, ExportHistory
 };

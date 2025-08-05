@@ -1,0 +1,586 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { ScrollView, ListView, Button, LineEdit, ComboBox } from "std-widgets.slint";
+
+// Terminology highlight information
+export struct TermHighlight {
+    term_id: string,
+    term: string,
+    start_position: int,
+    end_position: int,
+    highlight_type: string, // "do_not_translate", "inconsistent", "suggestion", "validated"
+    definition: string,
+    confidence: float,
+}
+
+// Terminology suggestion information
+export struct TermSuggestion {
+    original_text: string,
+    suggested_term: string,
+    definition: string,
+    confidence: float,
+    position: int,
+    reason: string,
+}
+
+// Consistency check result
+export struct ConsistencyResult {
+    term: string,
+    language: string,
+    expected_term: string,
+    found_terms: [string],
+    positions: [int],
+}
+
+// Individual term item component
+component TermItem inherits Rectangle {
+    in property <TermHighlight> term;
+    in property <bool> is-selected: false;
+    
+    callback term-clicked(TermHighlight);
+    callback apply-suggestion();
+    callback ignore-suggestion();
+    
+    height: 60px;
+    background: root.is-selected ? Colors.primary-light : 
+                (touch-area.has-hover ? Colors.surface-hover : Colors.surface);
+    border-radius: Theme.border-radius-sm;
+    border-width: 1px;
+    border-color: root.is-selected ? Colors.primary : Colors.border;
+    
+    touch-area := TouchArea {
+        clicked => {
+            root.term-clicked(root.term);
+        }
+    }
+    
+    HorizontalLayout {
+        padding: Theme.spacing-sm;
+        spacing: Theme.spacing-sm;
+        
+        // Highlight type indicator
+        Rectangle {
+            width: 4px;
+            background: root.term.highlight_type == "do_not_translate" ? Colors.warning :
+                       root.term.highlight_type == "inconsistent" ? Colors.error :
+                       root.term.highlight_type == "suggestion" ? Colors.info :
+                       Colors.success;
+            border-radius: 2px;
+        }
+        
+        VerticalLayout {
+            spacing: 2px;
+            
+            // Term name
+            Text {
+                text: root.term.term;
+                font-size: Theme.font-size-base;
+                font-weight: 600;
+                color: Colors.text-primary;
+                horizontal-alignment: left;
+            }
+            
+            // Definition or type info
+            Text {
+                text: root.term.definition != "" ? root.term.definition :
+                     root.term.highlight_type == "do_not_translate" ? "Do not translate" :
+                     root.term.highlight_type == "inconsistent" ? "Inconsistent usage" :
+                     root.term.highlight_type == "suggestion" ? "Suggested term" :
+                     "Validated term";
+                font-size: Theme.font-size-small;
+                color: Colors.text-muted;
+                horizontal-alignment: left;
+                wrap: word-wrap;
+            }
+            
+            // Confidence indicator for suggestions
+            if root.term.highlight_type == "suggestion": HorizontalLayout {
+                spacing: 4px;
+                
+                Text {
+                    text: "Confidence:";
+                    font-size: Theme.font-size-small;
+                    color: Colors.text-muted;
+                }
+                
+                Rectangle {
+                    width: 60px;
+                    height: 4px;
+                    background: Colors.border;
+                    border-radius: 2px;
+                    
+                    Rectangle {
+                        width: parent.width * root.term.confidence;
+                        height: parent.height;
+                        background: root.term.confidence > 0.8 ? Colors.success :
+                                   root.term.confidence > 0.6 ? Colors.warning :
+                                   Colors.error;
+                        border-radius: 2px;
+                    }
+                }
+                
+                Text {
+                    text: Math.round(root.term.confidence * 100) + "%";
+                    font-size: Theme.font-size-small;
+                    color: Colors.text-muted;
+                }
+            }
+        }
+        
+        // Action buttons for suggestions
+        if root.term.highlight_type == "suggestion": VerticalLayout {
+            spacing: 4px;
+            alignment: center;
+            
+            Button {
+                text: "Apply";
+                width: 50px;
+                height: 20px;
+                
+                clicked => {
+                    root.apply-suggestion();
+                }
+            }
+            
+            Button {
+                text: "Ignore";
+                width: 50px;
+                height: 20px;
+                
+                clicked => {
+                    root.ignore-suggestion();
+                }
+            }
+        }
+    }
+}
+
+// Suggestion item component
+component SuggestionItem inherits Rectangle {
+    in property <TermSuggestion> suggestion;
+    
+    callback apply-suggestion(TermSuggestion);
+    callback ignore-suggestion(TermSuggestion);
+    
+    height: 80px;
+    background: touch-area.has-hover ? Colors.surface-hover : Colors.surface;
+    border-radius: Theme.border-radius-sm;
+    border-width: 1px;
+    border-color: Colors.border;
+    
+    touch-area := TouchArea {}
+    
+    HorizontalLayout {
+        padding: Theme.spacing-sm;
+        spacing: Theme.spacing-sm;
+        
+        VerticalLayout {
+            spacing: 4px;
+            
+            // Original -> Suggested
+            HorizontalLayout {
+                spacing: 8px;
+                
+                Text {
+                    text: "\"" + root.suggestion.original_text + "\"";
+                    font-size: Theme.font-size-base;
+                    color: Colors.text-primary;
+                    font-weight: 500;
+                }
+                
+                Text {
+                    text: "→";
+                    font-size: Theme.font-size-base;
+                    color: Colors.text-muted;
+                }
+                
+                Text {
+                    text: "\"" + root.suggestion.suggested_term + "\"";
+                    font-size: Theme.font-size-base;
+                    color: Colors.primary;
+                    font-weight: 600;
+                }
+            }
+            
+            // Definition
+            if root.suggestion.definition != "": Text {
+                text: root.suggestion.definition;
+                font-size: Theme.font-size-small;
+                color: Colors.text-muted;
+                wrap: word-wrap;
+            }
+            
+            // Reason and confidence
+            HorizontalLayout {
+                spacing: 8px;
+                
+                Text {
+                    text: root.suggestion.reason;
+                    font-size: Theme.font-size-small;
+                    color: Colors.text-muted;
+                }
+                
+                Text {
+                    text: "(" + Math.round(root.suggestion.confidence * 100) + "%)";
+                    font-size: Theme.font-size-small;
+                    color: Colors.text-muted;
+                }
+            }
+        }
+        
+        VerticalLayout {
+            spacing: 4px;
+            alignment: center;
+            
+            Button {
+                text: "Apply";
+                width: 60px;
+                height: 24px;
+                
+                clicked => {
+                    root.apply-suggestion(root.suggestion);
+                }
+            }
+            
+            Button {
+                text: "Ignore";
+                width: 60px;
+                height: 24px;
+                
+                clicked => {
+                    root.ignore-suggestion(root.suggestion);
+                }
+            }
+        }
+    }
+}
+
+// Consistency issue item component
+component ConsistencyItem inherits Rectangle {
+    in property <ConsistencyResult> issue;
+    
+    callback fix-consistency(ConsistencyResult);
+    
+    height: 100px;
+    background: Colors.primary-light;
+    border-radius: Theme.border-radius-sm;
+    border-width: 1px;
+    border-color: Colors.error;
+    
+    HorizontalLayout {
+        padding: Theme.spacing-sm;
+        spacing: Theme.spacing-sm;
+        
+        // Warning icon
+        Rectangle {
+            width: 24px;
+            height: 24px;
+            
+            Text {
+                text: "⚠";
+                font-size: 16px;
+                color: Colors.error;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+        
+        VerticalLayout {
+            spacing: 4px;
+            
+            Text {
+                text: "Inconsistent term: " + root.issue.term;
+                font-size: Theme.font-size-base;
+                font-weight: 600;
+                color: Colors.text-primary;
+            }
+            
+            Text {
+                text: "Language: " + root.issue.language;
+                font-size: Theme.font-size-small;
+                color: Colors.text-muted;
+            }
+            
+            Text {
+                text: "Expected: " + root.issue.expected_term;
+                font-size: Theme.font-size-small;
+                color: Colors.success;
+            }
+            
+            Text {
+                text: "Found: " + root.issue.found_terms.length + " variations";
+                font-size: Theme.font-size-small;
+                color: Colors.error;
+            }
+        }
+        
+        Button {
+            text: "Fix";
+            width: 50px;
+            height: 28px;
+            
+            clicked => {
+                root.fix-consistency(root.issue);
+            }
+        }
+    }
+}
+
+// Main terminology panel component
+export component TerminologyPanel inherits Rectangle {
+    in property <[TermHighlight]> highlighted-terms: [];
+    in property <[TermSuggestion]> suggestions: [];
+    in property <[ConsistencyResult]> consistency-issues: [];
+    in property <string> current-language: "en";
+    in property <bool> show-suggestions: true;
+    in property <bool> show-consistency: true;
+    
+    // Callbacks
+    callback term-selected(TermHighlight);
+    callback suggestion-applied(TermSuggestion);
+    callback suggestion-ignored(TermSuggestion);
+    callback consistency-fixed(ConsistencyResult);
+    callback refresh-terminology();
+    callback toggle-highlighting(bool);
+    
+    property <string> active-tab: "highlights";
+    property <bool> highlighting-enabled: true;
+    
+    background: Colors.surface;
+    border-width: 1px;
+    border-color: Colors.border;
+    
+    VerticalLayout {
+        spacing: 0px;
+        
+        // Header with tabs and controls
+        Rectangle {
+            height: 40px;
+            background: Colors.background;
+            border-width: 1px;
+            border-color: Colors.border;
+            
+            HorizontalLayout {
+                padding: Theme.spacing-sm;
+                spacing: Theme.spacing-sm;
+                alignment: space-between;
+                
+                HorizontalLayout {
+                    spacing: 0px;
+                    
+                    // Tab buttons
+                    Rectangle {
+                        width: 80px;
+                        height: 28px;
+                        background: root.active-tab == "highlights" ? Colors.primary : transparent;
+                        border-radius: Theme.border-radius-sm;
+                        
+                        TouchArea {
+                            clicked => {
+                                root.active-tab = "highlights";
+                            }
+                        }
+                        
+                        Text {
+                            text: "Terms";
+                            font-size: Theme.font-size-small;
+                            color: root.active-tab == "highlights" ? Colors.on-primary : Colors.text-primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    
+                    Rectangle {
+                        width: 90px;
+                        height: 28px;
+                        background: root.active-tab == "suggestions" ? Colors.primary : transparent;
+                        border-radius: Theme.border-radius-sm;
+                        
+                        TouchArea {
+                            clicked => {
+                                root.active-tab = "suggestions";
+                            }
+                        }
+                        
+                        Text {
+                            text: "Suggestions";
+                            font-size: Theme.font-size-small;
+                            color: root.active-tab == "suggestions" ? Colors.on-primary : Colors.text-primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    
+                    Rectangle {
+                        width: 90px;
+                        height: 28px;
+                        background: root.active-tab == "consistency" ? Colors.primary : transparent;
+                        border-radius: Theme.border-radius-sm;
+                        
+                        TouchArea {
+                            clicked => {
+                                root.active-tab = "consistency";
+                            }
+                        }
+                        
+                        Text {
+                            text: "Issues";
+                            font-size: Theme.font-size-small;
+                            color: root.active-tab == "consistency" ? Colors.on-primary : Colors.text-primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+                
+                HorizontalLayout {
+                    spacing: 4px;
+                    
+                    // Toggle highlighting button
+                    Rectangle {
+                        width: 24px;
+                        height: 24px;
+                        background: root.highlighting-enabled ? Colors.success : Colors.surface;
+                        border-radius: 12px;
+                        border-width: 1px;
+                        border-color: Colors.border;
+                        
+                        TouchArea {
+                            clicked => {
+                                root.highlighting-enabled = !root.highlighting-enabled;
+                                root.toggle-highlighting(root.highlighting-enabled);
+                            }
+                        }
+                        
+                        Text {
+                            text: root.highlighting-enabled ? "●" : "○";
+                            font-size: Theme.font-size-small;
+                            color: root.highlighting-enabled ? Colors.on-primary : Colors.text-muted;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    
+                    // Refresh button
+                    Rectangle {
+                        width: 24px;
+                        height: 24px;
+                        background: touch-area-refresh.has-hover ? Colors.surface-hover : transparent;
+                        border-radius: 12px;
+                        
+                        touch-area-refresh := TouchArea {
+                            clicked => {
+                                root.refresh-terminology();
+                            }
+                        }
+                        
+                        Text {
+                            text: "↻";
+                            font-size: Theme.font-size-base;
+                            color: Colors.text-primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Content area
+        ScrollView {
+            // Highlighted terms tab
+            if root.active-tab == "highlights": VerticalLayout {
+                padding: Theme.spacing-sm;
+                spacing: Theme.spacing-xs;
+                
+                if root.highlighted-terms.length == 0: Rectangle {
+                    height: 60px;
+                    
+                    Text {
+                        text: "No terminology found in current text";
+                        font-size: Theme.font-size-base;
+                        color: Colors.text-muted;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+                
+                for term[index] in root.highlighted-terms: TermItem {
+                    term: term;
+                    
+                    term-clicked(highlight) => {
+                        root.term-selected(highlight);
+                    }
+                    
+                    apply-suggestion => {
+                        // Convert highlight to suggestion and apply
+                        root.suggestion-applied({
+                            original_text: term.term,
+                            suggested_term: term.term,
+                            definition: term.definition,
+                            confidence: term.confidence,
+                            position: term.start_position,
+                            reason: "Applied from terminology"
+                        });
+                    }
+                }
+            }
+            
+            // Suggestions tab
+            if root.active-tab == "suggestions": VerticalLayout {
+                padding: Theme.spacing-sm;
+                spacing: Theme.spacing-xs;
+                
+                if root.suggestions.length == 0: Rectangle {
+                    height: 60px;
+                    
+                    Text {
+                        text: "No terminology suggestions available";
+                        font-size: Theme.font-size-base;
+                        color: Colors.text-muted;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+                
+                for suggestion[index] in root.suggestions: SuggestionItem {
+                    suggestion: suggestion;
+                    
+                    apply-suggestion(sug) => {
+                        root.suggestion-applied(sug);
+                    }
+                    
+                    ignore-suggestion(sug) => {
+                        root.suggestion-ignored(sug);
+                    }
+                }
+            }
+            
+            // Consistency issues tab
+            if root.active-tab == "consistency": VerticalLayout {
+                padding: Theme.spacing-sm;
+                spacing: Theme.spacing-xs;
+                
+                if root.consistency-issues.length == 0: Rectangle {
+                    height: 60px;
+                    
+                    Text {
+                        text: "No consistency issues found";
+                        font-size: Theme.font-size-base;
+                        color: Colors.text-muted;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+                
+                for issue[index] in root.consistency-issues: ConsistencyItem {
+                    issue: issue;
+                    
+                    fix-consistency(cons) => {
+                        root.consistency-fixed(cons);
+                    }
+                }
+            }
+        }
+    }
+}

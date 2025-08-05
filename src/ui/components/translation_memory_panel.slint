@@ -1,0 +1,718 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { ScrollView, Button, LineEdit } from "std-widgets.slint";
+
+// Translation suggestion structure
+export struct TranslationSuggestion {
+    id: string,
+    source_text: string,
+    suggested_text: string,
+    confidence: float,
+    similarity: float,
+    context: string,
+    source: string, // "Memory", "Terminology", "Machine", "Manual"
+}
+
+// Translation match structure for search results
+export struct TranslationMatch {
+    id: string,
+    source_text: string,
+    target_text: string,
+    confidence_score: float,
+    similarity_score: float,
+    context: string,
+}
+
+// Translation memory panel component
+export component TranslationMemoryPanel inherits Rectangle {
+    in property <[TranslationSuggestion]> suggestions: [];
+    in property <[TranslationMatch]> search_results: [];
+    in property <string> current_text: "";
+    in property <string> source_language: "en";
+    in property <string> target_language: "de";
+    in property <bool> auto_suggest: true;
+    in property <float> confidence_threshold: 0.7;
+    in property <bool> is_searching: false;
+    
+    // Search properties
+    in-out property <string> search_query: "";
+    property <bool> show_search_results: false;
+    
+    // Callbacks
+    callback suggestion_selected(TranslationSuggestion);
+    callback search_translation_memory(string);
+    callback insert_suggestion(string);
+    callback create_translation_unit(string, string);
+    callback update_confidence_threshold(float);
+    callback toggle_auto_suggest(bool);
+    
+    background: Colors.surface;
+    border_width: 1px;
+    border_color: Colors.border;
+    
+    VerticalLayout {
+        spacing: 0px;
+        
+        // Header with title and controls
+        header := Rectangle {
+            height: 40px;
+            background: Colors.surface_hover;
+            border_width: 0px;
+            border_bottom_width: 1px;
+            border_color: Colors.border;
+            
+            HorizontalLayout {
+                padding: Theme.spacing_sm;
+                spacing: Theme.spacing_xs;
+                alignment: space_between;
+                
+                HorizontalLayout {
+                    spacing: Theme.spacing_xs;
+                    alignment: start;
+                    
+                    Text {
+                        text: "🧠";
+                        font_size: Theme.font_size_base;
+                        vertical_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "Translation Memory";
+                        font_size: Theme.font_size_base;
+                        font_weight: 600;
+                        color: Colors.text_primary;
+                        vertical_alignment: center;
+                    }
+                }
+                
+                HorizontalLayout {
+                    spacing: 4px;
+                    alignment: end;
+                    
+                    // Auto-suggest toggle
+                    auto_suggest_button := Rectangle {
+                        width: 24px;
+                        height: 24px;
+                        border_radius: 12px;
+                        background: root.auto_suggest ? Colors.success : Colors.surface;
+                        border_width: 1px;
+                        border_color: root.auto_suggest ? Colors.success : Colors.border;
+                        
+                        states [
+                            hover when auto_suggest_touch.has_hover: {
+                                background: root.auto_suggest ? Colors.success_light : Colors.surface_hover;
+                            }
+                        ]
+                        
+                        auto_suggest_touch := TouchArea {
+                            clicked => {
+                                root.toggle_auto_suggest(!root.auto_suggest);
+                            }
+                        }
+                        
+                        Text {
+                            text: root.auto_suggest ? "✓" : "○";
+                            font_size: Theme.font_size_small;
+                            color: root.auto_suggest ? Colors.success : Colors.text_muted;
+                            horizontal_alignment: center;
+                            vertical_alignment: center;
+                        }
+                    }
+                    
+                    Text {
+                        text: "Auto";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        vertical_alignment: center;
+                    }
+                }
+            }
+        }
+        
+        // Search section
+        search_section := Rectangle {
+            height: 60px;
+            background: Colors.background;
+            border_width: 0px;
+            border_bottom_width: 1px;
+            border_color: Colors.border;
+            
+            VerticalLayout {
+                padding: Theme.spacing_sm;
+                spacing: 4px;
+                
+                HorizontalLayout {
+                    spacing: Theme.spacing_xs;
+                    
+                    search_input := LineEdit {
+                        placeholder_text: "Search translation memory...";
+                        text: root.search_query;
+                        
+                        edited(text) => {
+                            root.search_query = text;
+                            if (text.length > 2) {
+                                root.search_translation_memory(text);
+                                root.show_search_results = true;
+                            } else {
+                                root.show_search_results = false;
+                            }
+                        }
+                    }
+                    
+                    search_button := Button {
+                        text: "🔍";
+                        width: 32px;
+                        enabled: root.search_query.length > 0;
+                        
+                        clicked => {
+                            if (root.search_query.length > 0) {
+                                root.search_translation_memory(root.search_query);
+                                root.show_search_results = true;
+                            }
+                        }
+                    }
+                }
+                
+                // Language pair indicator
+                HorizontalLayout {
+                    spacing: 4px;
+                    alignment: start;
+                    
+                    Text {
+                        text: root.source_language.to_uppercase();
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        vertical_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "→";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        vertical_alignment: center;
+                    }
+                    
+                    Text {
+                        text: root.target_language.to_uppercase();
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        vertical_alignment: center;
+                    }
+                    
+                    Rectangle {
+                        width: 1px;
+                        height: 12px;
+                        background: Colors.border;
+                    }
+                    
+                    Text {
+                        text: "Threshold: " + Math.round(root.confidence_threshold * 100) + "%";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        vertical_alignment: center;
+                    }
+                }
+            }
+        }
+        
+        // Content area with suggestions or search results
+        content_area := ScrollView {
+            if root.show_search_results: VerticalLayout {
+                spacing: 2px;
+                padding: Theme.spacing_xs;
+                
+                // Search results header
+                if root.search_results.length > 0: Rectangle {
+                    height: 24px;
+                    
+                    HorizontalLayout {
+                        padding_left: Theme.spacing_sm;
+                        padding_right: Theme.spacing_sm;
+                        alignment: space_between;
+                        
+                        Text {
+                            text: "Search Results (" + root.search_results.length + ")";
+                            font_size: Theme.font_size_small;
+                            font_weight: 600;
+                            color: Colors.text_primary;
+                            vertical_alignment: center;
+                        }
+                        
+                        close_search_button := TouchArea {
+                            width: 20px;
+                            height: 20px;
+                            
+                            clicked => {
+                                root.show_search_results = false;
+                                root.search_query = "";
+                            }
+                            
+                            Rectangle {
+                                background: parent.has_hover ? Colors.surface_hover : transparent;
+                                border_radius: 10px;
+                                
+                                Text {
+                                    text: "✕";
+                                    font_size: Theme.font_size_small;
+                                    color: Colors.text_muted;
+                                    horizontal_alignment: center;
+                                    vertical_alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Search results list
+                for match[index] in root.search_results: Rectangle {
+                    height: 80px;
+                    background: Colors.background;
+                    border_width: 1px;
+                    border_color: Colors.border;
+                    border_radius: Theme.border_radius_sm;
+                    
+                    states [
+                        hover when match_touch.has_hover: {
+                            background: Colors.surface_hover;
+                            border_color: Colors.primary;
+                        }
+                    ]
+                    
+                    match_touch := TouchArea {
+                        clicked => {
+                            root.insert_suggestion(match.target_text);
+                            root.show_search_results = false;
+                        }
+                    }
+                    
+                    VerticalLayout {
+                        padding: Theme.spacing_sm;
+                        spacing: 4px;
+                        
+                        // Source text
+                        Text {
+                            text: match.source_text;
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_muted;
+                            wrap: word_wrap;
+                            overflow: elide;
+                            max_height: 20px;
+                        }
+                        
+                        // Target text
+                        Text {
+                            text: match.target_text;
+                            font_size: Theme.font_size_base;
+                            color: Colors.text_primary;
+                            font_weight: 500;
+                            wrap: word_wrap;
+                            overflow: elide;
+                            max_height: 20px;
+                        }
+                        
+                        // Confidence and similarity indicators
+                        HorizontalLayout {
+                            spacing: Theme.spacing_xs;
+                            alignment: space_between;
+                            
+                            HorizontalLayout {
+                                spacing: 4px;
+                                
+                                confidence_indicator := Rectangle {
+                                    width: 40px;
+                                    height: 12px;
+                                    border_radius: 6px;
+                                    background: match.confidence_score >= 0.8 ? Colors.success_light :
+                                               match.confidence_score >= 0.6 ? Colors.warning_light :
+                                               Colors.error_light;
+                                    border_width: 1px;
+                                    border_color: match.confidence_score >= 0.8 ? Colors.success :
+                                                 match.confidence_score >= 0.6 ? Colors.warning :
+                                                 Colors.error;
+                                    
+                                    Rectangle {
+                                        width: parent.width * match.confidence_score;
+                                        height: parent.height - 2px;
+                                        x: 1px;
+                                        y: 1px;
+                                        border_radius: 5px;
+                                        background: match.confidence_score >= 0.8 ? Colors.success :
+                                                   match.confidence_score >= 0.6 ? Colors.warning :
+                                                   Colors.error;
+                                    }
+                                }
+                                
+                                Text {
+                                    text: Math.round(match.confidence_score * 100) + "%";
+                                    font_size: 9px;
+                                    color: Colors.text_muted;
+                                    vertical_alignment: center;
+                                }
+                            }
+                            
+                            HorizontalLayout {
+                                spacing: 4px;
+                                
+                                Text {
+                                    text: "Sim: " + Math.round(match.similarity_score * 100) + "%";
+                                    font_size: 9px;
+                                    color: Colors.text_muted;
+                                    vertical_alignment: center;
+                                }
+                                
+                                if match.context != "": Text {
+                                    text: "📝";
+                                    font_size: 9px;
+                                    vertical_alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if root.search_results.length == 0 && root.is_searching: Rectangle {
+                    height: 60px;
+                    
+                    VerticalLayout {
+                        alignment: center;
+                        
+                        Text {
+                            text: "🔍";
+                            font_size: Theme.font_size_large;
+                            color: Colors.text_muted;
+                            horizontal_alignment: center;
+                        }
+                        
+                        Text {
+                            text: "Searching...";
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_muted;
+                            horizontal_alignment: center;
+                        }
+                    }
+                }
+                
+                if root.search_results.length == 0 && !root.is_searching && root.search_query.length > 0: Rectangle {
+                    height: 60px;
+                    
+                    VerticalLayout {
+                        alignment: center;
+                        
+                        Text {
+                            text: "🚫";
+                            font_size: Theme.font_size_large;
+                            color: Colors.text_muted;
+                            horizontal_alignment: center;
+                        }
+                        
+                        Text {
+                            text: "No matches found";
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_muted;
+                            horizontal_alignment: center;
+                        }
+                    }
+                }
+            }
+            
+            if !root.show_search_results: VerticalLayout {
+                spacing: 2px;
+                padding: Theme.spacing_xs;
+                
+                // Auto-suggestions header
+                if root.suggestions.length > 0: Rectangle {
+                    height: 24px;
+                    
+                    HorizontalLayout {
+                        padding_left: Theme.spacing_sm;
+                        padding_right: Theme.spacing_sm;
+                        alignment: start;
+                        
+                        Text {
+                            text: "Suggestions (" + root.suggestions.length + ")";
+                            font_size: Theme.font_size_small;
+                            font_weight: 600;
+                            color: Colors.text_primary;
+                            vertical_alignment: center;
+                        }
+                    }
+                }
+                
+                // Suggestions list
+                for suggestion[index] in root.suggestions: Rectangle {
+                    height: 90px;
+                    background: Colors.background;
+                    border_width: 1px;
+                    border_color: Colors.border;
+                    border_radius: Theme.border_radius_sm;
+                    
+                    states [
+                        hover when suggestion_touch.has_hover: {
+                            background: Colors.surface_hover;
+                            border_color: Colors.primary;
+                        }
+                        high_confidence when suggestion.confidence >= root.confidence_threshold: {
+                            border_color: Colors.success;
+                            border_width: 2px;
+                        }
+                    ]
+                    
+                    suggestion_touch := TouchArea {
+                        clicked => {
+                            root.suggestion_selected(suggestion);
+                        }
+                    }
+                    
+                    VerticalLayout {
+                        padding: Theme.spacing_sm;
+                        spacing: 4px;
+                        
+                        // Source indicator and text
+                        HorizontalLayout {
+                            spacing: 4px;
+                            alignment: space_between;
+                            
+                            HorizontalLayout {
+                                spacing: 4px;
+                                
+                                source_icon := Text {
+                                    text: suggestion.source == "Memory" ? "🧠" :
+                                          suggestion.source == "Terminology" ? "📚" :
+                                          suggestion.source == "Machine" ? "🤖" :
+                                          "✏️";
+                                    font_size: Theme.font_size_small;
+                                    vertical_alignment: center;
+                                }
+                                
+                                Text {
+                                    text: suggestion.source;
+                                    font_size: Theme.font_size_small;
+                                    color: Colors.text_muted;
+                                    vertical_alignment: center;
+                                }
+                            }
+                            
+                            confidence_badge := Rectangle {
+                                width: 50px;
+                                height: 16px;
+                                border_radius: 8px;
+                                background: suggestion.confidence >= 0.8 ? Colors.success_light :
+                                           suggestion.confidence >= 0.6 ? Colors.warning_light :
+                                           Colors.error_light;
+                                border_width: 1px;
+                                border_color: suggestion.confidence >= 0.8 ? Colors.success :
+                                             suggestion.confidence >= 0.6 ? Colors.warning :
+                                             Colors.error;
+                                
+                                Text {
+                                    text: Math.round(suggestion.confidence * 100) + "%";
+                                    font_size: 9px;
+                                    color: suggestion.confidence >= 0.8 ? Colors.success :
+                                           suggestion.confidence >= 0.6 ? Colors.warning :
+                                           Colors.error;
+                                    horizontal_alignment: center;
+                                    vertical_alignment: center;
+                                    font_weight: 600;
+                                }
+                            }
+                        }
+                        
+                        // Source text (if different from current)
+                        if suggestion.source_text != root.current_text && suggestion.source_text != "": Text {
+                            text: "\"" + suggestion.source_text + "\"";
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_muted;
+                            wrap: word_wrap;
+                            overflow: elide;
+                            max_height: 16px;
+                            font_style: italic;
+                        }
+                        
+                        // Suggested text
+                        Text {
+                            text: suggestion.suggested_text;
+                            font_size: Theme.font_size_base;
+                            color: Colors.text_primary;
+                            font_weight: 500;
+                            wrap: word_wrap;
+                            overflow: elide;
+                            max_height: 20px;
+                        }
+                        
+                        // Context and similarity
+                        HorizontalLayout {
+                            spacing: Theme.spacing_xs;
+                            alignment: space_between;
+                            
+                            if suggestion.context != "": Text {
+                                text: "Context: " + suggestion.context;
+                                font_size: 9px;
+                                color: Colors.text_muted;
+                                overflow: elide;
+                                vertical_alignment: center;
+                            }
+                            
+                            if suggestion.similarity > 0: Text {
+                                text: "Similarity: " + Math.round(suggestion.similarity * 100) + "%";
+                                font_size: 9px;
+                                color: Colors.text_muted;
+                                vertical_alignment: center;
+                            }
+                        }
+                    }
+                }
+                
+                // Empty state for suggestions
+                if root.suggestions.length == 0 && root.current_text.length > 0: Rectangle {
+                    height: 80px;
+                    
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        
+                        Text {
+                            text: "💭";
+                            font_size: Theme.font_size_large;
+                            color: Colors.text_muted;
+                            horizontal_alignment: center;
+                        }
+                        
+                        Text {
+                            text: "No suggestions available";
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_muted;
+                            horizontal_alignment: center;
+                        }
+                        
+                        Text {
+                            text: "Try typing more text or adjusting the confidence threshold";
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_muted;
+                            horizontal_alignment: center;
+                            wrap: word_wrap;
+                        }
+                    }
+                }
+                
+                // Initial empty state
+                if root.suggestions.length == 0 && root.current_text.length == 0: Rectangle {
+                    height: 100px;
+                    
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        
+                        Text {
+                            text: "🧠";
+                            font_size: Theme.font_size_large;
+                            color: Colors.text_muted;
+                            horizontal_alignment: center;
+                        }
+                        
+                        Text {
+                            text: "Translation Memory";
+                            font_size: Theme.font_size_base;
+                            font_weight: 600;
+                            color: Colors.text_muted;
+                            horizontal_alignment: center;
+                        }
+                        
+                        Text {
+                            text: "Start typing to see translation suggestions";
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_muted;
+                            horizontal_alignment: center;
+                            wrap: word_wrap;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Footer with confidence threshold slider
+        footer := Rectangle {
+            height: 40px;
+            background: Colors.surface_hover;
+            border_width: 0px;
+            border_top_width: 1px;
+            border_color: Colors.border;
+            
+            HorizontalLayout {
+                padding: Theme.spacing_sm;
+                spacing: Theme.spacing_xs;
+                alignment: space_between;
+                
+                Text {
+                    text: "Confidence Threshold";
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_muted;
+                    vertical_alignment: center;
+                }
+                
+                // Simple threshold adjustment buttons
+                HorizontalLayout {
+                    spacing: 4px;
+                    
+                    threshold_down := TouchArea {
+                        width: 20px;
+                        height: 20px;
+                        
+                        clicked => {
+                            let new_threshold = Math.max(0.1, root.confidence_threshold - 0.1);
+                            root.update_confidence_threshold(new_threshold);
+                        }
+                        
+                        Rectangle {
+                            background: parent.has_hover ? Colors.surface_hover : Colors.surface;
+                            border_width: 1px;
+                            border_color: Colors.border;
+                            border_radius: 10px;
+                            
+                            Text {
+                                text: "−";
+                                font_size: Theme.font_size_small;
+                                color: Colors.text_primary;
+                                horizontal_alignment: center;
+                                vertical_alignment: center;
+                            }
+                        }
+                    }
+                    
+                    Text {
+                        text: Math.round(root.confidence_threshold * 100) + "%";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_primary;
+                        vertical_alignment: center;
+                        min_width: 30px;
+                        horizontal_alignment: center;
+                    }
+                    
+                    threshold_up := TouchArea {
+                        width: 20px;
+                        height: 20px;
+                        
+                        clicked => {
+                            let new_threshold = Math.min(1.0, root.confidence_threshold + 0.1);
+                            root.update_confidence_threshold(new_threshold);
+                        }
+                        
+                        Rectangle {
+                            background: parent.has_hover ? Colors.surface_hover : Colors.surface;
+                            border_width: 1px;
+                            border_color: Colors.border;
+                            border_radius: 10px;
+                            
+                            Text {
+                                text: "+";
+                                font_size: Theme.font_size_small;
+                                color: Colors.text_primary;
+                                horizontal_alignment: center;
+                                vertical_alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

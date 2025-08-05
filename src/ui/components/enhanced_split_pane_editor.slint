@@ -1,0 +1,771 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { SplitPaneEditor, SplitOrientation, LanguagePane, SyncEvent } from "./split_pane_editor.slint";
+import { TranslationMemoryPanel, TranslationSuggestion, TranslationMatch } from "./translation_memory_panel.slint";
+import { TermHighlight } from "./terminology_panel.slint";
+
+// Enhanced editor with integrated translation memory
+export component EnhancedSplitPaneEditor inherits Rectangle {
+    // Configuration properties
+    in property <SplitOrientation> orientation: SplitOrientation.Horizontal;
+    in property <string> mode: "markdown";
+    in property <bool> sync_enabled: true;
+    in property <bool> show_translation_memory: true;
+    in property <length> tm_panel_width: 300px;
+    
+    // Language panes
+    in-out property <LanguagePane> left_pane: {
+        language: "en",
+        content: "",
+        read_only: false,
+        cursor_position: 0,
+        scroll_position: 0px,
+    };
+    
+    in-out property <LanguagePane> right_pane: {
+        language: "de", 
+        content: "",
+        read_only: false,
+        cursor_position: 0,
+        scroll_position: 0px,
+    };
+    
+    // Translation memory properties
+    in property <[TranslationSuggestion]> tm_suggestions: [];
+    in property <[TranslationMatch]> tm_search_results: [];
+    in property <string> current_selection: "";
+    in property <bool> tm_auto_suggest: true;
+    in property <float> tm_confidence_threshold: 0.7;
+    in property <bool> tm_is_searching: false;
+    
+    // Terminology highlighting
+    in property <[TermHighlight]> left_term_highlights: [];
+    in property <[TermHighlight]> right_term_highlights: [];
+    in property <bool> highlighting_enabled: true;
+    
+    // Enhanced splitter properties
+    in-out property <length> split_position: 50%;
+    in-out property <length> tm_split_position: 70%;
+    
+    // Callbacks for content changes
+    callback content_changed(string /* content */, string /* language */);
+    callback language_changed(string /* old_language */, string /* new_language */);
+    callback sync_event(SyncEvent);
+    callback term_highlight_clicked(TermHighlight, string /* language */);
+    
+    // Translation memory callbacks
+    callback tm_suggestion_selected(TranslationSuggestion);
+    callback tm_search_requested(string);
+    callback tm_insert_suggestion(string);
+    callback tm_create_translation_unit(string, string);
+    callback tm_confidence_threshold_changed(float);
+    callback tm_auto_suggest_toggled(bool);
+    callback tm_panel_toggled(bool);
+    
+    // Text selection callbacks
+    callback text_selected(string /* text */, string /* language */);
+    callback cursor_position_changed(int /* position */, string /* language */);
+    
+    // Formatting callbacks
+    callback format_bold(string /* language */);
+    callback format_italic(string /* language */);
+    callback format_underline(string /* language */);
+    callback format_heading(int /* level */, string /* language */);
+    callback format_code(string /* language */);
+    callback format_quote(string /* language */);
+    
+    // List callbacks
+    callback insert_bullet_list(string /* language */);
+    callback insert_numbered_list(string /* language */);
+    callback insert_checklist(string /* language */);
+    
+    // Insert callbacks
+    callback insert_link(string /* language */);
+    callback insert_image(string /* language */);
+    callback insert_table(string /* language */);
+    callback insert_code_block(string /* language */);
+    
+    // Text manipulation callbacks
+    callback increase_indent(string /* language */);
+    callback decrease_indent(string /* language */);
+    callback align_left(string /* language */);
+    callback align_center(string /* language */);
+    callback align_right(string /* language */);
+    
+    // Undo/Redo callbacks
+    callback undo(string /* language */);
+    callback redo(string /* language */);
+    
+    background: Colors.editor_background;
+    
+    HorizontalLayout {
+        spacing: 0px;
+        
+        // Main editor area
+        editor_area := Rectangle {
+            width: root.show_translation_memory ? root.tm_split_position : parent.width;
+            
+            split_editor := SplitPaneEditor {
+                orientation: root.orientation;
+                mode: root.mode;
+                sync_enabled: root.sync_enabled;
+                left_pane: root.left_pane;
+                right_pane: root.right_pane;
+                left_term_highlights: root.left_term_highlights;
+                right_term_highlights: root.right_term_highlights;
+                highlighting_enabled: root.highlighting_enabled;
+                split_position: root.split_position;
+                
+                content_changed(content, language) => {
+                    root.content_changed(content, language);
+                    
+                    // Update current selection for translation memory
+                    if (content.length > 0) {
+                        root.current_selection = content;
+                    }
+                }
+                
+                language_changed(old_lang, new_lang) => {
+                    root.language_changed(old_lang, new_lang);
+                }
+                
+                sync_event(event) => {
+                    root.sync_event(event);
+                }
+                
+                term_highlight_clicked(highlight, language) => {
+                    root.term_highlight_clicked(highlight, language);
+                }
+                
+                // Forward formatting callbacks
+                format_bold(lang) => { root.format_bold(lang); }
+                format_italic(lang) => { root.format_italic(lang); }
+                format_underline(lang) => { root.format_underline(lang); }
+                format_heading(level, lang) => { root.format_heading(level, lang); }
+                format_code(lang) => { root.format_code(lang); }
+                format_quote(lang) => { root.format_quote(lang); }
+                
+                // Forward list callbacks
+                insert_bullet_list(lang) => { root.insert_bullet_list(lang); }
+                insert_numbered_list(lang) => { root.insert_numbered_list(lang); }
+                insert_checklist(lang) => { root.insert_checklist(lang); }
+                
+                // Forward insert callbacks
+                insert_link(lang) => { root.insert_link(lang); }
+                insert_image(lang) => { root.insert_image(lang); }
+                insert_table(lang) => { root.insert_table(lang); }
+                insert_code_block(lang) => { root.insert_code_block(lang); }
+                
+                // Forward text manipulation callbacks
+                increase_indent(lang) => { root.increase_indent(lang); }
+                decrease_indent(lang) => { root.decrease_indent(lang); }
+                align_left(lang) => { root.align_left(lang); }
+                align_center(lang) => { root.align_center(lang); }
+                align_right(lang) => { root.align_right(lang); }
+                
+                // Forward undo/redo callbacks
+                undo(lang) => { root.undo(lang); }
+                redo(lang) => { root.redo(lang); }
+            }
+        }
+        
+        // Translation memory panel splitter
+        if root.show_translation_memory: tm_splitter := Rectangle {
+            width: 4px;
+            background: Colors.border;
+            
+            states [
+                hover when tm_splitter_touch.has_hover: {
+                    background: Colors.primary;
+                    width: 6px;
+                }
+                dragging when tm_splitter_touch.pressed: {
+                    background: Colors.primary;
+                    width: 6px;
+                    drop_shadow_blur: 4px;
+                    drop_shadow_color: #00000040;
+                }
+            ]
+            
+            // Splitter grip indicator
+            Rectangle {
+                width: 2px;
+                height: 20px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                background: Colors.text_muted;
+                border_radius: 1px;
+                opacity: tm_splitter_touch.has_hover || tm_splitter_touch.pressed ? 1.0 : 0.3;
+                
+                animate opacity {
+                    duration: Theme.animation_fast;
+                }
+            }
+            
+            tm_splitter_touch := TouchArea {
+                mouse_cursor: col_resize;
+                
+                pointer_event(event) => {
+                    if (event.kind == PointerEventKind.move && self.pressed) {
+                        // Calculate new split position based on mouse position
+                        let new_position = event.position.x / root.width * 100%;
+                        // Constrain between 50% and 90% for better usability
+                        root.tm_split_position = max(50%, min(90%, new_position));
+                    }
+                }
+                
+                // Double-click to reset to 70/30
+                double_clicked => {
+                    root.tm_split_position = 70%;
+                }
+            }
+        }
+        
+        // Translation memory panel
+        if root.show_translation_memory: tm_panel := TranslationMemoryPanel {
+            width: root.width - root.tm_split_position - (root.show_translation_memory ? 4px : 0px);
+            suggestions: root.tm_suggestions;
+            search_results: root.tm_search_results;
+            current_text: root.current_selection;
+            source_language: root.left_pane.language;
+            target_language: root.right_pane.language;
+            auto_suggest: root.tm_auto_suggest;
+            confidence_threshold: root.tm_confidence_threshold;
+            is_searching: root.tm_is_searching;
+            
+            suggestion_selected(suggestion) => {
+                root.tm_suggestion_selected(suggestion);
+            }
+            
+            search_translation_memory(query) => {
+                root.tm_search_requested(query);
+            }
+            
+            insert_suggestion(text) => {
+                root.tm_insert_suggestion(text);
+            }
+            
+            create_translation_unit(source, target) => {
+                root.tm_create_translation_unit(source, target);
+            }
+            
+            update_confidence_threshold(threshold) => {
+                root.tm_confidence_threshold_changed(threshold);
+            }
+            
+            toggle_auto_suggest(enabled) => {
+                root.tm_auto_suggest_toggled(enabled);
+            }
+        }
+    }
+    
+    // Translation memory toggle button (when panel is hidden)
+    if !root.show_translation_memory: tm_toggle_button := Rectangle {
+        x: parent.width - 40px;
+        y: 10px;
+        width: 32px;
+        height: 32px;
+        background: Colors.primary;
+        border_radius: 16px;
+        drop_shadow_blur: 4px;
+        drop_shadow_color: #00000040;
+        
+        states [
+            hover when tm_toggle_touch.has_hover: {
+                background: Colors.primary_light;
+                drop_shadow_blur: 6px;
+            }
+        ]
+        
+        tm_toggle_touch := TouchArea {
+            clicked => {
+                root.tm_panel_toggled(true);
+            }
+        }
+        
+        Text {
+            text: "🧠";
+            font_size: Theme.font_size_base;
+            color: Colors.background;
+            horizontal_alignment: center;
+            vertical_alignment: center;
+        }
+    }
+    
+    // Enhanced status bar with translation memory info
+    status_bar := Rectangle {
+        x: 0;
+        y: parent.height - 24px;
+        width: parent.width;
+        height: 24px;
+        background: Colors.surface_hover;
+        border_width: 1px;
+        border_color: Colors.border;
+        
+        HorizontalLayout {
+            padding: Theme.spacing_xs;
+            spacing: Theme.spacing_sm;
+            alignment: space_between;
+            
+            HorizontalLayout {
+                spacing: Theme.spacing_xs;
+                alignment: start;
+                
+                // Language pair indicator
+                Text {
+                    text: root.left_pane.language.to_uppercase() + " → " + root.right_pane.language.to_uppercase();
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_muted;
+                    vertical_alignment: center;
+                }
+                
+                // Separator
+                Rectangle {
+                    width: 1px;
+                    height: 12px;
+                    background: Colors.border;
+                }
+                
+                // Sync status
+                if root.sync_enabled: HorizontalLayout {
+                    spacing: 4px;
+                    
+                    Text {
+                        text: "🔄";
+                        font_size: Theme.font_size_small;
+                        vertical_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "Sync Active";
+                        font_size: Theme.font_size_small;
+                        color: Colors.success;
+                        vertical_alignment: center;
+                    }
+                }
+                
+                if !root.sync_enabled: HorizontalLayout {
+                    spacing: 4px;
+                    
+                    Text {
+                        text: "⏸";
+                        font_size: Theme.font_size_small;
+                        vertical_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "Sync Paused";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        vertical_alignment: center;
+                    }
+                }
+            }
+            
+            HorizontalLayout {
+                spacing: Theme.spacing_xs;
+                alignment: end;
+                
+                // Translation memory status
+                if root.show_translation_memory: HorizontalLayout {
+                    spacing: 4px;
+                    
+                    Text {
+                        text: "🧠";
+                        font_size: Theme.font_size_small;
+                        vertical_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "TM: " + root.tm_suggestions.length + " suggestions";
+                        font_size: Theme.font_size_small;
+                        color: root.tm_suggestions.length > 0 ? Colors.success : Colors.text_muted;
+                        vertical_alignment: center;
+                    }
+                    
+                    // Separator
+                    Rectangle {
+                        width: 1px;
+                        height: 12px;
+                        background: Colors.border;
+                    }
+                    
+                    Text {
+                        text: "Threshold: " + Math.round(root.tm_confidence_threshold * 100) + "%";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        vertical_alignment: center;
+                    }
+                }
+                
+                // Panel toggle
+                panel_toggle := TouchArea {
+                    width: 60px;
+                    height: 16px;
+                    
+                    clicked => {
+                        root.tm_panel_toggled(!root.show_translation_memory);
+                    }
+                    
+                    Rectangle {
+                        background: parent.has_hover ? Colors.surface_hover : transparent;
+                        border_radius: Theme.border_radius_sm;
+                        
+                        HorizontalLayout {
+                            padding: 2px;
+                            spacing: 4px;
+                            alignment: center;
+                            
+                            Text {
+                                text: root.show_translation_memory ? "Hide TM" : "Show TM";
+                                font_size: Theme.font_size_small;
+                                color: Colors.primary;
+                                vertical_alignment: center;
+                            }
+                            
+                            Text {
+                                text: root.show_translation_memory ? "▶" : "◀";
+                                font_size: Theme.font_size_small;
+                                color: Colors.primary;
+                                vertical_alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Toolbar component with translation memory integration
+export component TranslationMemoryToolbar inherits Rectangle {
+    in property <bool> tm_enabled: true;
+    in property <bool> auto_suggest: true;
+    in property <float> confidence_threshold: 0.7;
+    in property <int> suggestion_count: 0;
+    in property <bool> is_searching: false;
+    
+    callback tm_toggled(bool);
+    callback auto_suggest_toggled(bool);
+    callback confidence_threshold_changed(float);
+    callback search_tm();
+    callback clear_suggestions();
+    callback refresh_suggestions();
+    
+    background: Colors.surface;
+    height: Theme.toolbar_height;
+    border_width: 1px;
+    border_color: Colors.border;
+    
+    HorizontalLayout {
+        padding: Theme.spacing_sm;
+        spacing: Theme.spacing_xs;
+        alignment: start;
+        
+        // Translation memory toggle
+        tm_button := Rectangle {
+            width: 100px;
+            height: 28px;
+            background: root.tm_enabled ? Colors.primary_light : Colors.surface;
+            border_width: 1px;
+            border_color: root.tm_enabled ? Colors.primary : Colors.border;
+            border_radius: Theme.border_radius_sm;
+            
+            states [
+                hover when tm_touch.has_hover: {
+                    background: root.tm_enabled ? Colors.primary : Colors.surface_hover;
+                    drop_shadow_blur: 2px;
+                    drop_shadow_color: #00000020;
+                }
+            ]
+            
+            tm_touch := TouchArea {
+                clicked => {
+                    root.tm_toggled(!root.tm_enabled);
+                }
+            }
+            
+            HorizontalLayout {
+                padding: 6px;
+                spacing: 4px;
+                alignment: center;
+                
+                Text {
+                    text: "🧠";
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                }
+                
+                Text {
+                    text: "Translation Memory";
+                    font_size: Theme.font_size_small;
+                    color: root.tm_enabled ? Colors.primary : Colors.text_muted;
+                    vertical_alignment: center;
+                    font_weight: 500;
+                }
+            }
+        }
+        
+        // Separator
+        Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        // Auto-suggest toggle
+        auto_suggest_button := Rectangle {
+            width: 80px;
+            height: 24px;
+            background: root.auto_suggest ? Colors.success_light : Colors.surface;
+            border_width: 1px;
+            border_color: root.auto_suggest ? Colors.success : Colors.border;
+            border_radius: Theme.border_radius_sm;
+            
+            states [
+                hover when auto_suggest_touch.has_hover: {
+                    background: root.auto_suggest ? Colors.success : Colors.surface_hover;
+                }
+            ]
+            
+            auto_suggest_touch := TouchArea {
+                clicked => {
+                    root.auto_suggest_toggled(!root.auto_suggest);
+                }
+            }
+            
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 4px;
+                alignment: center;
+                
+                Text {
+                    text: "✨";
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                }
+                
+                Text {
+                    text: "Auto";
+                    font_size: Theme.font_size_small;
+                    color: root.auto_suggest ? Colors.success : Colors.text_muted;
+                    vertical_alignment: center;
+                }
+            }
+        }
+        
+        // Confidence threshold control
+        threshold_control := Rectangle {
+            width: 120px;
+            height: 24px;
+            border_width: 1px;
+            border_color: Colors.border;
+            border_radius: Theme.border_radius_sm;
+            background: Colors.background;
+            
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 4px;
+                alignment: space_between;
+                
+                Text {
+                    text: "Threshold";
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_muted;
+                    vertical_alignment: center;
+                }
+                
+                HorizontalLayout {
+                    spacing: 2px;
+                    
+                    threshold_down := TouchArea {
+                        width: 16px;
+                        height: 16px;
+                        
+                        clicked => {
+                            let new_threshold = Math.max(0.1, root.confidence_threshold - 0.1);
+                            root.confidence_threshold_changed(new_threshold);
+                        }
+                        
+                        Rectangle {
+                            background: parent.has_hover ? Colors.surface_hover : Colors.surface;
+                            border_width: 1px;
+                            border_color: Colors.border;
+                            border_radius: 8px;
+                            
+                            Text {
+                                text: "−";
+                                font_size: Theme.font_size_small;
+                                color: Colors.text_primary;
+                                horizontal_alignment: center;
+                                vertical_alignment: center;
+                            }
+                        }
+                    }
+                    
+                    Text {
+                        text: Math.round(root.confidence_threshold * 100) + "%";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_primary;
+                        vertical_alignment: center;
+                        min_width: 25px;
+                        horizontal_alignment: center;
+                    }
+                    
+                    threshold_up := TouchArea {
+                        width: 16px;
+                        height: 16px;
+                        
+                        clicked => {
+                            let new_threshold = Math.min(1.0, root.confidence_threshold + 0.1);
+                            root.confidence_threshold_changed(new_threshold);
+                        }
+                        
+                        Rectangle {
+                            background: parent.has_hover ? Colors.surface_hover : Colors.surface;
+                            border_width: 1px;
+                            border_color: Colors.border;
+                            border_radius: 8px;
+                            
+                            Text {
+                                text: "+";
+                                font_size: Theme.font_size_small;
+                                color: Colors.text_primary;
+                                horizontal_alignment: center;
+                                vertical_alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Separator
+        Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        // Action buttons
+        search_button := Rectangle {
+            width: 60px;
+            height: 24px;
+            background: Colors.info_light;
+            border_width: 1px;
+            border_color: Colors.info;
+            border_radius: Theme.border_radius_sm;
+            
+            states [
+                hover when search_touch.has_hover: {
+                    background: Colors.info;
+                }
+                searching when root.is_searching: {
+                    background: Colors.warning_light;
+                    border_color: Colors.warning;
+                }
+            ]
+            
+            search_touch := TouchArea {
+                clicked => {
+                    root.search_tm();
+                }
+            }
+            
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 4px;
+                alignment: center;
+                
+                Text {
+                    text: root.is_searching ? "⏳" : "🔍";
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                    
+                    animate rotation {
+                        duration: 1s;
+                        iteration_count: -1;
+                        easing: linear;
+                    }
+                    rotation: root.is_searching ? 360deg : 0deg;
+                }
+                
+                Text {
+                    text: "Search";
+                    font_size: Theme.font_size_small;
+                    color: Colors.info;
+                    vertical_alignment: center;
+                }
+            }
+        }
+        
+        refresh_button := Rectangle {
+            width: 60px;
+            height: 24px;
+            background: Colors.surface;
+            border_width: 1px;
+            border_color: Colors.border;
+            border_radius: Theme.border_radius_sm;
+            
+            states [
+                hover when refresh_touch.has_hover: {
+                    background: Colors.surface_hover;
+                }
+            ]
+            
+            refresh_touch := TouchArea {
+                clicked => {
+                    root.refresh_suggestions();
+                }
+            }
+            
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 4px;
+                alignment: center;
+                
+                Text {
+                    text: "🔄";
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                }
+                
+                Text {
+                    text: "Refresh";
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_muted;
+                    vertical_alignment: center;
+                }
+            }
+        }
+        
+        // Suggestion count indicator
+        if root.suggestion_count > 0: Rectangle {
+            width: 80px;
+            height: 24px;
+            background: Colors.success_light;
+            border_width: 1px;
+            border_color: Colors.success;
+            border_radius: Theme.border_radius_sm;
+            
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 4px;
+                alignment: center;
+                
+                Text {
+                    text: "💡";
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                }
+                
+                Text {
+                    text: root.suggestion_count + " suggestions";
+                    font_size: Theme.font_size_small;
+                    color: Colors.success;
+                    vertical_alignment: center;
+                }
+            }
+        }
+    }
+}

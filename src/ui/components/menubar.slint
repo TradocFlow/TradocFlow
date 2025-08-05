@@ -168,6 +168,7 @@ export component MenuBar inherits Rectangle {
     callback tools-word-count();
     callback tools-export-pdf();
     callback tools-export-html();
+    callback tools-chunk-linking();
     
     callback help-about();
     callback help-shortcuts();
@@ -315,6 +316,8 @@ export component MenuBar inherits Rectangle {
                 { text: "Spell Check", shortcut: "F7" },
                 { text: "Word Count", shortcut: "" },
                 { separator: true },
+                { text: "Chunk Linking", shortcut: "Ctrl+L" },
+                { separator: true },
                 { text: "Export to PDF...", shortcut: "" },
                 { text: "Export to HTML...", shortcut: "" }
             ];
@@ -323,6 +326,7 @@ export component MenuBar inherits Rectangle {
                 if (item == "Take Screenshot") { root.tools-screenshot(); }
                 else if (item == "Spell Check") { root.tools-spell-check(); }
                 else if (item == "Word Count") { root.tools-word-count(); }
+                else if (item == "Chunk Linking") { root.tools-chunk-linking(); }
                 else if (item == "Export to PDF...") { root.tools-export-pdf(); }
                 else if (item == "Export to HTML...") { root.tools-export-html(); }
             }

@@ -1,0 +1,185 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { Button, ScrollView, ListView, CheckBox, LineEdit, ComboBox } from "std-widgets.slint";
+
+// Data structures for chunk linking
+export struct ChunkInfo {
+    id: string,
+    content: string,
+    chunk-type: string,
+    position: int,
+    selected: bool,
+    linked: bool,
+}
+
+export struct PhraseGroup {
+    id: string,
+    phrase-text: string,
+    language: string,
+    chunk-count: int,
+    created-at: string,
+    tags: [string],
+}
+
+export enum SelectionMode {
+    Individual,
+    Range,
+    Pattern,
+}
+
+export enum MergeStrategy {
+    Sequential,
+    Positional,
+    Custom,
+}
+
+export component ChunkLinkingPanel inherits Rectangle {
+    // Panel properties
+    in property <bool> panel-visible: true;
+    in property <[ChunkInfo]> chunks: [];
+    in property <[PhraseGroup]> phrase-groups: [];
+    in-out property <SelectionMode> selection-mode: SelectionMode.Individual;
+    in property <string> session-id: "";
+    in property <bool> is-linking-mode: false;
+    
+    // Callbacks
+    callback chunk-selected(string /* chunk-id */, bool /* selected */);
+    callback start-linking-session(SelectionMode /* mode */);
+    callback end-linking-session();
+    callback link-selected-chunks(string /* phrase-text */, string /* language */);
+    callback unlink-phrase-group(string /* phrase-group-id */);
+    callback clear-selection();
+    callback search-phrases(string /* query */);
+    callback phrase-group-selected(string /* phrase-group-id */);
+    callback merge-options-changed(MergeStrategy /* strategy */, bool /* preserve-formatting */, bool /* add-spacing */);
+    
+    // Internal state
+    property <string> phrase-text-input: "";
+    property <string> phrase-language: "en";
+    property <string> search-query: "";
+    property <MergeStrategy> merge-strategy: MergeStrategy.Sequential;
+    property <bool> preserve-formatting: true;
+    property <bool> add-spacing: true;
+    property <int> selected-chunk-count: 0;
+    
+    background: Colors.surface;
+    border-width: 1px;
+    border-color: Colors.border;
+    
+    if !panel-visible: Rectangle { }
+    
+    if panel-visible: VerticalLayout {
+        padding: Theme.spacing-md;
+        spacing: Theme.spacing-md;
+        
+        // Header
+        header := Rectangle {
+            height: 40px;
+            background: Colors.primary;
+            border-radius: Theme.border-radius-sm;
+            
+            HorizontalLayout {
+                padding: Theme.spacing-sm;
+                alignment: space-between;
+                
+                Text {
+                    text: "Chunk Linking";
+                    font-size: Theme.font-size-large;
+                    font-weight: 600;
+                    color: Colors.on-primary;
+                    vertical-alignment: center;
+                }
+                
+                Button {
+                    text: root.is-linking-mode ? "Exit" : "Start";
+                    clicked => {
+                        if (root.is-linking-mode) {
+                            root.end-linking-session();
+                        } else {
+                            root.start-linking-session(root.selection-mode);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Simple chunk list
+        ScrollView {
+            ListView {
+                for chunk[index] in root.chunks: chunk-item := Rectangle {
+                    height: 60px;
+                    background: chunk.selected ? Colors.primary-light : Colors.surface;
+                    border-width: 1px;
+                    border-color: chunk.selected ? Colors.primary : Colors.border;
+                    border-radius: Theme.border-radius-sm;
+                    
+                    HorizontalLayout {
+                        padding: Theme.spacing-sm;
+                        spacing: Theme.spacing-sm;
+                        
+                        CheckBox {
+                            checked: chunk.selected;
+                            enabled: root.is-linking-mode;
+                            toggled => {
+                                root.chunk-selected(chunk.id, self.checked);
+                            }
+                        }
+                        
+                        VerticalLayout {
+                            Text {
+                                text: chunk.chunk-type + " (Pos: " + chunk.position + ")";
+                                font-size: Theme.font-size-small;
+                                color: Colors.primary;
+                            }
+                            
+                            Text {
+                                text: chunk.content;
+                                font-size: Theme.font-size-small;
+                                color: Colors.text-primary;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Link controls
+        if root.selected-chunk-count >= 2: Rectangle {
+            height: 80px;
+            background: Colors.primary-light;
+            border-radius: Theme.border-radius-sm;
+            
+            VerticalLayout {
+                padding: Theme.spacing-sm;
+                spacing: Theme.spacing-sm;
+                
+                LineEdit {
+                    placeholder-text: "Enter phrase text...";
+                    text: root.phrase-text-input;
+                    edited(text) => {
+                        root.phrase-text-input = text;
+                    }
+                }
+                
+                HorizontalLayout {
+                    Button {
+                        text: "Cancel";
+                        clicked => {
+                            root.clear-selection();
+                        }
+                    }
+                    
+                    Button {
+                        text: "Link";
+                        enabled: root.phrase-text-input != "";
+                        clicked => {
+                            root.link-selected-chunks(root.phrase-text-input, root.phrase-language);
+                            root.phrase-text-input = "";
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

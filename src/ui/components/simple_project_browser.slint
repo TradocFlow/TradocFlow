@@ -1,21 +1,24 @@
 import { Colors } from "../styles/colors.slint";
 import { Theme } from "../styles/default.slint";
 
-export struct SimpleProjectData {
-    id: string,
+export struct ProjectData {
     name: string,
     description: string,
-    status: string,
-    owner: string,
+    path: string,
+    source-language: string,
+    target-languages: [string],
+    team-member-count: int,
+    chapter-count: int,
+    template-id: string,
     created: string,
 }
 
 export component SimpleProjectBrowser inherits Dialog {
-    in property <[SimpleProjectData]> projects: [];
+    in property <[ProjectData]> projects: [];
     in property <string> search-query: "";
     in property <bool> is-loading: false;
     
-    callback project-selected(SimpleProjectData);
+    callback project-selected(ProjectData);
     callback search-changed(string);
     callback close-dialog();
     
@@ -163,7 +166,7 @@ export component SimpleProjectBrowser inherits Dialog {
                         }
                         
                         Text {
-                            text: project.description;
+                            text: project.description != "" ? project.description : "No description";
                             font-size: 14px;
                             color: Colors.text-secondary;
                         }
@@ -172,13 +175,13 @@ export component SimpleProjectBrowser inherits Dialog {
                             spacing: 16px;
                             
                             Text {
-                                text: "Status: " + project.status;
+                                text: "Chapters: " + project.chapter-count;
                                 font-size: 12px;
                                 color: Colors.text-muted;
                             }
                             
                             Text {
-                                text: "Owner: " + project.owner;
+                                text: "Team: " + project.team-member-count + " members";
                                 font-size: 12px;
                                 color: Colors.text-muted;
                             }
@@ -187,6 +190,17 @@ export component SimpleProjectBrowser inherits Dialog {
                                 text: "Created: " + project.created;
                                 font-size: 12px;
                                 color: Colors.text-muted;
+                            }
+                        }
+                        
+                        HorizontalLayout {
+                            spacing: 8px;
+                            
+                            Text {
+                                text: project.source-language + " → " + project.target-languages.length + " languages";
+                                font-size: 12px;
+                                color: Colors.primary;
+                                font-weight: 500;
                             }
                         }
                     }

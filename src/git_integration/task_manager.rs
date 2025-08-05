@@ -2213,7 +2213,7 @@ mod tests {
         // Create mock KanbanGitSync
         let kanban_sync = Arc::new(
             KanbanGitSync::new(
-                temp_dir.path(),
+                &temp_dir.path().to_string_lossy(),
                 Uuid::new_v4(),
                 git_manager.clone(),
             ).await.unwrap()

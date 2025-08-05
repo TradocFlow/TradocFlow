@@ -5,7 +5,8 @@ import { Sidebar } from "components/sidebar.slint";
 import { EditorPane } from "components/editor_pane.slint";
 import { TextOperation } from "components/enhanced_text_editor.slint";
 import { ProjectCreationWizard } from "components/project_creation_wizard.slint";
-import { SimpleProjectBrowser, SimpleProjectData } from "components/simple_project_browser.slint";
+import { SimpleProjectBrowser, ProjectData } from "components/simple_project_browser.slint";
+import { ChunkLinkingPanel, ChunkInfo, PhraseGroup, SelectionMode, MergeStrategy } from "components/chunk_linking_panel.slint";
 
 export component MainWindow inherits Window {
     // Window properties
@@ -63,6 +64,7 @@ export component MainWindow inherits Window {
     callback tools-word-count();
     callback tools-export-pdf();
     callback tools-export-html();
+    callback tools-chunk-linking();
     
     callback help-about();
     callback help-shortcuts();
@@ -98,9 +100,17 @@ export component MainWindow inherits Window {
     
     // Project browser state
     in-out property <bool> show-project-browser: false;
-    in-out property <[SimpleProjectData]> browser-projects: [];
+    in-out property <[ProjectData]> browser-projects: [];
     in-out property <string> browser-search-query: "";
     in-out property <bool> browser-is-loading: false;
+    
+    // Chunk linking state
+    in-out property <bool> show-chunk-linking: false;
+    in-out property <[ChunkInfo]> chunks: [];
+    in-out property <[PhraseGroup]> phrase-groups: [];
+    in-out property <SelectionMode> chunk-selection-mode: SelectionMode.Individual;
+    in-out property <string> chunk-session-id: "";
+    in-out property <bool> is-linking-mode: false;
     
     callback toggle-mode();
     callback set-layout(string);
@@ -165,12 +175,25 @@ export component MainWindow inherits Window {
     callback browser-sort-changed(string /* field */, string /* direction */);
     callback browser-view-mode-changed(string /* mode */);
     callback browser-page-changed(int /* page */);
-    callback browser-project-selected(SimpleProjectData /* project */);
-    callback browser-project-opened(SimpleProjectData /* project */);
+    callback browser-project-selected(ProjectData /* project */);
+    callback browser-project-opened(ProjectData /* project */);
     callback browser-refresh-projects();
     callback team-member-added(string /* name */, string /* email */, string /* role */);
     callback team-member-removed(string /* member-id */);
     callback validate-current-step() -> bool;
+    
+    // Chunk linking callbacks
+    callback show-chunk-linking-panel();
+    callback hide-chunk-linking-panel();
+    callback chunk-selected(string /* chunk-id */, bool /* selected */);
+    callback start-chunk-linking-session(SelectionMode /* mode */);
+    callback end-chunk-linking-session();
+    callback link-selected-chunks(string /* phrase-text */, string /* language */);
+    callback unlink-phrase-group(string /* phrase-group-id */);
+    callback clear-chunk-selection();
+    callback search-phrase-groups(string /* query */);
+    callback phrase-group-selected(string /* phrase-group-id */);
+    callback chunk-merge-options-changed(MergeStrategy /* strategy */, bool /* preserve-formatting */, bool /* add-spacing */);
     
     // Keyboard shortcuts
     forward-focus: key-handler;
@@ -222,6 +245,14 @@ export component MainWindow inherits Window {
                     return accept;
                 } else if (event.text == "p") {
                     root.open-project-browser();
+                    return accept;
+                } else if (event.text == "l") {
+                    root.show-chunk-linking = !root.show-chunk-linking;
+                    if (root.show-chunk-linking) {
+                        root.show-chunk-linking-panel();
+                    } else {
+                        root.hide-chunk-linking-panel();
+                    }
                     return accept;
                 }
             } else if (event.text == Key.F11) {
@@ -287,6 +318,14 @@ export component MainWindow inherits Window {
             tools-word-count => { root.tools-word-count(); }
             tools-export-pdf => { root.tools-export-pdf(); }
             tools-export-html => { root.tools-export-html(); }
+            tools-chunk-linking => { 
+                root.show-chunk-linking = !root.show-chunk-linking;
+                if (root.show-chunk-linking) {
+                    root.show-chunk-linking-panel();
+                } else {
+                    root.hide-chunk-linking-panel();
+                }
+            }
             
             // Help menu callbacks
             help-about => { root.help-about(); }
@@ -614,6 +653,56 @@ export component MainWindow inherits Window {
                         undo => { root.undo(); }
                         redo => { root.redo(); }
                     }
+                }
+            }
+            
+            // Chunk linking panel (right side)
+            if root.show-chunk-linking: chunk-linking-panel := ChunkLinkingPanel {
+                width: 350px;
+                panel-visible: root.show-chunk-linking;
+                chunks: root.chunks;
+                phrase-groups: root.phrase-groups;
+                selection-mode: root.chunk-selection-mode;
+                session-id: root.chunk-session-id;
+                is-linking-mode: root.is-linking-mode;
+                
+                chunk-selected(chunk-id, selected) => {
+                    root.chunk-selected(chunk-id, selected);
+                }
+                
+                start-linking-session(mode) => {
+                    root.chunk-selection-mode = mode;
+                    root.is-linking-mode = true;
+                    root.start-chunk-linking-session(mode);
+                }
+                
+                end-linking-session => {
+                    root.is-linking-mode = false;
+                    root.end-chunk-linking-session();
+                }
+                
+                link-selected-chunks(phrase-text, language) => {
+                    root.link-selected-chunks(phrase-text, language);
+                }
+                
+                unlink-phrase-group(phrase-group-id) => {
+                    root.unlink-phrase-group(phrase-group-id);
+                }
+                
+                clear-selection => {
+                    root.clear-chunk-selection();
+                }
+                
+                search-phrases(query) => {
+                    root.search-phrase-groups(query);
+                }
+                
+                phrase-group-selected(phrase-group-id) => {
+                    root.phrase-group-selected(phrase-group-id);
+                }
+                
+                merge-options-changed(strategy, preserve-formatting, add-spacing) => {
+                    root.chunk-merge-options-changed(strategy, preserve-formatting, add-spacing);
                 }
             }
         }

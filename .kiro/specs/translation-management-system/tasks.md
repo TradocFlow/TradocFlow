@@ -80,7 +80,7 @@
     - Write performance tests for translation memory operations
     - _Requirements: 3.4, 3.5, 10.1, 10.2_
 
-  - [ ] 5.2 Implement sentence chunking and processing
+  - [x] 5.2 Implement sentence chunking and processing
     - Create ChunkProcessor for automatic sentence boundary detection
     - Implement configurable chunking strategies (sentence, paragraph, custom)
     - Add chunk metadata storage with position and boundary information
@@ -88,7 +88,7 @@
     - Write unit tests for various chunking scenarios
     - _Requirements: 3.1, 9.1, 9.4, 9.5_
 
-  - [ ] 5.3 Create translation memory search and suggestion system
+  - [x] 5.3 Create translation memory search and suggestion system
     - Implement fuzzy matching algorithms for translation suggestions
     - Create similarity scoring and ranking for translation matches
     - Add context-aware translation suggestions based on surrounding text
@@ -96,7 +96,14 @@
     - Write tests for translation matching accuracy and performance
     - _Requirements: 3.6, 3.7, 5.5_
 
-  - [ ] 5.4 Implement chunk linking and phrase management
+  - [x] 5.4 Complete sentence chunking implementation
+    - Finish ChunkProcessor implementation for automatic sentence boundary detection
+    - Add configurable chunking strategies (sentence, paragraph, custom)
+    - Implement chunk reconstruction logic for document generation
+    - Create comprehensive tests for various chunking scenarios
+    - _Requirements: 3.1, 9.1, 9.4, 9.5_
+
+  - [x] 5.5 Implement chunk linking and phrase management
     - Create user interface for selecting and linking related chunks
     - Implement chunk merging functionality with metadata updates
     - Add linked phrase group management and visualization
@@ -104,8 +111,8 @@
     - Write integration tests for chunk linking workflows
     - _Requirements: 9.2, 9.3, 9.6, 9.7_
 
-- [ ] 6. Implement terminology management system
-  - [ ] 6.1 Create CSV import and Parquet conversion system
+- [x] 6. Implement terminology management system
+  - [x] 6.1 Create CSV import and Parquet conversion system
     - Implement CSV file parsing and validation for terminology data
     - Create automatic Parquet conversion for efficient storage and querying
     - Add terminology conflict detection and resolution
@@ -113,7 +120,7 @@
     - Write tests for CSV import edge cases and error handling
     - _Requirements: 4.1, 4.2, 4.5_
 
-  - [ ] 6.2 Implement terminology highlighting and validation
+  - [x] 6.2 Implement terminology highlighting and validation
     - Create real-time terminology detection in markdown editor
     - Implement visual highlighting for non-translatable terms
     - Add terminology consistency checking across languages
@@ -122,7 +129,7 @@
     - _Requirements: 4.3, 4.4, 4.5_
 
 - [ ] 7. Enhance markdown editor with translation features
-  - [ ] 7.1 Implement side-by-side language editing
+  - [x] 7.1 Implement side-by-side language editing
     - Create split-pane editor components with language synchronization
     - Implement horizontal and vertical split view options
     - Add cursor position and scroll synchronization between panes
@@ -130,7 +137,7 @@
     - Write UI tests for split-view editor functionality
     - _Requirements: 5.2, 5.3, 5.4, 5.6_
 
-  - [ ] 7.2 Add translation memory integration to editor
+  - [-] 7.2 Add translation memory integration to editor
     - Implement real-time translation suggestions in editor interface
     - Create translation memory panel with search and insertion capabilities
     - Add automatic translation unit creation when content is modified
@@ -163,8 +170,8 @@
     - Write integration tests for review workflow scenarios
     - _Requirements: 6.5, 6.6, 6.7_
 
-- [ ] 9. Create web-based Kanban project management interface
-  - [ ] 9.1 Set up web server and API endpoints
+- [-] 9. Create web-based Kanban project management interface
+  - [x] 9.1 Set up web server and API endpoints
     - Create Axum-based REST API server for Kanban functionality
     - Implement authentication and session management for web interface
     - Add CORS configuration for cross-origin requests
@@ -180,7 +187,7 @@
     - Write end-to-end tests for Kanban board functionality
     - _Requirements: 7.2, 7.3, 7.5, 7.7_
 
-  - [ ] 9.3 Integrate Kanban with main application
+  - [x] 9.3 Integrate Kanban with main application
     - Create bidirectional synchronization between desktop app and web interface
     - Implement task auto-generation from translation progress
     - Add progress tracking and completion metrics
@@ -188,8 +195,8 @@
     - Write integration tests for desktop-web synchronization
     - _Requirements: 7.4, 7.6_
 
-- [ ] 10. Implement PDF export functionality
-  - [ ] 10.1 Create multi-language PDF generation system
+- [-] 10. Implement PDF export functionality
+  - [x] 10.1 Create multi-language PDF generation system
     - Enhance existing PDF export to support multiple languages
     - Implement layout options for single-language and side-by-side formats
     - Add proper typography and formatting for different languages
@@ -222,8 +229,25 @@
     - Write tests for backup and recovery scenarios
     - _Requirements: 10.6, 10.7_
 
-- [ ] 12. Integration testing and system validation
-  - [ ] 12.1 Create comprehensive integration tests
+- [ ] 12. Complete missing core functionality
+  - [ ] 12.1 Implement enhanced project wizard UI integration
+    - Integrate enhanced project creation wizard with main Slint application
+    - Add project wizard to main application navigation and menu system
+    - Implement project loading and switching functionality in UI
+    - Create project dashboard with translation progress overview
+    - Write UI integration tests for project management workflows
+    - _Requirements: 1.1, 1.2, 1.7_
+
+  - [ ] 12.2 Complete collaborative editing infrastructure
+    - Implement real-time synchronization service for multi-user editing
+    - Add conflict resolution mechanisms for simultaneous edits
+    - Create change notification system with user presence indicators
+    - Implement role-based editing permissions in the UI
+    - Write integration tests for collaborative editing scenarios
+    - _Requirements: 5.5, 6.3, 6.6, 6.7_
+
+- [ ] 13. Integration testing and system validation
+  - [ ] 13.1 Create comprehensive integration tests
     - Write end-to-end tests for complete project workflows
     - Test multi-user collaboration scenarios with role-based access
     - Validate translation memory accuracy and performance
@@ -231,7 +255,7 @@
     - Create performance tests for large-scale translation projects
     - _Requirements: All requirements validation_
 
-  - [ ] 12.2 Implement error handling and user experience improvements
+  - [ ] 13.2 Implement error handling and user experience improvements
     - Add comprehensive error handling with user-friendly messages
     - Implement graceful degradation for component failures
     - Create help system and user documentation integration

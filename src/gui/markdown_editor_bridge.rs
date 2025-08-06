@@ -1,6 +1,6 @@
 use crate::services::markdown_service::{MarkdownService, RenderedMarkdown, MarkdownElement as ServiceMarkdownElement};
 use anyhow::Result;
-use slint::{ModelRc, VecModel, SharedString};
+use slint::{ModelRc, SharedString};
 use std::collections::HashMap;
 
 // Simplified Slint types for demo purposes

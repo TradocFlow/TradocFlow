@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

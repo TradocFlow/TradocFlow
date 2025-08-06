@@ -7,13 +7,12 @@ use tradocflow_translation_memory::{
     TradocFlowTranslationMemory, 
     TranslationUnit as ExternalTranslationUnit,
     Term as ExternalTerm,
-    Language, 
-    ComprehensiveSearchResult,
+    Language,
 };
 
 use crate::models::{
     document::TranslationUnit as LocalTranslationUnit,
-    translation_models::{LanguagePair, ChunkMetadata},
+    translation_models::LanguagePair,
 };
 
 // Stub types for compatibility
@@ -190,7 +189,8 @@ impl TranslationMemoryAdapter {
     }
     
     /// Add multiple chunks (legacy compatibility)
-    pub async fn add_chunks_batch(&self, _chunks: Vec<ChunkMetadata>) -> Result<()> {
+    /// TODO: Implement when ChunkMetadata is defined
+    pub async fn add_chunks_batch(&self, _chunks: Vec<String>) -> Result<()> {
         // This functionality would need to be implemented in the new crate
         // For now, we'll return Ok to maintain compatibility
         Ok(())

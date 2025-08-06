@@ -98,7 +98,7 @@ impl UserManagementBridge {
     }
 
     /// Get pending invitations for a user
-    pub async fn get_pending_invitations(&self, email: &str) -> Vec<TeamInvitation> {
+    pub async fn get_pending_invitations(&self, _email: &str) -> Vec<TeamInvitation> {
         // TODO: Implement get_pending_invitations in UserManagementService
         vec![]
     }

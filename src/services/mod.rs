@@ -6,14 +6,18 @@ pub mod translation_memory_adapter;
 // Old services - will be deprecated
 // Translation memory services now use the external crate
 pub mod translation_memory_integration_service;
+#[cfg(test)]
 pub mod translation_memory_integration_test;
 pub mod chapter_service;
 pub mod document_import_service;
 pub mod simplified_document_import_service;
 pub mod chunk_processor;
 pub mod chunk_linking_service;
+#[cfg(test)]
+pub mod chunk_linking_service_tests;
 pub mod editor_sync_service;
 pub mod language_syntax_service;
+#[cfg(test)]
 pub mod split_pane_editor_integration_test;
 pub mod markdown_service;
 pub mod collaborative_editing_service;

@@ -2,9 +2,8 @@ use std::sync::Arc;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
 use rusqlite::OptionalExtension;
-use crate::models::{MemberRole, ProjectMember, AddMemberRequest, MemberWithUserInfo, ProjectMembershipInfo};
+use crate::models::{MemberRole, ProjectMember, AddMemberRequest};
 use crate::database::{DatabasePool, member_repository::MemberRepository};
 
 /// Enhanced user model for translation system

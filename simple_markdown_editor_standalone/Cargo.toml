@@ -1,7 +1,11 @@
 [package]
-name = "simple_markdown_editor"
+name = "simple_markdown_editor_standalone"
 version = "0.1.0"
 edition = "2021"
+
+[[bin]]
+name = "standalone_markdown_editor"
+path = "src/main.rs"
 
 [dependencies]
 slint = "1.8"

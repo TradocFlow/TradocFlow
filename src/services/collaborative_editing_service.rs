@@ -4,7 +4,7 @@ use tokio::sync::broadcast;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
-use crate::models::{UserRole, Permission};
+use crate::models::UserRole;
 
 /// Real-time change tracking and conflict detection service
 pub struct CollaborativeEditingService {

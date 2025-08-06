@@ -1,16 +1,12 @@
 use crate::{
     export_engine::ExportFormat as EngineExportFormat,
     services::export_service::{
-        ExportConfiguration, ExportLayout as ServiceExportLayout, ExportRequest, ExportService,
+        ExportLayout as ServiceExportLayout, ExportService,
     },
-    Result, TradocumentError,
+    Result,
 };
-use chrono::Utc;
-use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel, Weak};
+use slint::{ComponentHandle, SharedString, Weak};
 use std::{
-    collections::HashMap,
-    path::PathBuf,
-    rc::Rc,
     sync::{Arc, Mutex},
 };
 use uuid::Uuid;

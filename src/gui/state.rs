@@ -927,7 +927,7 @@ impl AppState {
         let mut recent_docs = Vec::new();
         
         // Add some sample recent documents based on current project
-        if let Some(project) = self.get_current_project().await {
+        if let Some(_project) = self.get_current_project().await {
             if let Some(structure) = self.get_current_project_structure().await {
                 for (index, chapter) in structure.chapters.iter().take(5).enumerate() {
                     for language in &structure.languages {

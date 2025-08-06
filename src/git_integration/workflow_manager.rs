@@ -246,7 +246,7 @@ impl GitWorkflowManager {
         let markdown_path = format!("generated/markdown/{language}/{chapter}.md");
         
         // Load or create chapter TOML data
-        let chapter_data = self.load_or_create_chapter_data(chapter, language).await?;
+        let _chapter_data = self.load_or_create_chapter_data(chapter, language).await?;
         
         // Create feature branch from current branch
         let head_commit = self.get_head_commit().await?;

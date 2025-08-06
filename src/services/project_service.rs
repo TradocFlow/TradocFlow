@@ -161,7 +161,7 @@ impl ProjectService {
     }
 
     /// Create the project directory structure
-    async fn create_project_structure(&self, project: &TranslationProject, request: &CreateProjectRequest) -> Result<bool> {
+    async fn create_project_structure(&self, _project: &TranslationProject, request: &CreateProjectRequest) -> Result<bool> {
         let project_path = &request.folder_path;
 
         // Create main project directory

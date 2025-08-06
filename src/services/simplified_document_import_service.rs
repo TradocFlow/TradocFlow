@@ -556,7 +556,7 @@ impl SimplifiedDocumentImportService {
     fn extract_text_from_docx_document(
         &self,
         docx: &docx_rs::Docx,
-        config: &ImportConfig,
+        _config: &ImportConfig,
         warnings: &mut Vec<String>,
     ) -> Result<String> {
         // TODO: Fix DOCX text extraction - docx_rs API has changed significantly

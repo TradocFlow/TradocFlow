@@ -396,7 +396,7 @@ impl ChunkLinkingService {
     }
 
     /// Update translation memory with phrase group information
-    async fn update_translation_memory_for_phrase(&self, phrase_group: &LinkedPhraseGroup) -> Result<()> {
+    async fn update_translation_memory_for_phrase(&self, _phrase_group: &LinkedPhraseGroup) -> Result<()> {
         // This would create translation units for the linked phrase
         // Implementation depends on how translation memory handles phrase groups
         

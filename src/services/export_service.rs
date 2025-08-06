@@ -1,17 +1,16 @@
 use crate::{
     export_engine::{ExportConfig, ExportEngine, ExportFormat},
-    models::{document::Document, project::Project},
-    Result, TradocumentError, DocumentMetadata, ScreenshotReference,
+    Result, TradocumentError,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{Arc, Mutex},
 };
 use tokio::{
-    sync::{mpsc, oneshot},
+    sync::mpsc,
     task::JoinHandle,
 };
 use uuid::Uuid;
@@ -378,7 +377,7 @@ impl ExportService {
         Ok(())
     }
 
-    async fn load_documents_for_export(request: &ExportRequest) -> Result<Vec<crate::models::document::Document>> {
+    async fn load_documents_for_export(_request: &ExportRequest) -> Result<Vec<crate::models::document::Document>> {
         // This would typically load from the database
         // For now, return a placeholder implementation
         // TODO: Integrate with actual document repository

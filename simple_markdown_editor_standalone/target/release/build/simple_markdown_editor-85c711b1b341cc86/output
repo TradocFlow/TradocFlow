@@ -1,0 +1,9 @@
+cargo:rerun-if-changed=/home/jo/tradocflow/simple_markdown_editor_standalone/target/release/build/SLINT_DEFAULT_STYLE.txt
+cargo:rerun-if-changed=/home/jo/tradocflow/simple_markdown_editor_standalone/ui/main.slint
+cargo:rerun-if-env-changed=SLINT_STYLE
+cargo:rerun-if-env-changed=SLINT_FONT_SIZES
+cargo:rerun-if-env-changed=SLINT_SCALE_FACTOR
+cargo:rerun-if-env-changed=SLINT_ASSET_SECTION
+cargo:rerun-if-env-changed=SLINT_EMBED_RESOURCES
+cargo:rerun-if-env-changed=SLINT_EMIT_DEBUG_INFO
+cargo:rustc-env=SLINT_INCLUDE_GENERATED=/home/jo/tradocflow/simple_markdown_editor_standalone/target/release/build/simple_markdown_editor-85c711b1b341cc86/out/main.rs

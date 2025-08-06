@@ -6,7 +6,8 @@ use slint::{ModelRc, VecModel, SharedString};
 
 use crate::services::{
     TerminologyHighlightingService, TerminologyService, 
-    TermHighlight, HighlightType, TerminologySuggestion
+    TermHighlight, HighlightType, TerminologySuggestion,
+    TerminologyServiceAdapter
 };
 
 // Slint-compatible structures

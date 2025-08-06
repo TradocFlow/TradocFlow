@@ -1,6 +1,9 @@
 pub mod project_manager;
 pub mod project_service;
 pub mod translation_service;
+// New adapter for translation-memory crate
+pub mod translation_memory_adapter;
+// Old services - will be deprecated
 pub mod translation_memory_service;
 pub mod translation_memory_integration_service;
 pub mod translation_memory_integration_test;
@@ -30,6 +33,33 @@ pub mod export_service_tests;
 pub use project_manager::ProjectManager;
 pub use project_service::ProjectService;
 pub use translation_service::TranslationService;
+
+// Re-export types from the new translation-memory crate
+pub use tradocflow_translation_memory::{
+    TradocFlowTranslationMemory,
+    TranslationMemoryService as ExternalTranslationMemoryService,
+    TerminologyService as ExternalTerminologyService,
+    HighlightingService,
+    TranslationUnit,
+    TranslationMatch,
+    TranslationSuggestion,
+    MatchType,
+    MatchScore,
+    Term,
+    TerminologyImportResult,
+    Language,
+    Domain,
+    Quality,
+    Metadata,
+    ComprehensiveSearchResult,
+};
+
+// New adapter services
+pub use translation_memory_adapter::{
+    TranslationMemoryAdapter, TerminologyServiceAdapter
+};
+
+// Legacy service re-exports for compatibility
 pub use translation_memory_service::TranslationMemoryService;
 pub use translation_memory_integration_service::{
     TranslationMemoryIntegrationService, IntegrationConfig, EditorSuggestion, 

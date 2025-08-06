@@ -5,7 +5,8 @@ use anyhow::Result;
 use slint::{Model, ModelRc, VecModel};
 
 use crate::services::{
-    TranslationMemoryIntegrationService, EditorSuggestion, TextPosition, SearchFilters
+    TranslationMemoryIntegrationService, EditorSuggestion, TextPosition, SearchFilters,
+    TranslationMemoryAdapter
 };
 use crate::models::translation_models::LanguagePair;
 
@@ -13,6 +14,8 @@ use crate::models::translation_models::LanguagePair;
 #[derive(Clone)]
 pub struct TranslationMemoryBridge {
     integration_service: Arc<TranslationMemoryIntegrationService>,
+    // New adapter service for improved performance
+    adapter_service: Arc<TranslationMemoryAdapter>,
     current_project_id: Arc<RwLock<Option<Uuid>>>,
     current_chapter_id: Arc<RwLock<Option<Uuid>>>,
     active_language_pair: Arc<RwLock<Option<LanguagePair>>>,
@@ -53,8 +56,42 @@ impl TranslationMemoryBridge {
             ModelRc::new(VecModel::from(Vec::<SlintTranslationMatch>::new()))
         ));
 
+        // Create a dummy adapter for now - this would need project path
+        let adapter_service = Arc::new(
+            TranslationMemoryAdapter::new(std::env::temp_dir()).await?
+        );
+
         Ok(Self {
             integration_service,
+            adapter_service,
+            current_project_id: Arc::new(RwLock::new(None)),
+            current_chapter_id: Arc::new(RwLock::new(None)),
+            active_language_pair: Arc::new(RwLock::new(None)),
+            ui_suggestions,
+            ui_search_results,
+        })
+    }
+    
+    /// Create a new bridge with the adapter service
+    pub async fn new_with_adapter(
+        integration_service: Arc<TranslationMemoryIntegrationService>,
+        project_path: std::path::PathBuf,
+    ) -> Result<Self> {
+        let ui_suggestions = Arc::new(RwLock::new(
+            ModelRc::new(VecModel::from(Vec::<SlintTranslationSuggestion>::new()))
+        ));
+        
+        let ui_search_results = Arc::new(RwLock::new(
+            ModelRc::new(VecModel::from(Vec::<SlintTranslationMatch>::new()))
+        ));
+
+        let adapter_service = Arc::new(
+            TranslationMemoryAdapter::new(project_path).await?
+        );
+
+        Ok(Self {
+            integration_service,
+            adapter_service,
             current_project_id: Arc::new(RwLock::new(None)),
             current_chapter_id: Arc::new(RwLock::new(None)),
             active_language_pair: Arc::new(RwLock::new(None)),

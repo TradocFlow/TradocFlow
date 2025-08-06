@@ -6,7 +6,8 @@ use serde::{Serialize, Deserialize};
 use chrono::Utc;
 use rand;
 
-use crate::{Document, User, TradocumentError};
+use crate::{User, TradocumentError};
+use crate::models::document::Document;
 use crate::models::project::{Project, CreateProjectRequest, UpdateProjectRequest, Priority};
 use crate::models::project_browser::{ProjectBrowserState, ProjectBrowserItem, RecentProject, ProjectFilters, SortConfig, ViewMode, AccessLevel, SearchOptions};
 use crate::models::project_template::{ProjectWizardData, TemplateManager, get_available_languages};
@@ -1219,7 +1220,7 @@ impl AppState {
         // Final validation
         let errors = self.validate_wizard_step(6).await?;
         if !errors.is_empty() {
-            return Err(TradocumentError::ValidationError(format!("Validation failed: {}", errors.join(", "))));
+            return Err(TradocumentError::Validation(format!("Validation failed: {}", errors.join(", "))));
         }
         
         let user = {

@@ -1,7 +1,7 @@
-use tradocflow::services::MarkdownService;
-use tradocflow::gui::MarkdownEditorBridge;
+use tradocflow_core::gui::MarkdownEditorBridge;
 use anyhow::Result;
 use std::io::{self, Write};
+use slint::Model;
 
 fn main() -> Result<()> {
     println!("🚀 TradocFlow Markdown Editor Demo");

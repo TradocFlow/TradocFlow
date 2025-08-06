@@ -1,5 +1,5 @@
 use crate::models::translation_models::{Chapter, ChunkMetadata, ChapterStatus};
-use crate::services::translation_memory_service::TranslationMemoryService;
+use crate::services::translation_memory_adapter::TranslationMemoryAdapter;
 use crate::services::chunk_processor::{ChunkProcessor, ChunkingConfig};
 use crate::TradocumentError;
 use serde::{Deserialize, Serialize};
@@ -52,13 +52,13 @@ pub struct LanguageDocumentMap {
 
 /// Service for importing Word documents and converting them to markdown chapters
 pub struct DocumentImportService {
-    translation_memory: TranslationMemoryService,
+    translation_memory: TranslationMemoryAdapter,
     chunk_processor: ChunkProcessor,
 }
 
 impl DocumentImportService {
     /// Create a new document import service
-    pub fn new(translation_memory: TranslationMemoryService) -> Self {
+    pub fn new(translation_memory: TranslationMemoryAdapter) -> Self {
         Self {
             translation_memory,
             chunk_processor: ChunkProcessor::new(),
@@ -66,7 +66,7 @@ impl DocumentImportService {
     }
 
     /// Create a new document import service with custom chunking configuration
-    pub fn with_chunking_config(translation_memory: TranslationMemoryService, chunking_config: ChunkingConfig) -> Self {
+    pub fn with_chunking_config(translation_memory: TranslationMemoryAdapter, chunking_config: ChunkingConfig) -> Self {
         Self {
             translation_memory,
             chunk_processor: ChunkProcessor::with_config(chunking_config),
@@ -329,7 +329,7 @@ impl DocumentImportService {
 
         // Parse the DOCX document
         let docx = read_docx(&buf)
-            .map_err(|e| TradocumentError::ValidationError(format!("Failed to parse DOCX: {e}")))?;
+            .map_err(|e| TradocumentError::Validation(format!("Failed to parse DOCX: {e}")))?;
 
         // Extract document title from filename
         let filename = file_path.file_stem()
@@ -472,7 +472,7 @@ impl DocumentImportService {
     ) -> Result<Vec<ChunkMetadata>, TradocumentError> {
         // Process content using the chunk processor
         let processed_chunks = self.chunk_processor.process_content(content)
-            .map_err(|e| TradocumentError::ValidationError(format!("Chunking failed: {e}")))?;
+            .map_err(|e| TradocumentError::Validation(format!("Chunking failed: {e}")))?;
 
         // Convert processed chunks to ChunkMetadata with additional context
         let mut chunks = self.chunk_processor.chunks_to_metadata(processed_chunks);
@@ -759,7 +759,7 @@ mod tests {
         writeln!(file, "").unwrap();
         writeln!(file, "It has multiple paragraphs.").unwrap();
 
-        let tm_service = TranslationMemoryService::new(temp_dir.path().to_path_buf()).await.unwrap();
+        let tm_service = TranslationMemoryAdapter::new(temp_dir.path().to_path_buf()).await.unwrap();
         let import_service = DocumentImportService::new(tm_service);
         
         let result = import_service.convert_txt_to_markdown(&file_path).await.unwrap();
@@ -772,7 +772,7 @@ mod tests {
     #[tokio::test]
     async fn test_generate_slug() {
         let temp_dir = TempDir::new().unwrap();
-        let tm_service = TranslationMemoryService::new(temp_dir.path().to_path_buf()).await.unwrap();
+        let tm_service = TranslationMemoryAdapter::new(temp_dir.path().to_path_buf()).await.unwrap();
         let import_service = DocumentImportService::new(tm_service);
         
         assert_eq!(import_service.generate_slug("Hello World"), "hello-world");

@@ -9,6 +9,7 @@ pub mod translation_memory_integration_service;
 pub mod translation_memory_integration_test;
 pub mod chapter_service;
 pub mod document_import_service;
+pub mod simplified_document_import_service;
 pub mod chunk_processor;
 pub mod chunk_linking_service;
 pub mod editor_sync_service;
@@ -189,6 +190,13 @@ pub use translation_memory_integration_service::{
 pub use chapter_service::{ChapterService, CreateChapterRequest, UpdateChapterRequest, ChapterSummary, ChapterStatistics, ChapterSearchResult, SearchMatchType};
 pub use document_import_service::{
     DocumentImportService, ImportDocument, ImportConfig, ImportResult, LanguageDocumentMap
+};
+pub use simplified_document_import_service::{
+    SimplifiedDocumentImportService, ImportConfig as SimplifiedImportConfig, 
+    DocumentImportResult, MultiDocumentImportResult, ImportError, Chapter, 
+    ImportProgress, ImportStatistics, FileValidationResult,
+    ChapterOrganizationConfig, ChapterSortingStrategy, ChapterTitleStrategy,
+    TocConfig, ChapterValidationResult, ChapterStatistics
 };
 pub use chunk_processor::{ChunkProcessor, ChunkingConfig, ChunkingStrategy, ProcessedChunk, ChunkingStats};
 pub use chunk_linking_service::{

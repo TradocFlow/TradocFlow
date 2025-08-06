@@ -6,11 +6,11 @@ use anyhow::Result;
 use tokio::sync::RwLock;
 use chrono::{DateTime, Utc};
 
-use crate::services::translation_memory_service::TranslationMemoryService;
+use crate::services::translation_memory_adapter::TranslationMemoryAdapter;
 
 /// Service for managing chunk linking and phrase groups
 pub struct ChunkLinkingService {
-    translation_memory: Arc<TranslationMemoryService>,
+    translation_memory: Arc<TranslationMemoryAdapter>,
     linked_phrases: Arc<RwLock<HashMap<Uuid, LinkedPhraseGroup>>>,
     chunk_selections: Arc<RwLock<HashMap<String, ChunkSelection>>>, // session_id -> selection
 }
@@ -112,7 +112,7 @@ pub enum MergeStrategy {
 
 impl ChunkLinkingService {
     /// Create a new chunk linking service
-    pub async fn new(translation_memory: Arc<TranslationMemoryService>) -> Result<Self> {
+    pub async fn new(translation_memory: Arc<TranslationMemoryAdapter>) -> Result<Self> {
         Ok(Self {
             translation_memory,
             linked_phrases: Arc::new(RwLock::new(HashMap::new())),
@@ -224,7 +224,7 @@ impl ChunkLinkingService {
 
         // Update chunk metadata to link them
         self.translation_memory
-            .update_chunk_linking(selection.selected_chunks.clone(), crate::services::translation_memory_service::ChunkLinkType::LinkedPhrase)
+            .update_chunk_linking(selection.selected_chunks.clone(), crate::services::translation_memory_adapter::ChunkLinkType::LinkedPhrase)
             .await?;
 
         // Update translation memory if requested
@@ -254,7 +254,7 @@ impl ChunkLinkingService {
 
         // Update chunk metadata to unlink them
         self.translation_memory
-            .update_chunk_linking(phrase_group.chunk_ids, crate::services::translation_memory_service::ChunkLinkType::Unlinked)
+            .update_chunk_linking(phrase_group.chunk_ids, crate::services::translation_memory_adapter::ChunkLinkType::Unlinked)
             .await?;
 
         Ok(())
@@ -443,7 +443,7 @@ mod tests {
     #[tokio::test]
     async fn test_chunk_selection_session() {
         let tm_service = Arc::new(
-            TranslationMemoryService::new(std::path::PathBuf::from("/tmp/test"))
+            TranslationMemoryAdapter::new(std::path::PathBuf::from("/tmp/test"))
                 .await
                 .unwrap()
         );
@@ -478,7 +478,7 @@ mod tests {
     #[tokio::test]
     async fn test_chunk_merging() {
         let tm_service = Arc::new(
-            TranslationMemoryService::new(std::path::PathBuf::from("/tmp/test"))
+            TranslationMemoryAdapter::new(std::path::PathBuf::from("/tmp/test"))
                 .await
                 .unwrap()
         );
@@ -506,7 +506,7 @@ mod tests {
     #[tokio::test]
     async fn test_phrase_group_management() {
         let tm_service = Arc::new(
-            TranslationMemoryService::new(std::path::PathBuf::from("/tmp/test"))
+            TranslationMemoryAdapter::new(std::path::PathBuf::from("/tmp/test"))
                 .await
                 .unwrap()
         );
@@ -536,19 +536,19 @@ mod tests {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    use crate::services::translation_memory_service::TranslationMemoryService;
+    use crate::services::translation_memory_adapter::TranslationMemoryAdapter;
     use std::sync::Arc;
     use tokio;
     use tempfile::TempDir;
     use uuid::Uuid;
     use std::collections::HashMap;
 
-    async fn setup_test_services() -> (Arc<TranslationMemoryService>, Arc<ChunkLinkingService>, TempDir) {
+    async fn setup_test_services() -> (Arc<TranslationMemoryAdapter>, Arc<ChunkLinkingService>, TempDir) {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path().to_path_buf();
         
         let tm_service = Arc::new(
-            TranslationMemoryService::new(project_path.clone())
+            TranslationMemoryAdapter::new(project_path.clone())
                 .await
                 .unwrap()
         );

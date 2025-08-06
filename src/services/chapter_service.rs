@@ -404,20 +404,20 @@ pub struct CreateChapterRequest {
 impl CreateChapterRequest {
     pub fn validate(&self) -> Result<()> {
         if self.title.is_empty() {
-            return Err(TradocumentError::ValidationError(
+            return Err(TradocumentError::Validation(
                 "Chapter must have at least one title".to_string()
             ));
         }
 
         if self.slug.trim().is_empty() {
-            return Err(TradocumentError::ValidationError(
+            return Err(TradocumentError::Validation(
                 "Chapter slug cannot be empty".to_string()
             ));
         }
 
         // Validate slug format
         if !self.slug.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
-            return Err(TradocumentError::ValidationError(
+            return Err(TradocumentError::Validation(
                 "Chapter slug can only contain alphanumeric characters, underscores, and hyphens".to_string()
             ));
         }

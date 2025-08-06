@@ -507,7 +507,7 @@ impl DocumentImportService {
                 position,
                 sentence_boundaries,
                 chunk_type,
-            ).map_err(|e| TradocumentError::ValidationError(e.to_string()))?;
+            ).map_err(|e| TradocumentError::Validation(e.to_string()))?;
 
             chunks.push(chunk_metadata);
             position += 1;

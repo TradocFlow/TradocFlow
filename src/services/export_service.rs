@@ -241,6 +241,7 @@ impl ExportService {
             let job_queue = Arc::clone(&self.job_queue);
             let active_jobs = Arc::clone(&self.active_jobs);
             let progress_sender = Arc::clone(&self.progress_sender);
+            let job_id = job.request.id; // Capture job_id before moving job
 
             let handle = tokio::spawn(async move {
                 let result = Self::execute_export_job(
@@ -259,7 +260,7 @@ impl ExportService {
                     }
                     Err(e) => {
                         let mut queue = job_queue.lock().unwrap();
-                        if let Some(queue_job) = queue.iter_mut().find(|j| j.request.id == job.request.id) {
+                        if let Some(queue_job) = queue.iter_mut().find(|j| j.request.id == job_id) {
                             queue_job.status = ExportStatus::Failed;
                             queue_job.error_message = Some(e.to_string());
                             queue_job.completed_at = Some(Utc::now());
@@ -270,11 +271,10 @@ impl ExportService {
                 // Remove from active jobs
                 {
                     let mut active = active_jobs.lock().unwrap();
-                    active.remove(&job.request.id);
+                    active.remove(&job_id);
                 }
             });
 
-            let job_id = job.request.id;
             self.active_jobs.lock().unwrap().insert(job_id, handle);
         }
 

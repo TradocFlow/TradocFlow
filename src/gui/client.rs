@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::{Document, User, Project, TradocumentError};
+use crate::{User, Project, TradocumentError};
+use crate::models::document::Document;
 
 /// HTTP client for communicating with the Tradocument API
 #[derive(Clone)]

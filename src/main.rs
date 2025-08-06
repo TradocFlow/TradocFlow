@@ -1,5 +1,5 @@
 use env_logger;
-use tradocflow::gui::App;
+use tradocflow_core::gui::App;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging

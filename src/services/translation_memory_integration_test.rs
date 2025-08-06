@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::services::{
     TranslationMemoryService, TranslationMemoryIntegrationService
 };
+use crate::models::translation_models::LanguagePair;
 
 /// Integration tests for translation memory editor integration
 #[cfg(test)]

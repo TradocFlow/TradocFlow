@@ -19,7 +19,7 @@ pub struct MarkdownElement {
 #[derive(Clone, Debug)]
 pub struct RenderedContent {
     pub html: SharedString,
-    pub elements: ModelRc<VecModel<MarkdownElement>>,
+    pub elements: ModelRc<MarkdownElement>,
     pub word_count: i32,
     pub heading_count: i32,
 }
@@ -54,7 +54,7 @@ impl MarkdownEditorBridge {
         
         RenderedContent {
             html: SharedString::from(rendered.html.clone()),
-            elements: ModelRc::new(VecModel::from(elements)),
+            elements: ModelRc::from(elements.as_slice()),
             word_count: rendered.metadata.word_count as i32,
             heading_count: rendered.metadata.heading_count as i32,
         }

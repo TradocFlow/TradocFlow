@@ -14,11 +14,13 @@ use uuid::Uuid;
 use chrono::{DateTime, Utc};
 
 // Import the application modules
-use tradocflow::{
-    Database, DocumentImportService, 
-    User, Document, DocumentStatus, DocumentMetadata,
+use tradocflow_core::{
+    Database,
+    User, Document, DocumentMetadata,
     CreateProjectRequest, UpdateProjectRequest, Priority,
-    services::project_manager::ProjectManager,
+    services::{
+        DocumentImportService, project_manager::ProjectManager, TranslationMemoryAdapter
+    },
     database::{
         project_repository::ProjectRepository,
         kanban_repository::KanbanRepository,
@@ -28,6 +30,7 @@ use tradocflow::{
     models::{
         member::MemberRole,
         kanban::{CreateKanbanCardRequest, UpdateKanbanCardRequest, MoveCardRequest},
+        document::DocumentStatus,
     }
 };
 
@@ -112,7 +115,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Initialize services  
     let project_manager = Arc::new(ProjectManager::new("./projects"));
-    let import_service = Arc::new(DocumentImportService::new());
+    
+    // Create translation memory adapter for import service
+    let tm_adapter = TranslationMemoryAdapter::new(
+        std::path::PathBuf::from("./projects/translation_memory")
+    ).await.map_err(|e| format!("Failed to initialize translation memory: {}", e))?;
+    
+    let import_service = Arc::new(DocumentImportService::new(tm_adapter));
     
     // Create application state
     let state = ApiState {
@@ -231,7 +240,6 @@ async fn get_documents(State(_state): State<ApiState>) -> Result<Json<Vec<Docume
     // For now, return sample documents - in real implementation would query database
     let documents = vec![
         Document {
-            id: Uuid::new_v4(),
             title: "Sample Document 1".to_string(),
             content: {
                 let mut content = HashMap::new();
@@ -239,13 +247,7 @@ async fn get_documents(State(_state): State<ApiState>) -> Result<Json<Vec<Docume
                 content.insert("de".to_string(), "# Beispieldokument\n\nDies ist ein Beispieldokument.".to_string());
                 content
             },
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-            version: 1,
-            status: DocumentStatus::Draft,
             metadata: DocumentMetadata {
-                languages: vec!["en".to_string(), "de".to_string()],
-                tags: vec!["sample".to_string()],
                 project_id: None,
                 screenshots: vec![],
             },
@@ -260,16 +262,9 @@ async fn create_document(
     Json(request): Json<CreateDocumentRequest>,
 ) -> Result<Json<Document>, StatusCode> {
     let document = Document {
-        id: Uuid::new_v4(),
         title: request.title,
         content: request.content.clone(),
-        created_at: Utc::now(),
-        updated_at: Utc::now(),
-        version: 1,
-        status: DocumentStatus::Draft,
         metadata: DocumentMetadata {
-            languages: request.content.keys().cloned().collect(),
-            tags: vec![],
             project_id: None,
             screenshots: vec![],
         },
@@ -284,20 +279,13 @@ async fn get_document(
 ) -> Result<Json<Document>, StatusCode> {
     // Sample document response - in real implementation would query database
     let document = Document {
-        id,
         title: "Retrieved Document".to_string(),
         content: {
             let mut content = HashMap::new();
             content.insert("en".to_string(), "# Retrieved Document\n\nContent loaded from API.".to_string());
             content
         },
-        created_at: Utc::now(),
-        updated_at: Utc::now(),
-        version: 1,
-        status: DocumentStatus::Draft,
         metadata: DocumentMetadata {
-            languages: vec!["en".to_string()],
-            tags: vec![],
             project_id: None,
             screenshots: vec![],
         },
@@ -312,16 +300,9 @@ async fn update_document(
     Json(request): Json<CreateDocumentRequest>,
 ) -> Result<Json<Document>, StatusCode> {
     let document = Document {
-        id,
         title: request.title,
         content: request.content.clone(),
-        created_at: Utc::now() - chrono::Duration::days(1), // Simulate creation time
-        updated_at: Utc::now(),
-        version: 2,
-        status: DocumentStatus::Draft,
         metadata: DocumentMetadata {
-            languages: request.content.keys().cloned().collect(),
-            tags: vec![],
             project_id: None,
             screenshots: vec![],
         },
@@ -776,20 +757,13 @@ async fn mark_notification_read(
 async fn import_document(State(_state): State<ApiState>) -> Result<Json<Document>, StatusCode> {
     // Placeholder for document import
     let document = Document {
-        id: Uuid::new_v4(),
         title: "Imported Document".to_string(),
         content: {
             let mut content = HashMap::new();
             content.insert("en".to_string(), "# Imported Document\n\nThis document was imported.".to_string());
             content
         },
-        created_at: Utc::now(),
-        updated_at: Utc::now(),
-        version: 1,
-        status: DocumentStatus::Draft,
         metadata: DocumentMetadata {
-            languages: vec!["en".to_string()],
-            tags: vec!["imported".to_string()],
             project_id: None,
             screenshots: vec![],
         },

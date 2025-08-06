@@ -6,10 +6,13 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::services::translation_memory_service::{
-    TranslationMemoryService, TranslationMatch, TranslationSource
+use crate::services::translation_memory_adapter::{
+    TranslationMemoryAdapter, TranslationMatch, TranslationSource
 };
-use crate::models::translation_models::{TranslationUnit, LanguagePair};
+use crate::models::{
+    document::TranslationUnit,
+    translation_models::LanguagePair
+};
 
 /// Configuration for translation memory integration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,7 +83,7 @@ pub enum IndicatorType {
 /// Service for integrating translation memory with the editor
 #[derive(Clone)]
 pub struct TranslationMemoryIntegrationService {
-    translation_memory: Arc<TranslationMemoryService>,
+    translation_memory: Arc<TranslationMemoryAdapter>,
     config: Arc<RwLock<IntegrationConfig>>,
     active_suggestions: Arc<RwLock<HashMap<String, Vec<EditorSuggestion>>>>,
     confidence_indicators: Arc<RwLock<HashMap<String, Vec<ConfidenceIndicator>>>>,
@@ -99,7 +102,7 @@ struct PendingTranslation {
 }
 
 impl TranslationMemoryIntegrationService {
-    pub async fn new(translation_memory: Arc<TranslationMemoryService>) -> Result<Self> {
+    pub async fn new(translation_memory: Arc<TranslationMemoryAdapter>) -> Result<Self> {
         Ok(Self {
             translation_memory,
             config: Arc::new(RwLock::new(IntegrationConfig::default())),
@@ -418,7 +421,7 @@ mod tests {
     #[tokio::test]
     async fn test_integration_service_creation() {
         let tm_service = Arc::new(
-            TranslationMemoryService::new(PathBuf::from("/tmp/test"))
+            TranslationMemoryAdapter::new(PathBuf::from("/tmp/test"))
                 .await
                 .unwrap()
         );

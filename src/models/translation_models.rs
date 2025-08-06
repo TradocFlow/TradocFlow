@@ -3,6 +3,8 @@ use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use tradocflow_translation_memory::TranslationUnit;
+use tradocflow_translation_memory::TranslationMetadata;
 
 /// Translation project model with language configuration and team members
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -758,9 +760,9 @@ impl From<TranslationUnit> for TranslationUnitParquet {
             project_id: unit.project_id.to_string(),
             chapter_id: unit.chapter_id.to_string(),
             chunk_id: unit.chunk_id.to_string(),
-            source_language: unit.source_language,
+            source_language: unit.source_language.code().to_string(),
             source_text: unit.source_text,
-            target_language: unit.target_language,
+            target_language: unit.target_language.code().to_string(),
             target_text: unit.target_text,
             confidence_score: unit.confidence_score,
             context: unit.context,
@@ -804,9 +806,9 @@ impl TryFrom<TranslationUnitParquet> for TranslationUnit {
             project_id,
             chapter_id,
             chunk_id,
-            source_language: parquet.source_language,
+            source_language: tradocflow_translation_memory::Language::Custom(parquet.source_language),
             source_text: parquet.source_text,
-            target_language: parquet.target_language,
+            target_language: tradocflow_translation_memory::Language::Custom(parquet.target_language),
             target_text: parquet.target_text,
             confidence_score: parquet.confidence_score,
             context: parquet.context,

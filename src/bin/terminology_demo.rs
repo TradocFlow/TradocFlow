@@ -3,8 +3,8 @@ use uuid::Uuid;
 use chrono::Utc;
 use tempfile::TempDir;
 
-use tradocflow::services::{TerminologyService, TerminologyHighlightingService, HighlightType};
-use tradocflow::models::translation_models::Term;
+use tradocflow_core::services::{TerminologyServiceAdapter, TerminologyHighlightingService, HighlightType};
+use tradocflow_translation_memory::Term;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📁 Created temporary project at: {:?}", temp_dir.path());
 
     // Initialize services
-    let terminology_service = Arc::new(TerminologyService::new(temp_dir.path().to_path_buf())?);
+    let terminology_service = Arc::new(TerminologyServiceAdapter::new(temp_dir.path().to_path_buf()).await?);
     let highlighting_service = TerminologyHighlightingService::new(terminology_service.clone());
     
     let project_id = Uuid::new_v4();
@@ -60,8 +60,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     for term in &terms {
-        terminology_service.update_terminology(project_id, vec![term.clone()]).await?;
-        println!("  ✅ Added: {} ({})", term.term, 
+        // TODO: Implement term addition in TerminologyServiceAdapter
+        println!("  ✅ Would add: {} ({})", term.term, 
                 if term.do_not_translate { "do not translate" } else { "translatable" });
     }
 

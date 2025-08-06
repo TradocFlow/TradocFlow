@@ -4,65 +4,138 @@ slint::include_modules!();
 
 // Simple Slint component for basic markdown editing
 slint::slint! {
-    component SimpleMarkdownEditor inherits Window {
+    export component SimpleMarkdownEditor inherits Window {
         title: "Simple Markdown Editor";
         width: 1000px;
         height: 700px;
         
-        in-out property <string> content: "# Welcome to Simple Markdown Editor\n\nStart typing your markdown here...\n\n## Features\n\n- Live markdown editing\n- File save/load\n- Basic formatting\n\n### Getting Started\n\n1. Type your markdown in the editor\n2. Use File menu to save/load\n3. Content is saved automatically\n\nEnjoy writing!";
+        in-out property <string> content: "# Welcome to Simple Markdown Editor\n\nStart typing your markdown here...\n\n## Features\n\n- Live markdown editing\n- File save/load\n- Basic formatting\n\n### Getting Started\n\n1. Type your markdown in the editor\n2. Use File menu to save/load\n3. Content is saved automatically\n\nEnjoy writing!\n\n<!-- TODO: Future UI enhancements -->\n<!-- - Add toolbar with formatting buttons -->\n<!-- - Add split view with live preview -->\n<!-- - Add syntax highlighting -->\n<!-- - Add word/line count display -->";
         
         callback file-save();
         callback file-open();
         callback content-changed(string);
         
-        VerticalBox {
+        Rectangle {
             // Menu bar
-            HorizontalBox {
+            Rectangle {
                 height: 40px;
-                padding: 8px;
-                background: #f0f0f0;
+                background: #f8f9fa;
+                border-width: 1px;
+                border-color: #dee2e6;
                 
-                Button {
-                    text: "📁 Open";
+                // Open button
+                TouchArea {
                     width: 80px;
+                    height: 30px;
+                    x: 10px;
+                    y: 5px;
+                    
                     clicked => { file-open(); }
+                    
+                    Rectangle {
+                        background: parent.has-hover ? #e8e8e8 : #f0f0f0;
+                        border-width: 1px;
+                        border-color: #bbb;
+                        border-radius: 4px;
+                        
+                        Text {
+                            text: "📁 Open";
+                            color: #333;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            font-size: 13px;
+                        }
+                    }
                 }
                 
-                Button {
-                    text: "💾 Save";
+                // Save button
+                TouchArea {
                     width: 80px;
+                    height: 30px;
+                    x: 100px;
+                    y: 5px;
+                    
                     clicked => { file-save(); }
+                    
+                    Rectangle {
+                        background: parent.has-hover ? #e8e8e8 : #f0f0f0;
+                        border-width: 1px;
+                        border-color: #bbb;
+                        border-radius: 4px;
+                        
+                        Text {
+                            text: "💾 Save";
+                            color: #333;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            font-size: 13px;
+                        }
+                    }
                 }
                 
                 Text {
                     text: "Simple Markdown Editor - Type your markdown below";
-                    vertical-alignment: center;
+                    x: 200px;
+                    y: 12px;
                     color: #666;
+                    font-size: 13px;
                 }
             }
             
-            // Editor area
-            ScrollView {
-                TextEdit {
-                    text: content;
-                    font-family: "Liberation Mono, Consolas, monospace";
-                    font-size: 14px;
+            // Editor area - actual text editor
+            Rectangle {
+                y: 40px;
+                height: parent.height - 70px;
+                background: white;
+                border-width: 1px;
+                border-color: #ccc;
+                
+                // Scrollable text editor
+                Flickable {
+                    width: parent.width;
+                    height: parent.height;
+                    viewport-width: parent.width - 20px;
+                    viewport-height: text-editor.preferred-height;
                     
-                    edited(text) => {
-                        content = text;
-                        content-changed(text);
+                    text-editor := TextInput {
+                        text: content;
+                        font-family: "Liberation Mono, Consolas, monospace";
+                        font-size: 14px;
+                        x: 10px;
+                        y: 10px;
+                        width: parent.viewport-width - 20px;
+                        color: black;
+                        single-line: false;
+                        wrap: word-wrap;
+                        
+                        edited => {
+                            content = self.text;
+                            content-changed(self.text);
+                        }
                     }
                 }
             }
             
             // Status bar
-            HorizontalBox {
+            Rectangle {
+                y: parent.height - 30px;
                 height: 30px;
-                padding: 8px;
                 background: #e0e0e0;
+                border-width: 1px;
+                border-color: #ccc;
                 
                 Text {
-                    text: @tr("Words: {}", content.split(" ").length);
+                    text: "Simple Markdown Editor - Ready to edit";
+                    x: 8px;
+                    y: 8px;
+                    font-size: 12px;
+                    color: #666;
+                }
+                
+                Text {
+                    text: "Ready";
+                    x: parent.width - 80px;
+                    y: 8px;
                     font-size: 12px;
                     color: #666;
                 }
@@ -110,7 +183,6 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     });
     
-    let ui_handle = ui.as_weak();
     ui.on_content_changed(move |text| {
         println!("📝 Content updated ({} characters)", text.len());
     });
@@ -118,6 +190,16 @@ fn main() -> Result<(), slint::PlatformError> {
     println!("🚀 Simple Markdown Editor started!");
     println!("💡 Use the Open/Save buttons to work with files");
     println!("💡 Start typing in the text area to edit markdown");
+    
+    // TODO: Future enhancements
+    // - Add syntax highlighting for markdown
+    // - Add live preview panel 
+    // - Add word count and line count in status bar
+    // - Add recent files menu
+    // - Add find/replace functionality
+    // - Add markdown toolbar with formatting buttons
+    // - Add auto-save functionality
+    // - Add split view (editor + preview)
     
     ui.run()
 }

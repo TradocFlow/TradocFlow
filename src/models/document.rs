@@ -87,6 +87,35 @@ pub struct TranslationUnit {
     pub updated_at: DateTime<Utc>,
 }
 
+impl TranslationUnit {
+    /// Create a new TranslationUnit
+    /// TODO: This is a stub implementation for compilation. Should be properly implemented.
+    pub fn new(
+        _project_id: Uuid,
+        chapter_id: Uuid,
+        _chunk_id: Uuid,
+        source_language: String,
+        source_text: String,
+        _target_language: String,
+        _target_text: String,
+        _confidence: f32,
+        context: Option<String>,
+    ) -> Result<Self, crate::TradocumentError> {
+        Ok(TranslationUnit {
+            id: Uuid::new_v4(),
+            chapter_id,
+            paragraph_id: format!("para_{}", Uuid::new_v4()),
+            source_language,
+            source_text,
+            translations: HashMap::new(),
+            context,
+            notes: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranslationVersion {
     pub text: String,

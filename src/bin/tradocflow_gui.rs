@@ -1,5 +1,5 @@
 use env_logger;
-use tradocflow::gui::App;
+use tradocflow_core::gui::App;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

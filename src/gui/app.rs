@@ -1100,7 +1100,7 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move |format| {
                 if let Some(window) = main_window_weak.upgrade() {
-                    window.set_status_message(format!("Export format changed to: {format}").into());
+                    window.set_status_message(format!("Export format changed to: {:?}", format).into());
                     window.set_status_type("info".into());
                 }
             }
@@ -1111,7 +1111,7 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move |layout| {
                 if let Some(window) = main_window_weak.upgrade() {
-                    window.set_status_message(format!("Export layout changed to: {layout}").into());
+                    window.set_status_message(format!("Export layout changed to: {:?}", layout).into());
                     window.set_status_type("info".into());
                 }
             }

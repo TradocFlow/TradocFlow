@@ -41,7 +41,7 @@ impl ExportBridge {
         }
     }
 
-    pub fn setup_export_dialog<T: ComponentHandle>(
+    pub fn setup_export_dialog<T: ComponentHandle + 'static>(
         &self,
         main_window: &Weak<T>,
     ) -> Result<()> {
@@ -73,228 +73,97 @@ impl ExportBridge {
 
     pub fn show_export_dialog<T: ComponentHandle>(
         &self,
-        main_window: &Weak<T>,
+        _main_window: &Weak<T>,
     ) -> Result<()> {
-        if let Some(window) = main_window.upgrade() {
-            // Initialize available languages
-            let languages = self.available_languages.lock().unwrap();
-            let language_options: Vec<ExportLanguageOption> = languages
-                .iter()
-                .map(|lang| ExportLanguageOption {
-                    code: lang.clone().into(),
-                    name: self.get_language_name(lang).into(),
-                    enabled: lang == "en", // Default to English enabled
-                })
-                .collect();
-
-            let language_model = Rc::new(VecModel::from(language_options));
-            window.set_export_available_languages(ModelRc::from(language_model));
-
-            // Set default values
-            window.set_export_selected_format(ExportFormat::PDF);
-            window.set_export_selected_layout(ExportLayout::SingleLanguage);
-            window.set_export_filename_prefix("document".into());
-            window.set_export_include_metadata(true);
-            window.set_export_include_table_of_contents(true);
-
-            // Show the dialog
-            window.set_show_export_dialog(true);
-        }
-
+        // TODO: Implement when UI export dialog methods are available in Slint component
+        // Required methods: set_export_available_languages, set_export_selected_format,
+        // set_export_selected_layout, set_export_filename_prefix, set_export_include_metadata,
+        // set_export_include_table_of_contents, set_show_export_dialog
+        println!("Export dialog requested - UI not implemented yet");
         Ok(())
     }
 
     pub fn handle_format_changed<T: ComponentHandle>(
         &self,
-        main_window: &Weak<T>,
-        format: ExportFormat,
+        _main_window: &Weak<T>,
+        _format: ExportFormat,
     ) {
-        if let Some(window) = main_window.upgrade() {
-            window.set_export_selected_format(format);
-        }
+        // TODO: Implement when set_export_selected_format method is available
+        println!("Format change requested - UI not implemented yet");
     }
 
     pub fn handle_layout_changed<T: ComponentHandle>(
         &self,
-        main_window: &Weak<T>,
-        layout: ExportLayout,
+        _main_window: &Weak<T>,
+        _layout: ExportLayout,
     ) {
-        if let Some(window) = main_window.upgrade() {
-            window.set_export_selected_layout(layout);
-        }
+        // TODO: Implement when set_export_selected_layout method is available
+        println!("Layout change requested - UI not implemented yet");
     }
 
     pub fn handle_language_toggled<T: ComponentHandle>(
         &self,
-        main_window: &Weak<T>,
-        language_code: SharedString,
-        enabled: bool,
+        _main_window: &Weak<T>,
+        _language_code: SharedString,
+        _enabled: bool,
     ) {
-        if let Some(window) = main_window.upgrade() {
-            let languages = window.get_export_available_languages();
-            for i in 0..languages.row_count() {
-                if let Some(mut lang) = languages.row_data(i) {
-                    if lang.code == language_code {
-                        lang.enabled = enabled;
-                        languages.set_row_data(i, lang);
-                        break;
-                    }
-                }
-            }
-        }
+        // TODO: Implement when get_export_available_languages method is available
+        println!("Language toggle requested - UI not implemented yet");
     }
 
     pub fn handle_browse_output_directory<T: ComponentHandle>(
         &self,
-        main_window: &Weak<T>,
+        _main_window: &Weak<T>,
     ) {
-        // This would typically open a native file dialog
-        // For now, we'll use a placeholder implementation
-        if let Some(window) = main_window.upgrade() {
-            // In a real implementation, you would use a file dialog crate like rfd
-            let default_path = std::env::current_dir()
-                .unwrap_or_else(|_| PathBuf::from("."))
-                .join("exports");
-            
-            window.set_export_output_directory(
-                default_path.to_string_lossy().to_string().into()
-            );
-        }
+        // TODO: Implement when set_export_output_directory method is available
+        println!("Browse output directory requested - UI not implemented yet");
     }
 
     pub fn handle_browse_custom_css<T: ComponentHandle>(
         &self,
-        main_window: &Weak<T>,
+        _main_window: &Weak<T>,
     ) {
-        // This would typically open a native file dialog for CSS files
-        // For now, we'll use a placeholder implementation
-        if let Some(window) = main_window.upgrade() {
-            // In a real implementation, you would use a file dialog crate like rfd
-            // with CSS file filters
-            window.set_export_custom_css_path("".into());
-        }
+        // TODO: Implement when set_export_custom_css_path method is available
+        println!("Browse custom CSS requested - UI not implemented yet");
     }
 
     pub async fn handle_start_export<T: ComponentHandle>(
         &self,
-        main_window: &Weak<T>,
+        _main_window: &Weak<T>,
     ) -> Result<()> {
-        let window = main_window.upgrade().ok_or_else(|| {
-            TradocumentError::Ui("Main window not available".to_string())
-        })?;
-
-        // Collect export configuration from UI
-        let selected_languages = self.get_selected_languages(&window);
-        if selected_languages.is_empty() {
-            return Err(TradocumentError::Validation(
-                "Please select at least one language to export".to_string(),
-            ));
-        }
-
-        let output_directory = PathBuf::from(window.get_export_output_directory().to_string());
-        if output_directory.to_string_lossy().is_empty() {
-            return Err(TradocumentError::Validation(
-                "Please select an output directory".to_string(),
-            ));
-        }
-
-        // Create output directory if it doesn't exist
-        tokio::fs::create_dir_all(&output_directory).await?;
-
-        let config = ExportConfiguration {
-            format: self.convert_export_format(window.get_export_selected_format()),
-            layout: self.convert_export_layout(window.get_export_selected_layout()),
-            languages: selected_languages,
-            include_metadata: window.get_export_include_metadata(),
-            include_table_of_contents: window.get_export_include_table_of_contents(),
-            custom_css_path: {
-                let css_path = window.get_export_custom_css_path().to_string();
-                if css_path.is_empty() {
-                    None
-                } else {
-                    Some(PathBuf::from(css_path))
-                }
-            },
-            template_options: HashMap::new(),
-        };
-
-        let request = ExportRequest {
-            id: Uuid::new_v4(),
-            project_id: self.current_project_id.lock().unwrap()
-                .ok_or_else(|| TradocumentError::Validation("No project loaded".to_string()))?,
-            document_id: *self.current_document_id.lock().unwrap(),
-            config,
-            output_directory,
-            filename_prefix: window.get_export_filename_prefix().to_string(),
-            requested_at: Utc::now(),
-            requested_by: "current_user".to_string(), // TODO: Get from user session
-        };
-
-        // Start the export
-        window.set_export_in_progress(true);
-        let export_id = self.export_service.queue_export(request).await?;
-
-        // Update queue information
-        let (queued, active) = self.export_service.get_queue_status();
-        window.set_export_queue_position(queued as i32);
-        window.set_export_queue_total((queued + active) as i32);
-        window.set_export_show_queue_info(queued > 1);
-
+        // TODO: Implement when all export UI methods are available
+        // Required methods: get_export_output_directory, get_export_selected_format, 
+        // get_export_selected_layout, get_export_include_metadata,
+        // get_export_include_table_of_contents, get_export_custom_css_path,
+        // get_export_filename_prefix, set_export_in_progress,
+        // set_export_queue_position, set_export_queue_total, set_export_show_queue_info
+        println!("Start export requested - UI not implemented yet");
         Ok(())
     }
 
     pub async fn handle_cancel_export<T: ComponentHandle>(
         &self,
-        main_window: &Weak<T>,
+        _main_window: &Weak<T>,
     ) -> Result<()> {
-        if let Some(window) = main_window.upgrade() {
-            // In a real implementation, we would track the current export ID
-            // For now, we'll just reset the UI state
-            window.set_export_in_progress(false);
-            window.set_export_progress(ExportProgress {
-                current_step: "".into(),
-                progress: 0.0,
-                total_files: 0,
-                completed_files: 0,
-                is_complete: false,
-                error_message: "".into(),
-            });
-        }
-
+        // TODO: Implement when set_export_in_progress and set_export_progress methods are available
+        println!("Cancel export requested - UI not implemented yet");
         Ok(())
     }
 
     pub fn handle_close_dialog<T: ComponentHandle>(
         &self,
-        main_window: &Weak<T>,
+        _main_window: &Weak<T>,
     ) {
-        if let Some(window) = main_window.upgrade() {
-            window.set_show_export_dialog(false);
-            window.set_export_in_progress(false);
-        }
+        // TODO: Implement when set_show_export_dialog and set_export_in_progress methods are available
+        println!("Close dialog requested - UI not implemented yet");
     }
 
     pub fn handle_view_export_history<T: ComponentHandle>(
         &self,
-        main_window: &Weak<T>,
+        _main_window: &Weak<T>,
     ) {
-        let history = self.export_service.get_export_history(Some(50));
-        
-        // In a real implementation, you would show this in a separate dialog
-        // or panel. For now, we'll just log it.
-        println!("Export History:");
-        println!("Total exports: {}", history.total_exports);
-        println!("Successful: {}", history.successful_exports);
-        println!("Failed: {}", history.failed_exports);
-        
-        for export in &history.exports {
-            println!(
-                "- {} ({}): {} files exported",
-                export.request.filename_prefix,
-                export.status,
-                export.output_files.len()
-            );
-        }
+        // TODO: Implement when UI for export history is available
+        println!("Export history requested - UI not implemented yet");
     }
 
     pub fn set_current_project(&self, project_id: Uuid) {
@@ -309,19 +178,9 @@ impl ExportBridge {
         *self.available_languages.lock().unwrap() = languages;
     }
 
-    fn get_selected_languages<T: ComponentHandle>(&self, window: &T) -> Vec<String> {
-        let languages = window.get_export_available_languages();
-        let mut selected = Vec::new();
-
-        for i in 0..languages.row_count() {
-            if let Some(lang) = languages.row_data(i) {
-                if lang.enabled {
-                    selected.push(lang.code.to_string());
-                }
-            }
-        }
-
-        selected
+    fn get_selected_languages<T: ComponentHandle>(&self, _window: &T) -> Vec<String> {
+        // TODO: Implement when get_export_available_languages method is available
+        vec!["en".to_string()] // Default stub
     }
 
     fn convert_export_format(&self, format: ExportFormat) -> EngineExportFormat {

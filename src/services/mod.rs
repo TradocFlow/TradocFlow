@@ -4,11 +4,9 @@ pub mod translation_service;
 // New adapter for translation-memory crate
 pub mod translation_memory_adapter;
 // Old services - will be deprecated
-pub mod translation_memory_service;
+// Translation memory services now use the external crate
 pub mod translation_memory_integration_service;
 pub mod translation_memory_integration_test;
-pub mod terminology_service;
-pub mod terminology_highlighting_service;
 pub mod chapter_service;
 pub mod document_import_service;
 pub mod chunk_processor;
@@ -37,21 +35,23 @@ pub use translation_service::TranslationService;
 // Re-export types from the new translation-memory crate
 pub use tradocflow_translation_memory::{
     TradocFlowTranslationMemory,
-    TranslationMemoryService as ExternalTranslationMemoryService,
-    TerminologyService as ExternalTerminologyService,
-    HighlightingService,
-    TranslationUnit,
+    TranslationMemoryService as NewTranslationMemoryService,
+    TerminologyService as NewTerminologyService,
+    HighlightingService as NewHighlightingService,
+    TranslationUnit as NewTranslationUnit,
     TranslationMatch,
-    TranslationSuggestion,
+    TranslationSuggestion as NewTranslationSuggestion,
     MatchType,
     MatchScore,
-    Term,
-    TerminologyImportResult,
-    Language,
+    Term as NewTerm,
+    TerminologyImportResult as NewTerminologyImportResult,
+    Language as NewLanguage,
     Domain,
     Quality,
-    Metadata,
+    Metadata as NewMetadata,
     ComprehensiveSearchResult,
+    TranslationMemoryError,
+    Result as TMResult,
 };
 
 // New adapter services
@@ -59,17 +59,133 @@ pub use translation_memory_adapter::{
     TranslationMemoryAdapter, TerminologyServiceAdapter
 };
 
-// Legacy service re-exports for compatibility
-pub use translation_memory_service::TranslationMemoryService;
+// Legacy types for compatibility - these will need to be migrated
+use serde::{Deserialize, Serialize};
+
+/// Type of chunk linking operation (legacy compatibility)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ChunkLinkType {
+    /// Link chunks into a phrase group
+    LinkedPhrase,
+    /// Unlink previously linked chunks
+    Unlinked,
+    /// Merge chunks into a single unit
+    Merged,
+}
+
+/// Source of a translation suggestion (legacy compatibility)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum TranslationSource {
+    /// From translation memory
+    Memory,
+    /// From terminology database
+    Terminology,
+    /// From machine translation
+    MachineTranslation,
+    /// From user input
+    Manual,
+}
+
+// Placeholder for legacy services - to be replaced with adapters
+pub type TranslationMemoryService = TranslationMemoryAdapter;
+pub type TerminologyService = TerminologyServiceAdapter;
+
+// Legacy terminology types (temporary compatibility layer)
+use std::collections::HashMap;
+use uuid::Uuid;
+
+/// Term highlight for UI display (legacy compatibility)
+#[derive(Debug, Clone)]
+pub struct TermHighlight {
+    pub term_id: Uuid,
+    pub term: String,
+    pub start_position: usize,
+    pub end_position: usize,
+    pub highlight_type: HighlightType,
+    pub definition: Option<String>,
+    pub confidence: f32,
+}
+
+/// Highlight type for terminology (legacy compatibility)
+#[derive(Debug, Clone)]
+pub enum HighlightType {
+    DoNotTranslate,
+    Inconsistent,
+    Suggestion,
+    Validated,
+}
+
+/// Terminology suggestion (legacy compatibility)
+#[derive(Debug, Clone)]
+pub struct TerminologySuggestion {
+    pub original_text: String,
+    pub suggested_term: String,
+    pub definition: Option<String>,
+    pub confidence: f32,
+    pub position: usize,
+    pub reason: String,
+}
+
+/// Consistency check result (legacy compatibility)
+#[derive(Debug, Clone)]
+pub struct ConsistencyCheckResult {
+    pub term: String,
+    pub inconsistencies: Vec<LanguageInconsistency>,
+}
+
+/// Language inconsistency (legacy compatibility)
+#[derive(Debug, Clone)]
+pub struct LanguageInconsistency {
+    pub language: String,
+    pub expected_term: String,
+    pub found_terms: Vec<String>,
+    pub positions: Vec<usize>,
+}
+
+/// Placeholder for terminology highlighting service
+pub struct TerminologyHighlightingService {
+    terminology_service: std::sync::Arc<TerminologyServiceAdapter>,
+}
+
+impl TerminologyHighlightingService {
+    pub fn new(terminology_service: std::sync::Arc<TerminologyServiceAdapter>) -> Self {
+        Self { terminology_service }
+    }
+    
+    pub async fn highlight_terms_in_text(&self, _text: &str, _project_id: Uuid, _language: &str) -> crate::Result<Vec<TermHighlight>> {
+        // Placeholder implementation - to be integrated with new crate
+        Ok(vec![])
+    }
+    
+    pub async fn generate_terminology_suggestions(&self, _text: &str, _project_id: Uuid, _language: &str) -> crate::Result<Vec<TerminologySuggestion>> {
+        // Placeholder implementation - to be integrated with new crate
+        Ok(vec![])
+    }
+    
+    pub async fn check_consistency_across_languages(&self, _texts: HashMap<String, String>, _project_id: Uuid) -> crate::Result<Vec<ConsistencyCheckResult>> {
+        // Placeholder implementation - to be integrated with new crate
+        Ok(vec![])
+    }
+    
+    pub async fn update_highlighting_for_text_change(&self, _text: &str, _change_start: usize, _change_end: usize, _project_id: Uuid, _language: &str) -> crate::Result<Vec<TermHighlight>> {
+        // Placeholder implementation - to be integrated with new crate
+        Ok(vec![])
+    }
+    
+    pub fn invalidate_cache(&self, _project_id: Uuid) {
+        // Placeholder implementation - to be integrated with new crate
+    }
+}
 pub use translation_memory_integration_service::{
     TranslationMemoryIntegrationService, IntegrationConfig, EditorSuggestion, 
     ConfidenceIndicator, IndicatorType, TextPosition, SearchFilters, TranslationStatistics
 };
-pub use terminology_service::TerminologyService;
-pub use terminology_highlighting_service::{
-    TerminologyHighlightingService, TermHighlight, HighlightType, ConsistencyCheckResult,
-    LanguageInconsistency, TerminologySuggestion
-};
+// Terminology services now use the external crate
+// pub use terminology_service::TerminologyService;
+// pub use terminology_highlighting_service::{
+//     TerminologyHighlightingService, TermHighlight, HighlightType, ConsistencyCheckResult,
+//     LanguageInconsistency, TerminologySuggestion
+// };
 pub use chapter_service::{ChapterService, CreateChapterRequest, UpdateChapterRequest, ChapterSummary, ChapterStatistics, ChapterSearchResult, SearchMatchType};
 pub use document_import_service::{
     DocumentImportService, ImportDocument, ImportConfig, ImportResult, LanguageDocumentMap

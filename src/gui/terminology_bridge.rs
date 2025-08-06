@@ -7,7 +7,9 @@ use slint::{ModelRc, VecModel, SharedString};
 use crate::services::{
     TerminologyHighlightingService, TerminologyService, 
     TermHighlight, HighlightType, TerminologySuggestion,
-    TerminologyServiceAdapter
+    TerminologyServiceAdapter,
+    // New types from the translation memory crate
+    NewTerminologyService, NewHighlightingService, NewTerm
 };
 
 // Slint-compatible structures

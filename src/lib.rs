@@ -222,7 +222,7 @@ pub enum TradocumentError {
     #[error("Sync error: {0}")]
     SyncError(String),
     #[error("Translation memory error: {0}")]
-    TranslationMemory(String),
+    TranslationMemory(#[from] tradocflow_translation_memory::TranslationMemoryError),
     #[error("Terminology error: {0}")]
     Terminology(String),
     #[error("UI error: {0}")]

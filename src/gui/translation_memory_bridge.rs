@@ -6,7 +6,9 @@ use slint::{Model, ModelRc, VecModel};
 
 use crate::services::{
     TranslationMemoryIntegrationService, EditorSuggestion, TextPosition, SearchFilters,
-    TranslationMemoryAdapter
+    TranslationMemoryAdapter,
+    // New types from the translation memory crate
+    TradocFlowTranslationMemory, NewTranslationMemoryService, NewTranslationUnit, TMResult
 };
 use crate::models::translation_models::LanguagePair;
 
@@ -205,7 +207,7 @@ impl TranslationMemoryBridge {
             confidence: 0.8,
             similarity: 0.9,
             context: None,
-            source: crate::services::translation_memory_service::TranslationSource::Memory,
+            source: crate::services::TranslationSource::Memory,
             position: TextPosition { start: 0, end: 0, line: 0, column: 0 },
             created_at: chrono::Utc::now(),
         };

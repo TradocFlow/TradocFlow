@@ -196,7 +196,7 @@ pub use simplified_document_import_service::{
     DocumentImportResult, MultiDocumentImportResult, ImportError, Chapter, 
     ImportProgress, ImportStatistics, FileValidationResult,
     ChapterOrganizationConfig, ChapterSortingStrategy, ChapterTitleStrategy,
-    TocConfig, ChapterValidationResult, ChapterStatistics
+    TocConfig, ChapterValidationResult, ChapterStatistics as ImportChapterStatistics
 };
 pub use chunk_processor::{ChunkProcessor, ChunkingConfig, ChunkingStrategy, ProcessedChunk, ChunkingStats};
 pub use chunk_linking_service::{

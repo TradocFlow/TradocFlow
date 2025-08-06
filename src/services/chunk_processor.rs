@@ -252,7 +252,7 @@ impl ChunkProcessor {
         let mut current_boundaries = Vec::new();
 
         // Create a regex pattern from delimiters
-        let delimiter_pattern = delimiters.join("|");
+        let _delimiter_pattern = delimiters.join("|");
         let chars: Vec<char> = content.chars().collect();
         let mut i = 0;
 

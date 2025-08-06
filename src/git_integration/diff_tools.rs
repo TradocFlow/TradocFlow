@@ -258,8 +258,8 @@ impl GitDiffTools {
 
     fn load_chapter_from_commit(
         &self,
-        commit: &git2::Commit,
-        chapter: &str,
+        _commit: &git2::Commit,
+        _chapter: &str,
     ) -> Result<ChapterData> {
         // This method is kept for compatibility but should not be used with ThreadSafeRepository
         // Use load_chapter_from_commit_with_repo instead

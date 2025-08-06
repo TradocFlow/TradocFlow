@@ -623,7 +623,7 @@ impl ChapterData {
         number: u32,
         slug: String,
         titles: HashMap<String, String>,
-        source_language: String,
+        _source_language: String,
     ) -> Self {
         let now = Utc::now();
         

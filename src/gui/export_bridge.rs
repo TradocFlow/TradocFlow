@@ -46,9 +46,9 @@ impl ExportBridge {
         main_window: &Weak<T>,
     ) -> Result<()> {
         let export_service = Arc::clone(&self.export_service);
-        let current_project_id = Arc::clone(&self.current_project_id);
-        let current_document_id = Arc::clone(&self.current_document_id);
-        let available_languages = Arc::clone(&self.available_languages);
+        let _current_project_id = Arc::clone(&self.current_project_id);
+        let _current_document_id = Arc::clone(&self.current_document_id);
+        let _available_languages = Arc::clone(&self.available_languages);
 
         // Set up progress monitoring
         let progress_receiver = export_service.subscribe_to_progress();

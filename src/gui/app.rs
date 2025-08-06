@@ -1096,7 +1096,7 @@ impl App {
 
         // Export dialog callbacks (referenced but not implemented)
         self.main_window.on_export_format_changed({
-            let export_bridge = export_bridge.clone();
+            let _export_bridge = export_bridge.clone();
             let main_window_weak = main_window_weak.clone();
             move |format| {
                 if let Some(window) = main_window_weak.upgrade() {
@@ -1107,7 +1107,7 @@ impl App {
         });
 
         self.main_window.on_export_layout_changed({
-            let export_bridge = export_bridge.clone();
+            let _export_bridge = export_bridge.clone();
             let main_window_weak = main_window_weak.clone();
             move |layout| {
                 if let Some(window) = main_window_weak.upgrade() {
@@ -1130,11 +1130,11 @@ impl App {
 
         // Export start callback
         self.main_window.on_export_start({
-            let export_bridge = export_bridge.clone();
+            let _export_bridge = export_bridge.clone();
             let main_window_weak = main_window_weak.clone();
             let runtime_handle = self.runtime_handle.clone();
             move || {
-                let export_bridge = export_bridge.clone();
+                let _export_bridge = _export_bridge.clone();
                 let main_window_weak = main_window_weak.clone();
                 runtime_handle.spawn(async move {
                     if let Some(window) = main_window_weak.upgrade() {
@@ -1154,7 +1154,7 @@ impl App {
         // Open project browser callback (already handled in project_open)
         self.main_window.on_open_project_browser({
             let main_window_weak = main_window_weak.clone();
-            let project_service = project_service.clone();
+            let _project_service = project_service.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
                     window.set_show_project_browser(true);
@@ -1197,7 +1197,7 @@ impl App {
         // Project browser project selected callback
         self.main_window.on_browser_project_opened({
             let main_window_weak = main_window_weak.clone();
-            let project_service = project_service.clone();
+            let _project_service = project_service.clone();
             move |project_data| {
                 if let Some(window) = main_window_weak.upgrade() {
                     // Extract project information from ProjectData

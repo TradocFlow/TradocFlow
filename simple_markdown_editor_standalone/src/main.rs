@@ -52,7 +52,7 @@ fn main() -> Result<(), slint::PlatformError> {
     });
     
     // Set up content change tracking
-    let ui_handle = ui.as_weak();
+    let _ui_handle = ui.as_weak();
     ui.on_content_changed(move |text| {
         let char_count = text.len();
         let word_count = text.split_whitespace().count();

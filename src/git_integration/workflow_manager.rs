@@ -401,7 +401,7 @@ impl GitWorkflowManager {
     /// Request changes on a translation
     pub async fn request_changes(
         &self,
-        pr_id: u64,
+        _pr_id: u64,
         feedback: &str,
         reviewer: &User,
         feature_branch: &str,
@@ -599,7 +599,7 @@ Chapter-Number: {chapter_number}\nChapter-Slug: {chapter_slug}\nSource-Language:
 
     async fn save_chapter_data(
         &self,
-        chapter: &str,
+        _chapter: &str,
         chapter_data: &ChapterData,
     ) -> Result<()> {
         self.toml_manager.toml_manager

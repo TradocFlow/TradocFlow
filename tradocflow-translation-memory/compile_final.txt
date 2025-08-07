@@ -1,0 +1,410 @@
+    Checking tradocflow-translation-memory v0.1.0 (/home/jo/tradocflow/tradocflow-translation-memory)
+warning: unexpected `cfg` condition value: `duckdb-storage`
+  --> tradocflow-translation-memory/src/lib.rs:47:7
+   |
+47 | #[cfg(feature = "duckdb-storage")]
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `csv`, `default`, and `terminology-csv`
+   = help: consider adding `duckdb-storage` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `parquet-export`
+  --> tradocflow-translation-memory/src/lib.rs:50:7
+   |
+50 | #[cfg(feature = "parquet-export")]
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `csv`, `default`, and `terminology-csv`
+   = help: consider adding `parquet-export` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `duckdb-storage`
+  --> tradocflow-translation-memory/src/error.rs:11:11
+   |
+11 |     #[cfg(feature = "duckdb-storage")]
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `csv`, `default`, and `terminology-csv`
+   = help: consider adding `duckdb-storage` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `parquet-export`
+  --> tradocflow-translation-memory/src/error.rs:15:11
+   |
+15 |     #[cfg(feature = "parquet-export")]
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `csv`, `default`, and `terminology-csv`
+   = help: consider adding `parquet-export` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `duckdb-storage`
+  --> tradocflow-translation-memory/src/error.rs:19:15
+   |
+19 |     #[cfg(any(feature = "duckdb-storage", feature = "parquet-export"))]
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `csv`, `default`, and `terminology-csv`
+   = help: consider adding `duckdb-storage` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `parquet-export`
+  --> tradocflow-translation-memory/src/error.rs:19:43
+   |
+19 |     #[cfg(any(feature = "duckdb-storage", feature = "parquet-export"))]
+   |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `csv`, `default`, and `terminology-csv`
+   = help: consider adding `parquet-export` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `duckdb-storage`
+   --> tradocflow-translation-memory/src/error.rs:166:19
+    |
+166 |             #[cfg(feature = "duckdb-storage")]
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `csv`, `default`, and `terminology-csv`
+    = help: consider adding `duckdb-storage` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `parquet-export`
+   --> tradocflow-translation-memory/src/error.rs:168:19
+    |
+168 |             #[cfg(feature = "parquet-export")]
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `csv`, `default`, and `terminology-csv`
+    = help: consider adding `parquet-export` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `duckdb-storage`
+   --> tradocflow-translation-memory/src/error.rs:170:23
+    |
+170 |             #[cfg(any(feature = "duckdb-storage", feature = "parquet-export"))]
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `csv`, `default`, and `terminology-csv`
+    = help: consider adding `duckdb-storage` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `parquet-export`
+   --> tradocflow-translation-memory/src/error.rs:170:51
+    |
+170 |             #[cfg(any(feature = "duckdb-storage", feature = "parquet-export"))]
+    |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `csv`, `default`, and `terminology-csv`
+    = help: consider adding `parquet-export` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `std::sync::Arc`
+ --> tradocflow-translation-memory/src/storage/chunk_manager.rs:9:5
+  |
+9 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unexpected `cfg` condition value: `duckdb-storage`
+  --> tradocflow-translation-memory/src/lib.rs:64:11
+   |
+64 |     #[cfg(feature = "duckdb-storage")]
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `csv`, `default`, and `terminology-csv`
+   = help: consider adding `duckdb-storage` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `duckdb-storage`
+  --> tradocflow-translation-memory/src/lib.rs:70:11
+   |
+70 |     #[cfg(feature = "duckdb-storage")]
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `csv`, `default`, and `terminology-csv`
+   = help: consider adding `duckdb-storage` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused variable: `query`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:103:9
+    |
+103 |         query: &str,
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_query`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `source_lang`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:104:9
+    |
+104 |         source_lang: Language,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_source_lang`
+
+warning: unused variable: `target_lang`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:105:9
+    |
+105 |         target_lang: Language,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_target_lang`
+
+warning: unused variable: `threshold`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:106:9
+    |
+106 |         threshold: f64,
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_threshold`
+
+warning: unused variable: `id`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:221:49
+    |
+221 |     pub async fn delete_translation_unit(&self, id: Uuid) -> Result<bool> {
+    |                                                 ^^ help: if this is intentional, prefix it with an underscore: `_id`
+
+warning: unused variable: `chunk_ids`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:269:9
+    |
+269 |         chunk_ids: Vec<Uuid>,
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_chunk_ids`
+
+warning: unused variable: `link_type`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:270:9
+    |
+270 |         link_type: ChunkLinkType,
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_link_type`
+
+warning: unused variable: `chunks`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:277:42
+    |
+277 |     pub async fn add_chunks_batch(&self, chunks: Vec<Chunk>) -> Result<()> {
+    |                                          ^^^^^^ help: if this is intentional, prefix it with an underscore: `_chunks`
+
+warning: unused variable: `source_text`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:301:9
+    |
+301 |         source_text: &str,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_source_text`
+
+warning: unused variable: `language_pair`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:302:9
+    |
+302 |         language_pair: &LanguagePair,
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_language_pair`
+
+warning: unused variable: `source_text`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:310:9
+    |
+310 |         source_text: &str,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_source_text`
+
+warning: unused variable: `language_pair`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:311:9
+    |
+311 |         language_pair: &LanguagePair,
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_language_pair`
+
+warning: unused variable: `threshold`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:312:9
+    |
+312 |         threshold: f32,
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_threshold`
+
+warning: unused variable: `source_text`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:320:9
+    |
+320 |         source_text: &str,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_source_text`
+
+warning: unused variable: `language_pair`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:321:9
+    |
+321 |         language_pair: &LanguagePair,
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_language_pair`
+
+warning: unused variable: `threshold`
+   --> tradocflow-translation-memory/src/services/translation_memory.rs:322:9
+    |
+322 |         threshold: f32,
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_threshold`
+
+warning: unused variable: `query`
+   --> tradocflow-translation-memory/src/services/terminology.rs:125:9
+    |
+125 |         query: &str,
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_query`
+
+warning: unused variable: `source_lang`
+   --> tradocflow-translation-memory/src/services/terminology.rs:126:9
+    |
+126 |         source_lang: Language,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_source_lang`
+
+warning: unused variable: `target_lang`
+   --> tradocflow-translation-memory/src/services/terminology.rs:127:9
+    |
+127 |         target_lang: Language,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_target_lang`
+
+warning: variable `imported_count` is assigned to, but never used
+   --> tradocflow-translation-memory/src/services/terminology.rs:216:17
+    |
+216 |         let mut imported_count = 0;
+    |                 ^^^^^^^^^^^^^^
+    |
+    = note: consider using `_imported_count` instead
+
+error[E0382]: borrow of moved value: `term.term`
+   --> tradocflow-translation-memory/src/services/terminology.rs:184:35
+    |
+174 |                         term: term.term,
+    |                               --------- value moved here
+...
+184 |                             term: term.term.clone(),
+    |                                   ^^^^^^^^^ value borrowed here after move
+    |
+    = note: move occurs because `term.term` has type `std::string::String`, which does not implement the `Copy` trait
+
+error[E0308]: mismatched types
+   --> tradocflow-translation-memory/src/services/terminology.rs:265:12
+    |
+265 |         Ok(exported_count)
+    |         -- ^^^^^^^^^^^^^^ expected `usize`, found `()`
+    |         |
+    |         arguments to this enum variant are incorrect
+    |
+help: the type constructed contains `()` due to the type of the argument passed
+   --> tradocflow-translation-memory/src/services/terminology.rs:265:9
+    |
+265 |         Ok(exported_count)
+    |         ^^^--------------^
+    |            |
+    |            this argument influences the type of `Ok`
+note: tuple variant defined here
+   --> /home/jo/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:552:5
+    |
+552 |     Ok(#[stable(feature = "rust1", since = "1.0.0")] T),
+    |     ^^
+
+warning: unused variable: `project_id`
+   --> tradocflow-translation-memory/src/services/terminology.rs:406:9
+    |
+406 |         project_id: Uuid,
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_project_id`
+
+warning: unused variable: `id`
+   --> tradocflow-translation-memory/src/services/terminology.rs:429:44
+    |
+429 |     pub async fn delete_terminology(&self, id: Uuid, project_id: Uuid) -> Result<bool> {
+    |                                            ^^ help: if this is intentional, prefix it with an underscore: `_id`
+
+warning: unused variable: `project_id`
+   --> tradocflow-translation-memory/src/services/terminology.rs:429:54
+    |
+429 |     pub async fn delete_terminology(&self, id: Uuid, project_id: Uuid) -> Result<bool> {
+    |                                                      ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_project_id`
+
+warning: unused variable: `project_id`
+   --> tradocflow-translation-memory/src/services/terminology.rs:447:9
+    |
+447 |         project_id: Uuid,
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_project_id`
+
+warning: unused variable: `terminology`
+   --> tradocflow-translation-memory/src/services/terminology.rs:484:9
+    |
+484 |         terminology: Terminology,
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_terminology`
+
+warning: unused variable: `project_id`
+   --> tradocflow-translation-memory/src/services/terminology.rs:485:9
+    |
+485 |         project_id: Uuid,
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_project_id`
+
+warning: unused variable: `language`
+   --> tradocflow-translation-memory/src/services/highlighting.rs:307:9
+    |
+307 |         language: Language,
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_language`
+
+warning: unused variable: `chunk`
+  --> tradocflow-translation-memory/src/storage/chunk_manager.rs:25:37
+   |
+25 |     pub async fn store_chunk(&self, chunk: &ChunkMetadata) -> Result<()> {
+   |                                     ^^^^^ help: if this is intentional, prefix it with an underscore: `_chunk`
+
+warning: unused variable: `id`
+  --> tradocflow-translation-memory/src/storage/chunk_manager.rs:31:35
+   |
+31 |     pub async fn get_chunk(&self, id: uuid::Uuid) -> Result<Option<ChunkMetadata>> {
+   |                                   ^^ help: if this is intentional, prefix it with an underscore: `_id`
+
+warning: unused variable: `chunk`
+  --> tradocflow-translation-memory/src/storage/chunk_manager.rs:37:38
+   |
+37 |     pub async fn update_chunk(&self, chunk: &ChunkMetadata) -> Result<()> {
+   |                                      ^^^^^ help: if this is intentional, prefix it with an underscore: `_chunk`
+
+warning: unused variable: `id`
+  --> tradocflow-translation-memory/src/storage/chunk_manager.rs:43:38
+   |
+43 |     pub async fn delete_chunk(&self, id: uuid::Uuid) -> Result<()> {
+   |                                      ^^ help: if this is intentional, prefix it with an underscore: `_id`
+
+warning: unused variable: `chunk_ids`
+  --> tradocflow-translation-memory/src/storage/chunk_manager.rs:49:37
+   |
+49 |     pub async fn link_chunks(&self, chunk_ids: Vec<uuid::Uuid>, link_type: ChunkLinkType) -> Result<()> {
+   |                                     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_chunk_ids`
+
+warning: unused variable: `link_type`
+  --> tradocflow-translation-memory/src/storage/chunk_manager.rs:49:65
+   |
+49 |     pub async fn link_chunks(&self, chunk_ids: Vec<uuid::Uuid>, link_type: ChunkLinkType) -> Result<()> {
+   |                                                                 ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_link_type`
+
+warning: unused variable: `file_path`
+  --> tradocflow-translation-memory/src/utils/csv_processor.rs:18:34
+   |
+18 |     pub async fn import_from_csv(file_path: &str) -> Result<Vec<TranslationUnit>> {
+   |                                  ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_file_path`
+
+warning: unused variable: `units`
+  --> tradocflow-translation-memory/src/utils/csv_processor.rs:24:50
+   |
+24 |     pub async fn export_translation_units_to_csv(units: &[TranslationUnit], file_path: &str) -> Result<()> {
+   |                                                  ^^^^^ help: if this is intentional, prefix it with an underscore: `_units`
+
+warning: unused variable: `file_path`
+  --> tradocflow-translation-memory/src/utils/csv_processor.rs:24:77
+   |
+24 |     pub async fn export_translation_units_to_csv(units: &[TranslationUnit], file_path: &str) -> Result<()> {
+   |                                                                             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_file_path`
+
+warning: unused variable: `file_path`
+  --> tradocflow-translation-memory/src/utils/csv_processor.rs:30:38
+   |
+30 |     pub async fn validate_csv_format(file_path: &str) -> Result<bool> {
+   |                                      ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_file_path`
+
+warning: unused variable: `file_path`
+  --> tradocflow-translation-memory/src/utils/csv_processor.rs:36:35
+   |
+36 |     pub async fn parse_csv(&self, file_path: &Path) -> Result<Vec<TerminologyCsvRecord>> {
+   |                                   ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_file_path`
+
+warning: unused variable: `terms`
+  --> tradocflow-translation-memory/src/utils/csv_processor.rs:42:39
+   |
+42 |     pub async fn export_to_csv(&self, terms: &[crate::models::Term], file_path: &Path) -> Result<()> {
+   |                                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_terms`
+
+warning: unused variable: `file_path`
+  --> tradocflow-translation-memory/src/utils/csv_processor.rs:42:70
+   |
+42 |     pub async fn export_to_csv(&self, terms: &[crate::models::Term], file_path: &Path) -> Result<()> {
+   |                                                                      ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_file_path`
+
+Some errors have detailed explanations: E0308, E0382.
+For more information about an error, try `rustc --explain E0308`.
+warning: `tradocflow-translation-memory` (lib) generated 53 warnings
+error: could not compile `tradocflow-translation-memory` (lib) due to 2 previous errors; 53 warnings emitted

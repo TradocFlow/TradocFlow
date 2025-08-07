@@ -1,0 +1,10 @@
+/target/
+Cargo.lock
+.DS_Store
+*.db-journal
+*.tmp
+*.bak
+*.backup
+*~
+.vscode/
+.idea/

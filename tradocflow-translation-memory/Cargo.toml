@@ -1,0 +1,59 @@
+[package]
+name = "tradocflow-translation-memory"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <you@example.com>"]
+description = "Translation memory and terminology management for TradocFlow"
+license = "GPL v3"
+
+[dependencies]
+# Core async runtime and traits
+tokio = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+
+# Storage backends (with feature flags) 
+# Temporarily disable due to version conflicts
+# duckdb = { workspace = true, optional = true }
+# parquet = { workspace = true, optional = true }
+# arrow = { workspace = true, optional = true }
+
+# Data handling and serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# CSV import/export
+csv = { workspace = true, optional = true }
+
+# Crate-specific dependencies
+regex = "1.10"
+log = "0.4"
+rayon = "1.7"
+itertools = "0.12"
+dashmap = "5.5"
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio-test = "0.4"
+
+[features]
+# Default features - temporarily minimal due to version conflicts
+default = ["terminology-csv", "duckdb-storage", "parquet-export"]
+
+# Storage backends - disabled temporarily due to dependency conflicts
+duckdb-storage = []  # Will be re-enabled when DuckDB dependencies are added
+  
+# Export formats - disabled temporarily due to dependency conflicts
+parquet-export = []  # Will be re-enabled when Parquet dependencies are added
+
+# CSV terminology import/export
+terminology-csv = ["csv"]
+
+# Full feature set
+full = ["duckdb-storage", "parquet-export", "terminology-csv"]

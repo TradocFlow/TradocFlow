@@ -1,10 +1,29 @@
+# Rust build artifacts
 /target/
-Cargo.lock
+*/target/
+
+# Cargo lock files (workspace root only)
+/Cargo.lock
+
+# OS-specific files
 .DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*~
+
+# Database files
+*.db
 *.db-journal
+*.duckdb
+
+# Temporary files
 *.tmp
 *.bak
 *.backup
-*~
-.vscode/
-.idea/
+
+# Logs
+*.log

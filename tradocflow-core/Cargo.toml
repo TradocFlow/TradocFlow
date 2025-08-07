@@ -1,0 +1,118 @@
+[package]
+name = "tradocflow-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <you@example.com>"]
+description = "Collaborative document review system with multi-language support - GUI only"
+license = "GPL v3"
+default-run = "tradocflow"
+
+[[bin]]
+name = "tradocflow"
+path = "src/main.rs"
+
+[[bin]]
+name = "tradocflow_gui" 
+path = "src/bin/tradocflow_gui.rs"
+
+[[bin]]
+name = "test_gui"
+path = "src/bin/test_gui.rs"
+
+[[bin]]
+name = "api_server"
+path = "src/bin/api_server.rs"
+
+[[bin]]
+name = "terminology_demo"
+path = "src/bin/terminology_demo.rs"
+
+[[bin]]
+name = "simple_markdown_editor"
+path = "src/bin/simple_markdown_editor.rs"
+
+
+
+[dependencies]
+# Translation memory crate
+tradocflow-translation-memory = { path = "../tradocflow-translation-memory" }
+
+# Markdown processing
+comrak = "0.25"
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = "0.8"
+
+# Database and storage
+rusqlite = { version = "0.31", features = ["bundled"] }
+# Temporarily disabled due to version conflicts
+# duckdb = { workspace = true }
+# arrow = { workspace = true }
+# parquet = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# File handling and PDF generation
+genpdf = "0.2.0"
+pulldown-cmark = "0.10"
+image = "0.25"
+thiserror = { workspace = true }
+
+# Document import
+markdownify = "0.1"
+tempfile = "3.8"
+docx-rs = "0.4"
+zip = "0.6"
+
+# Async runtime and networking
+tokio = { workspace = true }
+reqwest = { version = "0.12", features = ["json"] }
+async-trait = { workspace = true }
+
+# Web server dependencies
+axum = { version = "0.7", features = ["macros", "multipart"] }
+tower = { version = "0.4" }
+tower-http = { version = "0.5", features = ["cors", "fs"] }
+hyper = { version = "1.0", features = ["full"] }
+mime = "0.3"
+tokio-stream = "0.1"
+futures = { workspace = true }
+async-stream = "0.3"
+
+# Internationalization and localization
+rust-i18n = "3"
+fluent = "0.16"
+unic-langid = "0.9"
+
+# Error handling
+anyhow = { workspace = true }
+regex = "1.10"
+
+# CSV processing
+csv = { workspace = true }
+
+
+# Logging for GUI
+env_logger = "0.11"
+log = "0.4"
+
+# GUI Framework
+slint = "1.8"
+i-slint-backend-winit = "1.8"
+rfd = "0.14"
+
+# Syntax highlighting for markdown editor
+syntect = "5.1"
+
+# Git integration
+git2 = "0.19"
+rand = "0.8"
+
+# Directory utilities
+dirs = "5.0"
+
+[build-dependencies]
+slint-build = "1.8"
+
+[dev-dependencies]
+tempfile = { workspace = true }

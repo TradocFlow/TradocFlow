@@ -1,7 +1,0 @@
-/home/jo/tradocflow/simple_markdown_editor_standalone/target/release/deps/futures_sink-feb5d5e22e8c32eb.d: /home/jo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-sink-0.3.31/src/lib.rs
-
-/home/jo/tradocflow/simple_markdown_editor_standalone/target/release/deps/libfutures_sink-feb5d5e22e8c32eb.rlib: /home/jo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-sink-0.3.31/src/lib.rs
-
-/home/jo/tradocflow/simple_markdown_editor_standalone/target/release/deps/libfutures_sink-feb5d5e22e8c32eb.rmeta: /home/jo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-sink-0.3.31/src/lib.rs
-
-/home/jo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/futures-sink-0.3.31/src/lib.rs:

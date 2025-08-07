@@ -90,27 +90,38 @@ slint::slint! {
                 border-width: 1px;
                 border-color: #ccc;
                 
-                // Scrollable text editor
-                Flickable {
+                // Scrollable text editor with touch area for focus
+                TouchArea {
                     width: parent.width;
                     height: parent.height;
-                    viewport-width: parent.width - 20px;
-                    viewport-height: text-editor.preferred-height;
                     
-                    text-editor := TextInput {
-                        text: content;
-                        font-family: "Liberation Mono, Consolas, monospace";
-                        font-size: 14px;
-                        x: 10px;
-                        y: 10px;
-                        width: parent.viewport-width - 20px;
-                        color: black;
-                        single-line: false;
-                        wrap: word-wrap;
+                    clicked => {
+                        text-editor.focus();
+                    }
+                    
+                    Flickable {
+                        width: parent.width;
+                        height: parent.height;
+                        viewport-width: parent.width - 20px;
+                        viewport-height: text-editor.preferred-height;
                         
-                        edited => {
-                            content = self.text;
-                            content-changed(self.text);
+                        text-editor := TextInput {
+                            text: content;
+                            font-family: "Liberation Mono, Consolas, monospace";
+                            font-size: 14px;
+                            x: 10px;
+                            y: 10px;
+                            width: parent.viewport-width - 20px;
+                            color: black;
+                            single-line: false;
+                            wrap: word-wrap;
+                            read-only: false;
+                            enabled: true;
+                            
+                            edited => {
+                                content = self.text;
+                                content-changed(self.text);
+                            }
                         }
                     }
                 }

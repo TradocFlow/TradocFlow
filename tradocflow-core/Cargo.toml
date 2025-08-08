@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Your Name <you@example.com>"]
 description = "Collaborative document review system with multi-language support - GUI only"
 license = "GPL v3"
-default-run = "tradocflow"
+default-run = "simple_markdown_editor"
 
 [[bin]]
 name = "tradocflow"

@@ -32,6 +32,11 @@ pub mod permission_service_tests;
 pub mod export_service;
 #[cfg(test)]
 pub mod export_service_tests;
+pub mod document_processing;
+// Temporarily disabled due to API compatibility issues with genpdf 0.2.0
+// pub mod enhanced_pdf_service;
+// pub mod pdf_export_service;
+// pub mod simple_pdf_export;
 
 pub use project_manager::ProjectManager;
 pub use project_service::ProjectService;
@@ -236,3 +241,22 @@ pub use export_service::{
     ExportService, ExportRequest, ExportConfiguration, ExportLayout, ExportJob,
     ExportStatus, ExportProgress, ExportedFile, ExportHistory
 };
+pub use document_processing::{
+    DocumentProcessingService, ThreadSafeDocumentProcessor, DocumentProcessingConfig,
+    ProcessedDocument, BatchProcessResult, BatchImportError, ProcessingStatistics,
+    ImportProgressInfo, ImportStage, ProgressCallback
+};
+// Temporarily disabled due to API compatibility issues with genpdf 0.2.0
+// pub use enhanced_pdf_service::{
+//     EnhancedPdfService, EnhancedPdfConfig, PaperSize, PaperFormat, Orientation,
+//     MarginSettings, FontConfiguration, FormattingOptions, AdvancedOptions,
+//     TableStyling, LinkHandling, ImageQuality, CompressionLevel, WatermarkConfig,
+//     DocumentMetadata, PdfExportProgress, PdfExportStage, PdfExportResult, ContentStats
+// };
+// pub use pdf_export_service::{
+//     PdfExportService, PdfExportConfig, PdfExportError, PdfExportErrorKind, 
+//     ProgressCallback as PdfProgressCallback
+// };
+// pub use simple_pdf_export::{
+//     SimplePdfExportService, SimplePdfConfig
+// };

@@ -761,10 +761,11 @@ slint::slint! {
         title: "Enhanced Markdown Editor";
         width: 1200px;
         height: 800px;
+        forward-focus: key-handler;
         
         in-out property <QuadLayout> current_layout: QuadLayout.Single;
         in-out property <[PanelInfo]> panels: [
-            {id: "panel1", file_path: "", content: "# Welcome to Enhanced Markdown Editor\n\n## New Features\n\n- **File Menu**: Access all file operations through the File menu\n- **New File**: Create new markdown documents\n- **Open File**: Open existing markdown files\n- **Save/Save As**: Save your work with flexible naming\n- **Import Word**: Convert Word documents to markdown\n- **Export PDF**: Export your markdown to PDF format\n\nStart editing or use the File menu for more options!", view_mode: "markdown", is_modified: false, cursor_position: 0},
+            {id: "panel1", file_path: "", content: "# Welcome to Enhanced Markdown Editor\n\n## New Features\n\n- **File Menu**: Access all file operations through the File menu\n- **New File**: Create new markdown documents\n- **Open File**: Open existing markdown files\n- **Save/Save As**: Save your work with flexible naming\n- **Import Word**: Convert Word documents to markdown\n- **Export PDF**: Export your markdown to PDF format\n- **Keyboard Shortcuts**:\n  - F7: Toggle Single/Double Column\n  - F8: Toggle Top/Bottom Split\n\nStart editing or use the File menu for more options!", view_mode: "markdown", is_modified: false, cursor_position: 0},
             {id: "panel2", file_path: "", content: "# Panel 2\n\nSecond panel content...", view_mode: "markdown", is_modified: false, cursor_position: 0},
             {id: "panel3", file_path: "", content: "# Panel 3\n\nThird panel content...", view_mode: "markdown", is_modified: false, cursor_position: 0},
             {id: "panel4", file_path: "", content: "# Panel 4\n\nFourth panel content...", view_mode: "markdown", is_modified: false, cursor_position: 0}
@@ -831,6 +832,10 @@ slint::slint! {
         callback layout_changed(QuadLayout);
         callback panel_focused(int);
         
+        // Layout toggle callbacks
+        callback toggle_columns();
+        callback toggle_rows();
+        
         // Menu callbacks
         callback menu_new_file();
         callback menu_open_file();
@@ -841,9 +846,25 @@ slint::slint! {
         callback cancel_import();
         callback cancel_pdf_export();
         
-        VerticalLayout {
-            // Menu bar
-            menu_bar := MenuBar {
+        
+        key-handler := FocusScope {
+            width: 100%;
+            height: 100%;
+            
+            key-pressed(event) => {
+                if (event.text == Key.F7) {
+                    toggle_columns();
+                    return accept;
+                } else if (event.text == Key.F8) {
+                    toggle_rows();
+                    return accept;
+                }
+                return reject;
+            }
+            
+            VerticalLayout {
+                // Menu bar
+                menu_bar := MenuBar {
                 menu_visible: show_file_menu;
                 toggle_menu() => { show_file_menu = !show_file_menu; }
                 new_file() => { menu_new_file(); }
@@ -1223,6 +1244,7 @@ slint::slint! {
                     color: import_dialog_visible ? #007bff : #666;
                 }
             }
+        }
         }
         
         // File Menu Dropdown (at window level for proper z-index)
@@ -1967,6 +1989,41 @@ fn main() -> Result<(), slint::PlatformError> {
         println!("🔄 Layout changed to: {:?}", layout);
     });
     
+    // Toggle column layout (F7 key)
+    let ui_handle = ui.as_weak();
+    ui.on_toggle_columns(move || {
+        let ui = ui_handle.unwrap();
+        let current = ui.get_current_layout();
+        
+        let new_layout = match current {
+            QuadLayout::Single => QuadLayout::Horizontal,
+            QuadLayout::Horizontal => QuadLayout::Single,
+            QuadLayout::Vertical => QuadLayout::Quad,
+            QuadLayout::Quad => QuadLayout::Vertical,
+        };
+        
+        ui.set_current_layout(new_layout);
+        println!("🔄 F7: Toggled columns to {:?}", new_layout);
+    });
+    
+    // Toggle row layout (F8 key)
+    let ui_handle = ui.as_weak();
+    ui.on_toggle_rows(move || {
+        let ui = ui_handle.unwrap();
+        let current = ui.get_current_layout();
+        
+        let new_layout = match current {
+            QuadLayout::Single => QuadLayout::Vertical,
+            QuadLayout::Vertical => QuadLayout::Single,
+            QuadLayout::Horizontal => QuadLayout::Quad,
+            QuadLayout::Quad => QuadLayout::Horizontal,
+        };
+        
+        ui.set_current_layout(new_layout);
+        println!("🔄 F8: Toggled rows to {:?}", new_layout);
+    });
+    
+    
     // Panel focus
     let ui_handle = ui.as_weak();
     ui.on_panel_focused(move |panel_id| {
@@ -1976,12 +2033,13 @@ fn main() -> Result<(), slint::PlatformError> {
     });
     
     println!("🚀 Enhanced Markdown Editor started!");
-    println!("💡 New Features:");
+    println!("💡 Features:");
     println!("   - File menu with New/Open/Save/Save As operations");
     println!("   - Word document import (.docx → markdown)");
     println!("   - PDF export (markdown → .pdf)");
     println!("   - Multi-panel editing with independent file operations");
-    println!("   - Keyboard shortcuts: Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Shift+S");
+    println!("   - Layout shortcuts: F7 (toggle columns), F8 (toggle rows)");
+    println!("   - File shortcuts: Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Shift+S");
     println!("   - Use File menu for all document operations");
     
     ui.run()

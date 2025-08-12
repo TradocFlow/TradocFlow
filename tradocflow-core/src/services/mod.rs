@@ -246,6 +246,11 @@ pub use document_processing::{
     ProcessedDocument, BatchProcessResult, BatchImportError, ProcessingStatistics,
     ImportProgressInfo, ImportStage, ProgressCallback
 };
+pub mod multi_language_manual_import;
+pub use multi_language_manual_import::{
+    MultiLanguageManualImportService, SupportedLanguage, FolderScanResult,
+    LanguageConflict, MultiLanguageImportConfig, MultiLanguageImportResult
+};
 // Temporarily disabled due to API compatibility issues with genpdf 0.2.0
 // pub use enhanced_pdf_service::{
 //     EnhancedPdfService, EnhancedPdfConfig, PaperSize, PaperFormat, Orientation,

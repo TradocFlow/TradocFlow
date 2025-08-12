@@ -31,6 +31,10 @@ path = "src/bin/terminology_demo.rs"
 name = "simple_markdown_editor"
 path = "src/bin/simple_markdown_editor.rs"
 
+[[bin]]
+name = "test_multi_language_import"
+path = "src/bin/test_multi_language_import.rs"
+
 
 
 [dependencies]

@@ -1,0 +1,338 @@
+// Multi-language manual import dialog for tradocflow
+// Basic version compatible with current Slint syntax
+
+import { Button, VerticalBox, HorizontalBox, LineEdit, ScrollView, CheckBox, ProgressIndicator } from "std-widgets.slint";
+
+// Language mapping structure  
+export struct LanguageMapping {
+    language_code: string,
+    display_name: string,
+    flag_emoji: string,
+    file_path: string,
+    is_missing: bool,
+    has_conflict: bool,
+    file_count: int,
+}
+
+// Import progress information
+export struct ImportProgress {
+    current_file: string,
+    progress_percent: int,
+    message: string,
+    stage: string,
+    warnings: [string],
+    errors: [string],
+}
+
+// Main dialog component
+export component MultiLanguageImportDialog inherits Window {
+    preferred-width: 800px;
+    preferred-height: 600px;
+    title: "Multi-Language Manual Import";
+    modal: true;
+    
+    // Properties - made in-out so they can be accessed from outside
+    in-out property <string> selected-folder-path;
+    in-out property <[LanguageMapping]> language-mappings;
+    in-out property <bool> allow-partial-import: true;
+    in-out property <bool> auto-resolve-conflicts: true;
+    in-out property <bool> recursive-scan: true;
+    in-out property <bool> folder-scanned: false;
+    in-out property <bool> scan-successful: false;
+    in-out property <bool> has-validation-errors: false;
+    in-out property <bool> import-in-progress: false;
+    in-out property <ImportProgress> import-progress: {
+        current_file: "",
+        progress_percent: 0,
+        message: "Ready to import",
+        stage: "ready",
+        warnings: [],
+        errors: [],
+    };
+    
+    // Computed properties
+    property <bool> can-scan: selected-folder-path != "";
+    property <bool> can-import: scan-successful && !has-validation-errors && !import-in-progress;
+    property <int> total-detected-languages: language-mappings.length;
+    
+    // Callbacks
+    callback browse-folder();
+    callback scan-folder(); 
+    callback validate-configuration();
+    callback start-import();
+    callback cancel-import();
+    callback close-dialog();
+    
+    // Main layout
+    VerticalBox {
+        spacing: 16px;
+        padding: 20px;
+        
+        // Header
+        Rectangle {
+            height: 30px;
+            
+            text {
+                text: "Multi-Language Manual Import";
+                font-size: 18px;
+                font-weight: 700;
+                color: #2c3e50;
+            }
+        }
+        
+        // Folder selection section
+        VerticalBox {
+            spacing: 8px;
+            
+            Rectangle {
+                height: 20px;
+                
+                text {
+                    text: "1. Select Folder";
+                    font-weight: 600;
+                    color: #34495e;
+                }
+            }
+            
+            HorizontalBox {
+                spacing: 8px;
+                alignment: center;
+                
+                LineEdit {
+                    text <=> selected-folder-path;
+                    placeholder-text: "Select folder containing manual files...";
+                    enabled: !import-in-progress;
+                    horizontal-stretch: 1;
+                }
+                
+                Button {
+                    text: "Browse";
+                    enabled: !import-in-progress;
+                    clicked => {
+                        browse-folder();
+                    }
+                }
+            }
+        }
+        
+        // Configuration section
+        VerticalBox {
+            spacing: 8px;
+            
+            Rectangle {
+                height: 20px;
+                
+                text {
+                    text: "2. Configuration";
+                    font-weight: 600;
+                    color: #34495e;
+                }
+            }
+            
+            HorizontalBox {
+                spacing: 16px;
+                
+                CheckBox {
+                    text: "Allow partial import";
+                    checked <=> allow-partial-import;
+                    enabled: !import-in-progress;
+                }
+                
+                CheckBox {
+                    text: "Auto-resolve conflicts";
+                    checked <=> auto-resolve-conflicts;
+                    enabled: !import-in-progress;
+                }
+                
+                CheckBox {
+                    text: "Recursive scan";
+                    checked <=> recursive-scan;
+                    enabled: !import-in-progress;
+                }
+            }
+            
+            HorizontalBox {
+                spacing: 8px;
+                alignment: start;
+                
+                Button {
+                    text: folder-scanned ? "Re-scan" : "Scan";
+                    enabled: can-scan && !import-in-progress;
+                    clicked => {
+                        scan-folder();
+                    }
+                }
+                
+                if folder-scanned: Rectangle {
+                    height: 20px;
+                    text {
+                        text: "Found " + total-detected-languages + " language files";
+                        color: scan-successful ? #27ae60 : #e74c3c;
+                    }
+                }
+            }
+        }
+        
+        // Language mappings section
+        if folder-scanned: VerticalBox {
+            spacing: 8px;
+            
+            Rectangle {
+                height: 20px;
+                
+                text {
+                    text: "3. Language Files";
+                    font-weight: 600;
+                    color: #34495e;
+                }
+            }
+            
+            ScrollView {
+                height: 200px;
+                
+                VerticalBox {
+                    spacing: 4px;
+                    
+                    for mapping in language-mappings: Rectangle {
+                        height: 40px;
+                        background: mapping.is-missing ? #ffebee : (mapping.has-conflict ? #fff3e0 : #e8f5e8);
+                        border-radius: 4px;
+                        
+                        HorizontalBox {
+                            spacing: 8px;
+                            alignment: center;
+                            padding: 8px;
+                            
+                            Rectangle {
+                                width: 120px;
+                                text {
+                                    text: mapping.flag-emoji + " " + mapping.display-name;
+                                    font-weight: 600;
+                                    color: #2c3e50;
+                                }
+                            }
+                            
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                text {
+                                    text: mapping.is-missing ? "Missing" : 
+                                          (mapping.has-conflict ? "Conflict (" + mapping.file-count + " files)" : 
+                                           "Ready");
+                                    color: mapping.is-missing ? #c62828 : (mapping.has-conflict ? #f57c00 : #2e7d32);
+                                }
+                            }
+                            
+                            if !mapping.is-missing: Rectangle {
+                                horizontal-stretch: 2;
+                                text {
+                                    text: mapping.file-path;
+                                    color: #546e7a;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Progress section
+        if import-in-progress: VerticalBox {
+            spacing: 8px;
+            
+            Rectangle {
+                height: 20px;
+                
+                text {
+                    text: "4. Import Progress";
+                    font-weight: 600;
+                    color: #34495e;
+                }
+            }
+            
+            ProgressIndicator {
+                progress: import-progress.progress-percent / 100;
+            }
+            
+            Rectangle {
+                height: 20px;
+                
+                text {
+                    text: import-progress.message;
+                    color: #2c3e50;
+                }
+            }
+            
+            if import-progress.current-file != "": Rectangle {
+                height: 16px;
+                
+                text {
+                    text: "Current: " + import-progress.current-file;
+                    color: #546e7a;
+                    font-size: 12px;
+                }
+            }
+        }
+        
+        // Warning/Error section
+        if import-progress.warnings.length > 0 || import-progress.errors.length > 0: VerticalBox {
+            spacing: 4px;
+            
+            if import-progress.warnings.length > 0: Rectangle {
+                height: 16px;
+                
+                text {
+                    text: "Warnings: " + import-progress.warnings.length;
+                    color: #f57c00;
+                    font-size: 12px;
+                }
+            }
+            
+            if import-progress.errors.length > 0: Rectangle {
+                height: 16px;
+                
+                text {
+                    text: "Errors: " + import-progress.errors.length;
+                    color: #c62828;
+                    font-size: 12px;
+                }
+            }
+        }
+        
+        // Action buttons
+        HorizontalBox {
+            spacing: 8px;
+            alignment: end;
+            
+            if import-in-progress: Button {
+                text: "Cancel";
+                clicked => {
+                    cancel-import();
+                }
+            }
+            
+            if !import-in-progress: Button {
+                text: "Close";
+                clicked => {
+                    close-dialog();
+                }
+            }
+            
+            if folder-scanned && !import-in-progress: Button {
+                text: "Validate";
+                enabled: scan-successful;
+                clicked => {
+                    validate-configuration();
+                }
+            }
+            
+            if folder-scanned && !import-in-progress: Button {
+                text: "Import";
+                enabled: can-import;
+                primary: true;
+                clicked => {
+                    start-import();
+                }
+            }
+        }
+    }
+}

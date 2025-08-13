@@ -33,10 +33,8 @@ pub mod export_service;
 #[cfg(test)]
 pub mod export_service_tests;
 pub mod document_processing;
-// Temporarily disabled due to API compatibility issues with genpdf 0.2.0
-// pub mod enhanced_pdf_service;
+// PDF export services temporarily disabled due to API compatibility issues with genpdf 0.2.0
 // pub mod pdf_export_service;
-// pub mod simple_pdf_export;
 
 pub use project_manager::ProjectManager;
 pub use project_service::ProjectService;
@@ -251,17 +249,8 @@ pub use multi_language_manual_import::{
     MultiLanguageManualImportService, SupportedLanguage, FolderScanResult,
     LanguageConflict, MultiLanguageImportConfig, MultiLanguageImportResult
 };
-// Temporarily disabled due to API compatibility issues with genpdf 0.2.0
-// pub use enhanced_pdf_service::{
-//     EnhancedPdfService, EnhancedPdfConfig, PaperSize, PaperFormat, Orientation,
-//     MarginSettings, FontConfiguration, FormattingOptions, AdvancedOptions,
-//     TableStyling, LinkHandling, ImageQuality, CompressionLevel, WatermarkConfig,
-//     DocumentMetadata, PdfExportProgress, PdfExportStage, PdfExportResult, ContentStats
-// };
+// PDF export services temporarily disabled due to API compatibility issues with genpdf 0.2.0
 // pub use pdf_export_service::{
 //     PdfExportService, PdfExportConfig, PdfExportError, PdfExportErrorKind, 
 //     ProgressCallback as PdfProgressCallback
-// };
-// pub use simple_pdf_export::{
-//     SimplePdfExportService, SimplePdfConfig
 // };

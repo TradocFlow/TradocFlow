@@ -1,5 +1,5 @@
-use genpdf::{Document, Element, elements, style::Style, fonts::FontFamily};
-use pulldown_cmark::{Parser, Event, Tag, TagEnd, HeadingLevel, CodeBlockKind};
+use genpdf::{Document, Element, elements, style::Style, fonts::FontFamily, fonts::FontData};
+use pulldown_cmark::{Parser, Event, Tag, TagEnd, CodeBlockKind};
 use std::path::Path;
 use serde::{Serialize, Deserialize};
 
@@ -44,7 +44,7 @@ pub type ProgressCallback = Box<dyn Fn(f32, &str) + Send>;
 
 /// Enhanced PDF Export Service
 pub struct PdfExportService {
-    font_family: FontFamily<'static>,
+    font_family: FontFamily<FontData>,
 }
 
 #[derive(Debug)]
@@ -74,11 +74,9 @@ impl PdfExportService {
     pub fn new() -> Result<Self, PdfExportError> {
         // Try to load custom fonts, fallback to built-in if not available
         let font_family = genpdf::fonts::from_files("fonts", "LiberationSans", None)
-            .or_else(|_| Ok(genpdf::fonts::Builtin::Helvetica.clone()))
-            .map_err(|e| PdfExportError {
-                message: format!("Failed to load fonts: {}", e),
-                kind: PdfExportErrorKind::FontLoadError,
-            })?;
+            .unwrap_or_else(|_| genpdf::fonts::FontFamily::new(
+                genpdf::fonts::FontData::new(vec![], Some(genpdf::fonts::Builtin::Helvetica)).unwrap()
+            ));
         
         Ok(Self { font_family })
     }
@@ -100,18 +98,15 @@ impl PdfExportService {
         let mut doc = Document::new(self.font_family.clone());
         doc.set_title(&config.title);
         
-        if let Some(author) = &config.author {
-            doc.set_author(author);
-        }
+        // Note: set_author is not available in genpdf 0.2.0
+        // if let Some(author) = &config.author {
+        //     doc.set_author(author);
+        // }
 
-        // Set page layout
-        doc.set_page_size(genpdf::Size::new(210.0, 297.0)); // A4
-        doc.set_margins(genpdf::Margins::trbl(
-            config.margin_top.into(),
-            config.margin_right.into(),
-            config.margin_bottom.into(),
-            config.margin_left.into(),
-        ));
+        // Set page layout - API changed in genpdf 0.2.0
+        doc.set_paper_size(genpdf::PaperSize::A4);
+        // Note: set_margins is not available in genpdf 0.2.0
+        // We'll use the default margins
 
         if let Some(ref callback) = progress_callback {
             callback(0.2, "Parsing markdown content...");

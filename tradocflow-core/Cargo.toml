@@ -43,6 +43,8 @@ tradocflow-translation-memory = { path = "../tradocflow-translation-memory" }
 
 # Markdown processing
 comrak = "0.25"
+pulldown-cmark-to-cmark = "14.0"
+sha2 = "0.10"
 serde = { workspace = true }
 serde_json = { workspace = true }
 toml = "0.8"
@@ -114,6 +116,8 @@ rand = "0.8"
 
 # Directory utilities
 dirs = "5.0"
+directories = "5.0"
+md5 = "0.7"
 
 [build-dependencies]
 slint-build = "1.8"

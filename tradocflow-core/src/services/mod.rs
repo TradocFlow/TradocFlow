@@ -186,7 +186,7 @@ impl TerminologyHighlightingService {
 }
 pub use translation_memory_integration_service::{
     TranslationMemoryIntegrationService, IntegrationConfig, EditorSuggestion, 
-    ConfidenceIndicator, IndicatorType, TextPosition, SearchFilters, TranslationStatistics
+    ConfidenceIndicator, IndicatorType, TextPosition as TmTextPosition, SearchFilters, TranslationStatistics
 };
 // Terminology services now use the external crate
 // pub use terminology_service::TerminologyService;
@@ -218,7 +218,7 @@ pub use language_syntax_service::{
     SpecialCharacter, SyntaxTheme
 };
 pub use collaborative_editing_service::{
-    CollaborativeEditingService, UserSession, DocumentChange, ChangeType, 
+    CollaborativeEditingService, UserSession, DocumentChange as CollabDocumentChange, ChangeType as CollabChangeType, 
     TranslationSuggestion, SuggestionStatus, Comment, CommentType, CommentContext,
     CollaborationEvent, UserPresenceUpdate, ConflictNotification, ConflictType,
     SuggestionVote, VoteType, CommentReply, SelectionRange
@@ -243,6 +243,31 @@ pub use document_processing::{
     DocumentProcessingService, ThreadSafeDocumentProcessor, DocumentProcessingConfig,
     ProcessedDocument, BatchProcessResult, BatchImportError, ProcessingStatistics,
     ImportProgressInfo, ImportStage, ProgressCallback
+};
+
+// New markdown processing services
+pub mod markdown_text_processor;
+pub mod markdown_processor;
+pub mod document_state_manager;
+pub mod markdown_integration_example;
+
+pub use markdown_text_processor::{
+    MarkdownTextProcessor, TextPosition, TextSelection, Cursor, TextOperation,
+    MarkdownFormat, FindReplaceOptions, SearchScope, FindMatch, TextProcessorError
+};
+pub use markdown_processor::{
+    MarkdownProcessor, MarkdownNode, TextRange, ValidationError, ValidationErrorType,
+    Severity, MarkdownProcessingConfig, FormatDetection, ProcessingStatistics as MarkdownProcessingStatistics,
+    MarkdownProcessorError, LinkValidator, CustomParser
+};
+pub use document_state_manager::{
+    DocumentStateManager, DocumentChange, ChangeType, DocumentVersion, AutoSaveConfig,
+    DocumentState, LineEnding, ConflictDetection, Conflict, ConflictType as DocConflictType, ConflictSeverity,
+    ConflictResolutionStrategy, MemoryUsageInfo, DocumentStateError
+};
+pub use markdown_integration_example::{
+    MarkdownEditorBackend, SlintIntegration, DocumentStats, AdvancedMarkdownProcessor,
+    ProcessedMarkdownResult, PerformanceMonitor
 };
 pub mod multi_language_manual_import;
 pub use multi_language_manual_import::{

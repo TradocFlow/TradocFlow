@@ -35,6 +35,14 @@ path = "src/bin/simple_markdown_editor.rs"
 name = "test_multi_language_import"
 path = "src/bin/test_multi_language_import.rs"
 
+[[bin]]
+name = "hybrid_markdown_editor"
+path = "src/bin/hybrid_markdown_editor.rs"
+
+[[bin]]
+name = "focus_management_demo"
+path = "src/bin/focus_management_demo.rs"
+
 
 
 [dependencies]

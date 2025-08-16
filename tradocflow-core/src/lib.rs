@@ -20,6 +20,10 @@ pub mod services;
 pub mod gui;
 pub mod git_integration;
 
+// Integration tests module
+#[cfg(test)]
+pub mod integration_tests;
+
 // Slint generated UI module - must be after all other modules
 slint::include_modules!();
 

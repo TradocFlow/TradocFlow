@@ -1,0 +1,588 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { Button, ComboBox } from "std-widgets.slint";
+
+// Ribbon button with icon and optional dropdown
+component RibbonButton inherits Rectangle {
+    in property <string> text: "";
+    in property <string> icon: "";
+    in property <string> tooltip: "";
+    in property <bool> enabled: true;
+    in property <bool> pressed: false;
+    in property <bool> has-dropdown: false;
+    in property <bool> primary: false;
+    
+    callback clicked();
+    callback dropdown-clicked();
+    
+    property <bool> is-hover: touch-area.has-hover && root.enabled;
+    property <bool> is-pressed: touch-area.pressed && root.enabled;
+    
+    width: 32px;
+    height: 28px;
+    border-radius: Theme.border-radius-sm;
+    
+    background: root.primary ? Colors.primary : 
+                root.is-pressed || root.pressed ? Colors.primary-light :
+                root.is-hover ? Colors.surface-hover :
+                transparent;
+    
+    border-width: root.primary ? 0px : 1px;
+    border-color: root.is-hover ? Colors.border-active : Colors.border;
+    
+    VerticalLayout {
+        alignment: center;
+        padding: 4px;
+        
+        if root.icon != "": Text {
+            text: root.icon;
+            font-size: 14px;
+            color: root.primary ? Colors.on-primary :
+                   root.enabled ? Colors.text-primary : Colors.text-muted;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        
+        if root.text != "" && root.icon == "": Text {
+            text: root.text;
+            font-size: Theme.font-size-small;
+            color: root.primary ? Colors.on-primary :
+                   root.enabled ? Colors.text-primary : Colors.text-muted;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+    
+    if root.has-dropdown: Rectangle {
+        x: parent.width - 8px;
+        y: parent.height - 8px;
+        width: 6px;
+        height: 4px;
+        Text {
+            text: "▼";
+            font-size: 6px;
+            color: root.primary ? Colors.on-primary :
+                   root.enabled ? Colors.text-primary : Colors.text-muted;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+    
+    touch-area := TouchArea {
+        clicked => {
+            if (root.enabled) {
+                root.clicked();
+            }
+        }
+    }
+}
+
+// Wider ribbon button for text labels
+component RibbonTextButton inherits Rectangle {
+    in property <string> text: "";
+    in property <string> icon: "";
+    in property <string> tooltip: "";
+    in property <bool> enabled: true;
+    in property <bool> pressed: false;
+    in property <bool> primary: false;
+    
+    callback clicked();
+    
+    property <bool> is-hover: touch-area.has-hover && root.enabled;
+    property <bool> is-pressed: touch-area.pressed && root.enabled;
+    
+    min-width: 60px;
+    height: 28px;
+    border-radius: Theme.border-radius-sm;
+    
+    background: root.primary ? Colors.primary : 
+                root.is-pressed || root.pressed ? Colors.primary-light :
+                root.is-hover ? Colors.surface-hover :
+                transparent;
+    
+    border-width: root.primary ? 0px : 1px;
+    border-color: root.is-hover ? Colors.border-active : Colors.border;
+    
+    HorizontalLayout {
+        alignment: center;
+        padding: 8px;
+        spacing: 4px;
+        
+        if root.icon != "": Text {
+            text: root.icon;
+            font-size: 12px;
+            color: root.primary ? Colors.on-primary :
+                   root.enabled ? Colors.text-primary : Colors.text-muted;
+            vertical-alignment: center;
+        }
+        
+        if root.text != "": Text {
+            text: root.text;
+            font-size: Theme.font-size-small;
+            color: root.primary ? Colors.on-primary :
+                   root.enabled ? Colors.text-primary : Colors.text-muted;
+            vertical-alignment: center;
+        }
+    }
+    
+    touch-area := TouchArea {
+        clicked => {
+            if (root.enabled) {
+                root.clicked();
+            }
+        }
+    }
+}
+
+// Ribbon section separator
+component RibbonSeparator inherits Rectangle {
+    width: 9px; // Include spacing on both sides
+    height: 32px;
+    
+    Rectangle {
+        x: 4px;
+        width: 1px;
+        height: parent.height;
+        background: Colors.border;
+    }
+}
+
+// Ribbon group with label
+component RibbonGroup inherits Rectangle {
+    in property <string> title: "";
+    
+    min-width: 80px;
+    height: 64px;
+    
+    VerticalLayout {
+        alignment: start;
+        padding: 4px;
+        
+        // Button area
+        Rectangle {
+            height: 40px;
+            HorizontalLayout {
+                alignment: start;
+                spacing: 2px;
+                @children
+            }
+        }
+        
+        // Group label
+        if root.title != "": Text {
+            text: root.title;
+            font-size: 10px;
+            color: Colors.text-secondary;
+            horizontal-alignment: center;
+            font-weight: 400;
+        }
+    }
+}
+
+// Heading dropdown component
+component HeadingDropdown inherits Rectangle {
+    in property <[string]> model: ["H1", "H2", "H3", "H4", "H5", "H6"];
+    in-out property <int> current-index: 0;
+    
+    callback selected(int);
+    
+    property <bool> is-open: false;
+    property <bool> is-hover: touch-area.has-hover;
+    
+    width: 50px;
+    height: 28px;
+    border-radius: Theme.border-radius-sm;
+    border-width: 1px;
+    border-color: root.is-hover ? Colors.border-active : Colors.border;
+    background: root.is-hover ? Colors.surface-hover : Colors.background;
+    
+    HorizontalLayout {
+        alignment: space-between;
+        padding: 6px;
+        
+        Text {
+            text: root.model[root.current-index];
+            font-size: Theme.font-size-small;
+            color: Colors.text-primary;
+            vertical-alignment: center;
+        }
+        
+        Text {
+            text: "▼";
+            font-size: 8px;
+            color: Colors.text-secondary;
+            vertical-alignment: center;
+        }
+    }
+    
+    touch-area := TouchArea {
+        clicked => {
+            root.is-open = !root.is-open;
+        }
+    }
+    
+    if root.is-open: Rectangle {
+        y: parent.height + 2px;
+        z: 100;
+        width: parent.width + 20px;
+        background: Colors.background;
+        border-width: 1px;
+        border-color: Colors.border;
+        border-radius: Theme.border-radius-sm;
+        drop-shadow-blur: 8px;
+        drop-shadow-color: Colors.shadow;
+        
+        VerticalLayout {
+            padding: 4px;
+            spacing: 1px;
+            
+            for heading[index] in root.model: Rectangle {
+                height: 24px;
+                background: item-touch.has-hover ? Colors.surface-hover : transparent;
+                border-radius: Theme.border-radius-sm;
+                
+                Text {
+                    text: heading;
+                    font-size: Theme.font-size-small;
+                    color: Colors.text-primary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                
+                item-touch := TouchArea {
+                    clicked => {
+                        root.current-index = index;
+                        root.selected(index + 1); // H1=1, H2=2, etc.
+                        root.is-open = false;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Main ribbon interface
+export component MarkdownRibbon inherits Rectangle {
+    // Properties
+    in property <bool> enabled: true;
+    in property <bool> can-undo: false;
+    in property <bool> can-redo: false;
+    in property <bool> has-selection: false;
+    
+    // Basic formatting callbacks
+    callback format-bold();
+    callback format-italic();
+    callback format-strikethrough();
+    callback format-underline();
+    callback format-code();
+    callback format-quote();
+    callback format-heading(int /* level */);
+    
+    // List callbacks
+    callback insert-bullet-list();
+    callback insert-numbered-list();
+    callback insert-checklist();
+    
+    // Insert callbacks
+    callback insert-link();
+    callback insert-image();
+    callback insert-table();
+    callback insert-code-block();
+    callback insert-horizontal-rule();
+    
+    // Text alignment callbacks
+    callback align-left();
+    callback align-center();
+    callback align-right();
+    
+    // Indentation callbacks
+    callback increase-indent();
+    callback decrease-indent();
+    
+    // Undo/Redo callbacks
+    callback undo();
+    callback redo();
+    
+    // View callbacks
+    callback toggle-preview();
+    callback toggle-split-view();
+    
+    // File callbacks
+    callback file-new();
+    callback file-open();
+    callback file-save();
+    callback file-export();
+    
+    height: 72px;
+    background: Colors.surface;
+    
+    // Bottom border
+    Rectangle {
+        y: parent.height - 1px;
+        width: parent.width;
+        height: 1px;
+        background: Colors.border;
+    }
+    
+    HorizontalLayout {
+        alignment: start;
+        padding: 8px;
+        spacing: 8px;
+        
+        // File Group
+        RibbonGroup {
+            title: "File";
+            
+            RibbonButton {
+                icon: "📄";
+                tooltip: "New Document (Ctrl+N)";
+                enabled: root.enabled;
+                clicked => { root.file-new(); }
+            }
+            
+            RibbonButton {
+                icon: "📁";
+                tooltip: "Open Document (Ctrl+O)";
+                enabled: root.enabled;
+                clicked => { root.file-open(); }
+            }
+            
+            RibbonButton {
+                icon: "💾";
+                tooltip: "Save Document (Ctrl+S)";
+                enabled: root.enabled;
+                clicked => { root.file-save(); }
+            }
+            
+            RibbonButton {
+                icon: "📤";
+                tooltip: "Export Document (Ctrl+E)";
+                enabled: root.enabled;
+                clicked => { root.file-export(); }
+            }
+        }
+        
+        RibbonSeparator { }
+        
+        // Clipboard Group
+        RibbonGroup {
+            title: "Clipboard";
+            
+            RibbonButton {
+                icon: "↶";
+                tooltip: "Undo (Ctrl+Z)";
+                enabled: root.enabled && root.can-undo;
+                clicked => { root.undo(); }
+            }
+            
+            RibbonButton {
+                icon: "↷";
+                tooltip: "Redo (Ctrl+Y)";
+                enabled: root.enabled && root.can-redo;
+                clicked => { root.redo(); }
+            }
+        }
+        
+        RibbonSeparator { }
+        
+        // Text Formatting Group
+        RibbonGroup {
+            title: "Format";
+            
+            RibbonButton {
+                text: "B";
+                tooltip: "Bold (Ctrl+B)";
+                enabled: root.enabled;
+                clicked => { root.format-bold(); }
+            }
+            
+            RibbonButton {
+                text: "I";
+                tooltip: "Italic (Ctrl+I)";
+                enabled: root.enabled;
+                clicked => { root.format-italic(); }
+            }
+            
+            RibbonButton {
+                text: "U";
+                tooltip: "Underline (Ctrl+U)";
+                enabled: root.enabled;
+                clicked => { root.format-underline(); }
+            }
+            
+            RibbonButton {
+                text: "S";
+                tooltip: "Strikethrough";
+                enabled: root.enabled;
+                clicked => { root.format-strikethrough(); }
+            }
+            
+            RibbonButton {
+                icon: "< >";
+                tooltip: "Inline Code";
+                enabled: root.enabled;
+                clicked => { root.format-code(); }
+            }
+        }
+        
+        RibbonSeparator { }
+        
+        // Structure Group
+        RibbonGroup {
+            title: "Structure";
+            
+            HeadingDropdown {
+                selected(level) => { root.format-heading(level); }
+            }
+            
+            RibbonButton {
+                icon: "❝";
+                tooltip: "Blockquote";
+                enabled: root.enabled;
+                clicked => { root.format-quote(); }
+            }
+            
+            RibbonButton {
+                icon: "{ }";
+                tooltip: "Code Block";
+                enabled: root.enabled;
+                clicked => { root.insert-code-block(); }
+            }
+        }
+        
+        RibbonSeparator { }
+        
+        // Lists Group
+        RibbonGroup {
+            title: "Lists";
+            
+            RibbonButton {
+                icon: "•";
+                tooltip: "Bullet List";
+                enabled: root.enabled;
+                clicked => { root.insert-bullet-list(); }
+            }
+            
+            RibbonButton {
+                icon: "1.";
+                tooltip: "Numbered List";
+                enabled: root.enabled;
+                clicked => { root.insert-numbered-list(); }
+            }
+            
+            RibbonButton {
+                icon: "☑";
+                tooltip: "Checklist";
+                enabled: root.enabled;
+                clicked => { root.insert-checklist(); }
+            }
+        }
+        
+        RibbonSeparator { }
+        
+        // Insert Group
+        RibbonGroup {
+            title: "Insert";
+            
+            RibbonButton {
+                icon: "🔗";
+                tooltip: "Link (Ctrl+K)";
+                enabled: root.enabled;
+                clicked => { root.insert-link(); }
+            }
+            
+            RibbonButton {
+                icon: "🖼";
+                tooltip: "Image";
+                enabled: root.enabled;
+                clicked => { root.insert-image(); }
+            }
+            
+            RibbonButton {
+                icon: "⊞";
+                tooltip: "Table";
+                enabled: root.enabled;
+                clicked => { root.insert-table(); }
+            }
+            
+            RibbonButton {
+                icon: "—";
+                tooltip: "Horizontal Rule";
+                enabled: root.enabled;
+                clicked => { root.insert-horizontal-rule(); }
+            }
+        }
+        
+        RibbonSeparator { }
+        
+        // Alignment Group
+        RibbonGroup {
+            title: "Align";
+            
+            RibbonButton {
+                icon: "⊣";
+                tooltip: "Align Left";
+                enabled: root.enabled;
+                clicked => { root.align-left(); }
+            }
+            
+            RibbonButton {
+                icon: "≡";
+                tooltip: "Align Center";
+                enabled: root.enabled;
+                clicked => { root.align-center(); }
+            }
+            
+            RibbonButton {
+                icon: "⊢";
+                tooltip: "Align Right";
+                enabled: root.enabled;
+                clicked => { root.align-right(); }
+            }
+        }
+        
+        RibbonSeparator { }
+        
+        // Indentation Group
+        RibbonGroup {
+            title: "Indent";
+            
+            RibbonButton {
+                icon: "⇤";
+                tooltip: "Decrease Indent";
+                enabled: root.enabled;
+                clicked => { root.decrease-indent(); }
+            }
+            
+            RibbonButton {
+                icon: "⇥";
+                tooltip: "Increase Indent";
+                enabled: root.enabled;
+                clicked => { root.increase-indent(); }
+            }
+        }
+        
+        RibbonSeparator { }
+        
+        // View Group
+        RibbonGroup {
+            title: "View";
+            
+            RibbonTextButton {
+                text: "Preview";
+                icon: "👁";
+                tooltip: "Toggle Preview";
+                enabled: root.enabled;
+                clicked => { root.toggle-preview(); }
+            }
+            
+            RibbonTextButton {
+                text: "Split";
+                icon: "⊞";
+                tooltip: "Toggle Split View";
+                enabled: root.enabled;
+                clicked => { root.toggle-split-view(); }
+            }
+        }
+    }
+}

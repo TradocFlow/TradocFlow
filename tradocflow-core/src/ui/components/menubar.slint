@@ -146,10 +146,12 @@ export component MenuBar inherits Rectangle {
     callback view-single-pane();
     callback view-horizontal-split();
     callback view-vertical-split();
+    callback view-grid-split();
     callback view-fullscreen();
     callback view-zoom-in();
     callback view-zoom-out();
     callback view-show-sidebar();
+    callback view-toggle-ribbon();
     
     callback project-new();
     callback project-open();
@@ -248,12 +250,14 @@ export component MenuBar inherits Rectangle {
                 { text: "Single Pane", shortcut: "Ctrl+1" },
                 { text: "Horizontal Split", shortcut: "Ctrl+2" },
                 { text: "Vertical Split", shortcut: "Ctrl+3" },
+                { text: "Grid (2x2)", shortcut: "Ctrl+4" },
                 { separator: true },
                 { text: "Fullscreen", shortcut: "F11" },
                 { text: "Zoom In", shortcut: "Ctrl++" },
                 { text: "Zoom Out", shortcut: "Ctrl+-" },
                 { separator: true },
-                { text: "Show Sidebar", shortcut: "Ctrl+\\" }
+                { text: "Show Sidebar", shortcut: "Ctrl+\\" },
+                { text: "Toggle Ribbon", shortcut: "Ctrl+R" }
             ];
             
             item-selected(item) => {
@@ -261,10 +265,12 @@ export component MenuBar inherits Rectangle {
                 else if (item == "Single Pane") { root.view-single-pane(); }
                 else if (item == "Horizontal Split") { root.view-horizontal-split(); }
                 else if (item == "Vertical Split") { root.view-vertical-split(); }
+                else if (item == "Grid (2x2)") { root.view-grid-split(); }
                 else if (item == "Fullscreen") { root.view-fullscreen(); }
                 else if (item == "Zoom In") { root.view-zoom-in(); }
                 else if (item == "Zoom Out") { root.view-zoom-out(); }
                 else if (item == "Show Sidebar") { root.view-show-sidebar(); }
+                else if (item == "Toggle Ribbon") { root.view-toggle-ribbon(); }
             }
         }
         

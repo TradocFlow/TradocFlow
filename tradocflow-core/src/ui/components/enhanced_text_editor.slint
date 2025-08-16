@@ -239,7 +239,7 @@ component LanguageSelector inherits Rectangle {
     }
 }
 
-// Enhanced text editor component with professional editing capabilities
+// Enhanced text editor component with professional editing capabilities and focus management
 export component EnhancedTextEditor inherits Rectangle {
     in property <string> content: "";
     in property <bool> read-only: false;
@@ -248,9 +248,20 @@ export component EnhancedTextEditor inherits Rectangle {
     in property <[TermHighlight]> term-highlights: [];
     in property <bool> highlighting-enabled: true;
     
+    // Focus management properties
+    in property <string> editor-id: "editor-default";
+    in property <string> pane-id: "pane-default";
+    in property <bool> has-editor-focus: false;
+    in property <bool> show-focus-indicator: true;
+    in property <bool> enable-cursor-blink: true;
+    
     // Enhanced selection and cursor properties
     in-out property <int> cursor-position: 0;
     in-out property <TextSelection> selection: { start: 0, end: 0, selected_text: "" };
+    
+    // Cursor blinking properties
+    property <bool> cursor-blink-state: true;
+    property <duration> blink-interval: 500ms;
     
     // Markdown-specific properties
     in property <bool> auto-list-continuation: true;
@@ -270,9 +281,15 @@ export component EnhancedTextEditor inherits Rectangle {
     callback text-operation(TextOperation);
     callback term-highlight-clicked(TermHighlight);
     
-    // Accessibility callbacks
-    callback focus-gained();
+    // Focus management callbacks
+    callback focus-requested();
+    callback focus-granted();
     callback focus-lost();
+    callback cursor-position-changed(int);
+    callback editor-activated();
+    callback editor-deactivated();
+    
+    // Accessibility callbacks
     callback screen-reader-announce(string);
     
     // Enhanced formatting callbacks with context
@@ -292,14 +309,67 @@ export component EnhancedTextEditor inherits Rectangle {
     callback redo();
     
     background: Colors.editor-background;
+    border-width: root.has-editor-focus ? 2px : 1px;
+    border-color: root.has-editor-focus ? Colors.primary : Colors.border;
+    border-radius: Theme.border-radius-sm;
+    
+    // Focus indicator overlay
+    if root.show-focus-indicator && root.has-editor-focus: Rectangle {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+        background: transparent;
+        border-width: 2px;
+        border-color: Colors.primary;
+        border-radius: Theme.border-radius-sm;
+        opacity: 0.8;
+        drop-shadow-blur: 4px;
+        drop-shadow-color: Colors.primary-light;
+        
+        animate border-color, opacity, drop-shadow-blur {
+            duration: Theme.animation-fast;
+        }
+    }
+    
+    // Touch area to capture focus requests
+    editor-focus-area := TouchArea {
+        clicked => {
+            root.focus-requested();
+            text-edit.focus();
+        }
+        
+        // Handle focus changes (TouchArea doesn't have focus-changed callback)
+        // This will be handled by the backend
+        // focus-changed => {
+        //     if self.has-focus {
+        //         root.focus-granted();
+        //         root.editor-activated();
+        //     } else {
+        //         root.focus-lost();
+        //         root.editor-deactivated();
+        //     }
+        // }
+    }
     
     ScrollView {
+        x: root.has-editor-focus ? 4px : 2px;
+        y: root.has-editor-focus ? 4px : 2px;
+        width: parent.width - (root.has-editor-focus ? 8px : 4px);
+        height: parent.height - (root.has-editor-focus ? 8px : 4px);
+        
         text-edit := TextEdit {
             text: root.content;
             font-size: Theme.font-size-base;
             wrap: word-wrap;
             read-only: root.read-only;
             horizontal-alignment: left;
+            
+            // Focus and cursor management
+            has-focus: root.has-editor-focus;
+            
+            // Enable cursor blinking when focused
+            enabled: true;
             
             edited(text) => {
                 root.text-changed(text);
@@ -319,8 +389,31 @@ export component EnhancedTextEditor inherits Rectangle {
                 }
             }
             
-            // Focus and cursor tracking would be implemented in Rust backend
-            // Enhanced accessibility features would be handled there
+            // Handle cursor position changes (TextEdit doesn't have this callback)
+            // This will be handled by the backend through property bindings
+            // cursor-position-changed(pos) => {
+            //     root.cursor-position = pos;
+            //     root.cursor-moved(pos);
+            //     root.cursor-position-changed(pos);
+            //     
+            //     // Reset cursor blink state when cursor moves
+            //     if root.enable-cursor-blink && root.has-editor-focus {
+            //         root.cursor-blink-state = true;
+            //         // Restart the blink timer
+            //         cursor-blink-timer.restart();
+            //     }
+            // }
+            
+            // Handle selection changes (TextEdit doesn't have this callback)
+            // This will be handled by the backend through property bindings
+            // selection-changed(start, end) => {
+            //     root.selection = {
+            //         start: start,
+            //         end: end,
+            //         selected_text: "" // Would be populated by backend
+            //     };
+            //     root.selection-changed(root.selection);
+            // }
             
             // Enhanced keyboard handling with comprehensive markdown shortcuts
             key-pressed(event) => {
@@ -456,6 +549,39 @@ export component EnhancedTextEditor inherits Rectangle {
             }
         }
     }
+    
+    // Cursor blinking animation timer
+    cursor-blink-timer := Timer {
+        interval: root.blink-interval;
+        running: root.has-editor-focus && root.enable-cursor-blink && root.selection.start == root.selection.end && !root.read-only;
+        
+        triggered => {
+            root.cursor-blink-state = !root.cursor-blink-state;
+        }
+    }
+    
+    // Focus state change animations (removed - not animatable)
+    // animate has-editor-focus {
+    //     duration: Theme.animation-fast;
+    // }
+    
+    // Visual state animations
+    animate border-width, border-color, drop-shadow-blur {
+        duration: Theme.animation-fast;
+    }
+    
+    states [
+        focused when root.has-editor-focus: {
+            drop-shadow-blur: 6px;
+            drop-shadow-color: Colors.primary-light;
+            border-color: Colors.primary;
+        }
+        inactive when !root.has-editor-focus: {
+            drop-shadow-blur: 2px;
+            drop-shadow-color: #00000010;
+            border-color: Colors.border;
+        }
+    ]
     
     // Enhanced visual feedback for empty editor with accessibility
     if root.content == "": Rectangle {
@@ -726,11 +852,24 @@ export component ProfessionalEditor inherits Rectangle {
     in property <[TermHighlight]> term-highlights: [];
     in property <bool> highlighting-enabled: true;
     
+    // Focus management properties
+    in property <string> editor-id: "professional-editor";
+    in property <string> pane-id: "default-pane";
+    in property <bool> has-focus: false;
+    in property <bool> show-focus-indicator: true;
+    
     // Text operation callbacks
     callback content-changed(string);
     callback language-changed(string);
     callback text-operation(TextOperation);
     callback term-highlight-clicked(TermHighlight);
+    
+    // Focus management callbacks
+    callback focus-requested();
+    callback focus-granted();
+    callback focus-lost();
+    callback editor-activated();
+    callback editor-deactivated();
     
     // Formatting callbacks
     callback format-bold();
@@ -805,18 +944,23 @@ export component ProfessionalEditor inherits Rectangle {
             redo => { root.redo(); }
         }
         
-        // Enhanced text editor
+        // Enhanced text editor with focus management
         text-editor := EnhancedTextEditor {
             content: root.content;
             read-only: root.read-only;
             editor-mode: root.mode;
             term-highlights: root.term-highlights;
             highlighting-enabled: root.highlighting-enabled;
+            editor-id: root.editor-id;
+            pane-id: root.pane-id;
+            has-editor-focus: root.has-focus;
+            show-focus-indicator: root.show-focus-indicator;
             placeholder: root.mode == "markdown" ? 
                 "Start writing in Markdown..." : 
                 "Start writing your presentation...";
             
             text-changed(text) => {
+                // Forward text changes to the main content-changed callback
                 root.content-changed(text);
             }
             
@@ -827,6 +971,13 @@ export component ProfessionalEditor inherits Rectangle {
             term-highlight-clicked(highlight) => {
                 root.term-highlight-clicked(highlight);
             }
+            
+            // Focus management callbacks
+            focus-requested => { root.focus-requested(); }
+            focus-granted => { root.focus-granted(); }
+            focus-lost => { root.focus-lost(); }
+            editor-activated => { root.editor-activated(); }
+            editor-deactivated => { root.editor-deactivated(); }
             
             undo => { root.undo(); }
             redo => { root.redo(); }

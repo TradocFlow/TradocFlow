@@ -1,0 +1,406 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { TextEdit } from "std-widgets.slint";
+
+// Focus management structures
+export struct FocusState {
+    active_pane_id: string,
+    active_editor_id: string,
+    cursor_blink_enabled: bool,
+    cursor_position: int,
+    selection_start: int,
+    selection_end: int,
+}
+
+export struct EditorFocusInfo {
+    editor_id: string,
+    pane_id: string,
+    language: string,
+    has_focus: bool,
+    cursor_visible: bool,
+    is_blinking: bool,
+}
+
+// Enhanced TextEdit with proper focus management
+export component FocusAwareTextEdit inherits Rectangle {
+    in property <string> content: "";
+    in property <string> editor-id: "editor-default";
+    in property <string> pane-id: "pane-default";
+    in property <bool> read-only: false;
+    in property <bool> has-editor-focus: false;
+    in property <bool> enable-cursor-blink: true;
+    in property <bool> show-focus-indicator: true;
+    
+    // Cursor and selection properties
+    in-out property <int> cursor-position: 0;
+    in-out property <int> selection-start: 0;
+    in-out property <int> selection-end: 0;
+    
+    // Visual properties
+    in property <brush> focus-border-color: Colors.primary;
+    in property <brush> inactive-border-color: Colors.border;
+    in property <length> focus-border-width: 2px;
+    in property <length> inactive-border-width: 1px;
+    
+    // Blinking cursor animation properties
+    property <bool> cursor-blink-state: true;
+    property <duration> blink-interval: 500ms;
+    
+    // Callbacks
+    callback text-changed(string);
+    callback focus-gained();
+    callback focus-lost();
+    callback cursor-moved(int);
+    callback selection-changed(int, int);
+    callback key-pressed(KeyEvent);
+    
+    // Focus state management
+    callback request-focus();
+    callback release-focus();
+    
+    background: Colors.editor-background;
+    border-width: root.has-editor-focus ? root.focus-border-width : root.inactive-border-width;
+    border-color: root.has-editor-focus ? root.focus-border-color : root.inactive-border-color;
+    border-radius: Theme.border-radius-sm;
+    
+    // Focus indicator overlay
+    if root.show-focus-indicator && root.has-editor-focus: Rectangle {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+        border-width: 2px;
+        border-color: Colors.primary;
+        border-radius: Theme.border-radius-sm;
+        background: transparent;
+        opacity: 0.8;
+        
+        // Animate focus appearance
+        animate border-color {
+            duration: Theme.animation-fast;
+        }
+        
+        animate opacity {
+            duration: Theme.animation-fast;
+        }
+    }
+    
+    // Main text edit area with focus handling
+    text-edit := TextEdit {
+        x: 2px;
+        y: 2px;
+        width: parent.width - 4px;
+        height: parent.height - 4px;
+        text: root.content;
+        read-only: root.read-only;
+        font-size: Theme.font-size-base;
+        wrap: word-wrap;
+        
+        // Enable proper focus handling
+        has-focus: root.has-editor-focus;
+        
+        // Cursor visibility is handled by Slint automatically
+        // cursor-visible: root.cursor-blink-state || root.selection-start != root.selection-end;
+        
+        // Cursor blinking animation (has-focus is not animatable)
+        // animate has-focus {
+        //     duration: Theme.animation-fast;
+        // }
+        
+        edited(text) => {
+            root.text-changed(text);
+        }
+        
+        // Handle cursor position changes (TextEdit doesn't have this callback)
+        // cursor-position-changed(pos) => {
+        //     root.cursor-position = pos;
+        //     root.cursor-moved(pos);
+        //     
+        //     // Reset cursor blink state when cursor moves
+        //     if root.enable-cursor-blink && root.has-editor-focus {
+        //         root.cursor-blink-state = true;
+        //     }
+        // }
+        
+        key-pressed(event) => {
+            // Forward key events for handling
+            root.key-pressed(event);
+            return reject; // Let the text edit handle the key
+        }
+    }
+    
+    // Focus area to capture clicks
+    focus-area := TouchArea {
+        clicked => {
+            root.request-focus();
+        }
+        
+        // Handle focus events (TouchArea doesn't have focus-changed callback)
+        // Focus changes will be handled by the backend
+        // focus-changed => {
+        //     if self.has-focus {
+        //         root.focus-gained();
+        //     } else {
+        //         root.focus-lost();
+        //     }
+        // }
+    }
+    
+    // Cursor blinking animation
+    blink-timer := Timer {
+        interval: root.blink-interval;
+        running: root.has-editor-focus && root.enable-cursor-blink && !root.read-only && root.selection-start == root.selection-end;
+        
+        triggered => {
+            root.cursor-blink-state = !root.cursor-blink-state;
+        }
+    }
+    
+    states [
+        focused when root.has-editor-focus: {
+            border-color: root.focus-border-color;
+            border-width: root.focus-border-width;
+            drop-shadow-blur: 4px;
+            drop-shadow-color: Colors.primary-light;
+        }
+        inactive when !root.has-editor-focus: {
+            border-color: root.inactive-border-color;
+            border-width: root.inactive-border-width;
+            drop-shadow-blur: 0px;
+        }
+    ]
+    
+    animate border-color, border-width, drop-shadow-blur {
+        duration: Theme.animation-fast;
+    }
+}
+
+// Focus Manager Component - coordinates focus across multiple editors
+export component FocusManager inherits Rectangle {
+    in property <[EditorFocusInfo]> editor-info: [];
+    in property <string> active-editor-id: "";
+    in property <bool> global-cursor-blink: true;
+    
+    // Focus management callbacks
+    callback editor-focus-requested(string /* editor-id */, string /* pane-id */);
+    callback editor-focus-granted(string /* editor-id */);
+    callback editor-focus-released(string /* editor-id */);
+    callback active-editor-changed(string /* old-editor-id */, string /* new-editor-id */);
+    
+    // Keyboard navigation callbacks
+    callback tab-to-next-editor();
+    callback tab-to-previous-editor();
+    callback focus-editor-by-index(int /* index */);
+    
+    // Visual state callbacks
+    callback update-focus-indicators();
+    callback start-cursor-blink();
+    callback stop-cursor-blink();
+    
+    // Invisible container for managing focus state
+    background: transparent;
+    width: 0px;
+    height: 0px;
+    
+    // Global focus management timer
+    global-blink-timer := Timer {
+        interval: 500ms;
+        running: root.global-cursor-blink && root.active-editor-id != "";
+        
+        triggered => {
+            // Sync cursor blink across all editors
+            root.start-cursor-blink();
+        }
+    }
+    
+    // Synchronized cursor blinking for all editors
+    sync-blink-timer := Timer {
+        interval: 500ms;
+        running: root.global-cursor-blink;
+        
+        triggered => {
+            // This will be used to coordinate blink state across all editors
+            root.update-focus-indicators();
+        }
+    }
+    
+    // Handle keyboard navigation between editors
+    key-handler := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Tab && !event.modifiers.control {
+                if event.modifiers.shift {
+                    root.tab-to-previous-editor();
+                } else {
+                    root.tab-to-next-editor();
+                }
+                return accept;
+            }
+            return reject;
+        }
+    }
+    
+    // Focus state management functions (implemented in backend)
+    function request-editor-focus(editor-id: string, pane-id: string) {
+        root.editor-focus-requested(editor-id, pane-id);
+    }
+    
+    function release-current-focus() {
+        if root.active-editor-id != "" {
+            root.editor-focus-released(root.active-editor-id);
+        }
+    }
+    
+    function set-active-editor(editor-id: string) {
+        // Call the callback to change active editor
+        root.active-editor-changed(root.active-editor-id, editor-id);
+    }
+}
+
+// Enhanced Editor Pane with focus management
+export component FocusAwareEditorPane inherits Rectangle {
+    in property <string> pane-id: "pane-1";
+    in property <string> content: "";
+    in property <string> mode: "markdown";
+    in property <string> language: "en";
+    in property <bool> read-only: false;
+    in property <bool> has-focus: false;
+    in property <bool> show-active-indicator: true;
+    
+    // Focus management properties
+    in property <string> active-editor-id: "";
+    property <string> editor-id: root.pane-id + "-editor";
+    
+    // Callbacks
+    callback content-changed(string);
+    callback focus-requested();
+    callback focus-granted();
+    callback focus-lost();
+    callback text-operation(string /* operation */, string /* data */);
+    
+    // All the formatting callbacks
+    callback format-bold();
+    callback format-italic();
+    callback format-underline();
+    callback format-heading(int);
+    callback format-code();
+    callback format-quote();
+    
+    // List callbacks
+    callback insert-bullet-list();
+    callback insert-numbered-list();
+    callback insert-checklist();
+    
+    // Insert callbacks
+    callback insert-link();
+    callback insert-image();
+    callback insert-table();
+    callback insert-code-block();
+    
+    // Text manipulation callbacks
+    callback increase-indent();
+    callback decrease-indent();
+    callback align-left();
+    callback align-center();
+    callback align-right();
+    
+    // Undo/Redo callbacks
+    callback undo();
+    callback redo();
+    
+    background: Colors.editor-background;
+    border-radius: Theme.border-radius-sm;
+    
+    // Active pane indicator
+    if root.show-active-indicator && root.has-focus: Rectangle {
+        x: 0;
+        y: 0;
+        width: 4px;
+        height: parent.height;
+        background: Colors.primary;
+        border-radius: 2px;
+        
+        animate background {
+            duration: Theme.animation-fast;
+        }
+    }
+    
+    // Main editor with focus management
+    editor := FocusAwareTextEdit {
+        x: root.has-focus ? 6px : 4px;
+        y: 4px;
+        width: parent.width - (root.has-focus ? 10px : 8px);
+        height: parent.height - 8px;
+        
+        content: root.content;
+        editor-id: root.editor-id;
+        pane-id: root.pane-id;
+        read-only: root.read-only;
+        has-editor-focus: root.has-focus && root.active-editor-id == root.editor-id;
+        
+        text-changed(text) => {
+            root.content-changed(text);
+        }
+        
+        focus-gained => {
+            root.focus-requested();
+        }
+        
+        focus-lost => {
+            root.focus-lost();
+        }
+        
+        request-focus => {
+            root.focus-requested();
+        }
+        
+        key-pressed(event) => {
+            // Handle editor-specific shortcuts
+            if event.modifiers.control {
+                if event.text == "b" {
+                    root.format-bold();
+                    // return accept;
+                } else if event.text == "i" {
+                    root.format-italic();
+                    // return accept;
+                } else if event.text == "u" {
+                    root.format-underline();
+                    // return accept;
+                } else if event.text == "k" {
+                    root.insert-link();
+                    // return accept;
+                } else if event.text == "z" && !event.modifiers.shift {
+                    root.undo();
+                    // return accept;
+                } else if event.text == "y" || (event.text == "z" && event.modifiers.shift) {
+                    root.redo();
+                    // return accept;
+                }
+            }
+            // return reject;
+        }
+    }
+    
+    // Visual focus state animations
+    animate x {
+        duration: Theme.animation-fast;
+    }
+    
+    animate width {
+        duration: Theme.animation-fast;
+    }
+    
+    states [
+        active when root.has-focus: {
+            drop-shadow-blur: 6px;
+            drop-shadow-color: Colors.primary-light;
+        }
+        inactive when !root.has-focus: {
+            drop-shadow-blur: 2px;
+            drop-shadow-color: #00000010;
+        }
+    ]
+    
+    animate drop-shadow-blur, drop-shadow-color {
+        duration: Theme.animation-fast;
+    }
+}

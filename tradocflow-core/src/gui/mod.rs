@@ -7,6 +7,8 @@ pub mod state;
 pub mod user_management_bridge;
 pub mod markdown_editor_bridge;
 pub mod export_bridge;
+pub mod focus_management_bridge;
+pub mod main_window_focus_bridge;
 
 pub use app::App;
 pub use state::AppState;
@@ -16,3 +18,4 @@ pub use state::AppState;
 pub use user_management_bridge::UserManagementBridge;
 pub use markdown_editor_bridge::MarkdownEditorBridge;
 pub use export_bridge::ExportBridge;
+pub use focus_management_bridge::FocusManagementUIBridge;

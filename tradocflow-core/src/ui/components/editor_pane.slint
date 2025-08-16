@@ -14,11 +14,24 @@ export component EditorPane inherits Rectangle {
     in property <string> language: "en";
     in property <bool> read-only: false;
     
+    // Focus management properties
+    in property <string> editor-id: "editor-default";
+    in property <string> pane-id: "pane-default";
+    in property <bool> has-focus: false;
+    in property <bool> show-focus-indicator: true;
+    
     // Callbacks for basic operations
     callback content-changed(string);
     callback mode-changed(string);
     callback language-changed(string);
     callback text-operation(TextOperation);
+    
+    // Focus management callbacks
+    callback focus-requested();
+    callback focus-granted();
+    callback focus-lost();
+    callback editor-activated();
+    callback editor-deactivated();
     
     // Enhanced formatting callbacks
     callback format-bold();
@@ -55,12 +68,16 @@ export component EditorPane inherits Rectangle {
     
     background: Colors.editor-background;
     
-    // Use the new professional editor
+    // Use the new professional editor with focus management
     professional-editor := ProfessionalEditor {
         content: root.content;
         mode: root.mode;
         language: root.language;
         read-only: root.read-only;
+        editor-id: root.editor-id;
+        pane-id: root.pane-id;
+        has-focus: root.has-focus;
+        show-focus-indicator: root.show-focus-indicator;
         
         content-changed(text) => {
             root.content-changed(text);
@@ -73,6 +90,13 @@ export component EditorPane inherits Rectangle {
         text-operation(op) => {
             root.text-operation(op);
         }
+        
+        // Focus management callbacks
+        focus-requested => { root.focus-requested(); }
+        focus-granted => { root.focus-granted(); }
+        focus-lost => { root.focus-lost(); }
+        editor-activated => { root.editor-activated(); }
+        editor-deactivated => { root.editor-deactivated(); }
         
         // Enhanced formatting callbacks
         format-bold => { root.format-bold(); }

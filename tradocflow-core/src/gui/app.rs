@@ -680,6 +680,20 @@ impl App {
             }
         });
 
+
+        self.main_window.on_toggle_ribbon({
+            let main_window_weak = main_window_weak.clone();
+            move || {
+                if let Some(window) = main_window_weak.upgrade() {
+                    let current_ribbon = window.get_show_ribbon();
+                    window.set_show_ribbon(!current_ribbon);
+                    let status = if !current_ribbon { "shown" } else { "hidden" };
+                    window.set_status_message(format!("Ribbon {status}").into());
+                    window.set_status_type("success".into());
+                }
+            }
+        });
+
         // Project menu callbacks
         self.main_window.on_project_new({
             let main_window_weak = main_window_weak.clone();
@@ -1498,6 +1512,15 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
+                    // Get current content and apply bold formatting
+                    let current_content = window.get_document_content().to_string();
+                    let new_content = if current_content.trim().is_empty() {
+                        "**Bold text here**".to_string()
+                    } else {
+                        format!("{}\n**Bold text**", current_content)
+                    };
+                    window.set_document_content(new_content.into());
+                    
                     window.set_status_message("Bold formatting applied".into());
                     window.set_status_type("success".into());
                 }
@@ -1508,6 +1531,15 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
+                    // Get current content and apply italic formatting
+                    let current_content = window.get_document_content().to_string();
+                    let new_content = if current_content.trim().is_empty() {
+                        "*Italic text here*".to_string()
+                    } else {
+                        format!("{}\n*Italic text*", current_content)
+                    };
+                    window.set_document_content(new_content.into());
+                    
                     window.set_status_message("Italic formatting applied".into());
                     window.set_status_type("success".into());
                 }
@@ -1528,6 +1560,16 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move |level| {
                 if let Some(window) = main_window_weak.upgrade() {
+                    // Get current content and apply heading formatting
+                    let current_content = window.get_document_content().to_string();
+                    let heading_prefix = "#".repeat(level as usize);
+                    let new_content = if current_content.trim().is_empty() {
+                        format!("{} Heading Level {}", heading_prefix, level)
+                    } else {
+                        format!("{}\n{} Heading Level {}", current_content, heading_prefix, level)
+                    };
+                    window.set_document_content(new_content.into());
+                    
                     window.set_status_message(format!("Heading {level} applied").into());
                     window.set_status_type("success".into());
                 }
@@ -1538,6 +1580,15 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
+                    // Get current content and apply code formatting
+                    let current_content = window.get_document_content().to_string();
+                    let new_content = if current_content.trim().is_empty() {
+                        "`code here`".to_string()
+                    } else {
+                        format!("{}\n`code`", current_content)
+                    };
+                    window.set_document_content(new_content.into());
+                    
                     window.set_status_message("Code formatting applied".into());
                     window.set_status_type("success".into());
                 }
@@ -1559,6 +1610,15 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
+                    // Get current content and insert bullet list
+                    let current_content = window.get_document_content().to_string();
+                    let new_content = if current_content.trim().is_empty() {
+                        "- First item\n- Second item\n- Third item".to_string()
+                    } else {
+                        format!("{}\n\n- New item\n- Another item", current_content)
+                    };
+                    window.set_document_content(new_content.into());
+                    
                     window.set_status_message("Bullet list inserted".into());
                     window.set_status_type("success".into());
                 }
@@ -1569,6 +1629,15 @@ impl App {
             let main_window_weak = main_window_weak.clone();
             move || {
                 if let Some(window) = main_window_weak.upgrade() {
+                    // Get current content and insert numbered list
+                    let current_content = window.get_document_content().to_string();
+                    let new_content = if current_content.trim().is_empty() {
+                        "1. First item\n2. Second item\n3. Third item".to_string()
+                    } else {
+                        format!("{}\n\n1. First item\n2. Second item", current_content)
+                    };
+                    window.set_document_content(new_content.into());
+                    
                     window.set_status_message("Numbered list inserted".into());
                     window.set_status_type("success".into());
                 }
@@ -1825,6 +1894,7 @@ impl App {
                 }
             }
         });
+
     }
     
     /// Set up editor callbacks
@@ -2319,4 +2389,5 @@ impl App {
             _ => {}
         }
     }
+
 }

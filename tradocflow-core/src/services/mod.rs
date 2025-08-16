@@ -274,6 +274,13 @@ pub use multi_language_manual_import::{
     MultiLanguageManualImportService, SupportedLanguage, FolderScanResult,
     LanguageConflict, MultiLanguageImportConfig, MultiLanguageImportResult
 };
+
+// Focus management service
+pub mod focus_management_service;
+pub use focus_management_service::{
+    FocusManagementService, FocusManagementBridge, EditorFocusState, 
+    FocusEvent, FocusUpdateResult
+};
 // PDF export services temporarily disabled due to API compatibility issues with genpdf 0.2.0
 // pub use pdf_export_service::{
 //     PdfExportService, PdfExportConfig, PdfExportError, PdfExportErrorKind, 

@@ -1,8 +1,10 @@
 import { Colors } from "styles/colors.slint";
 import { Theme } from "styles/default.slint";
 import { MenuBar } from "components/menubar.slint";
+import { MarkdownRibbon } from "components/markdown_ribbon.slint";
 import { Sidebar } from "components/sidebar.slint";
 import { EditorPane } from "components/editor_pane.slint";
+import { FocusManager } from "components/focus_management.slint";
 import { TextOperation } from "components/enhanced_text_editor.slint";
 import { ProjectCreationWizard } from "components/project_creation_wizard.slint";
 import { SimpleProjectBrowser, ProjectData } from "components/simple_project_browser.slint";
@@ -21,8 +23,31 @@ export component MainWindow inherits Window {
     in-out property <string> current-language: "en";
     in-out property <string> document-content: "# Welcome to Tradocument Reviewer\n\nStart editing your multilingual document here...";
     in-out property <string> translation-content: "";
+    
+    // Additional content properties for 4-pane layout
+    in-out property <string> pane-1-content: "# Welcome to Tradocument Reviewer\n\nStart editing your multilingual document here...";
+    in-out property <string> pane-2-content: "";
+    in-out property <string> pane-3-content: "";
+    in-out property <string> pane-4-content: "";
     in-out property <string> status-message: "Ready";
     in-out property <string> status-type: "info"; // "info", "success", "warning", "error"
+    
+    // Ribbon state properties
+    in-out property <bool> show-ribbon: true;
+    in-out property <bool> can-undo: false;
+    in-out property <bool> can-redo: false;
+    in-out property <bool> has-selection: false;
+    
+    // Focus management properties
+    in-out property <string> active-editor-id: "single-editor";
+    in-out property <string> active-pane-id: "single-pane";
+    in-out property <bool> single-editor-focused: true;
+    in-out property <bool> left-editor-focused: false;
+    in-out property <bool> right-editor-focused: false;
+    in-out property <bool> pane-1-focused: false;
+    in-out property <bool> pane-2-focused: false;
+    in-out property <bool> pane-3-focused: false;
+    in-out property <bool> pane-4-focused: false;
     
     // Callbacks for application logic
     callback file-new();
@@ -145,6 +170,7 @@ export component MainWindow inherits Window {
     callback format-bold();
     callback format-italic();
     callback format-underline();
+    callback format-strikethrough();
     callback format-heading(int);
     callback format-code();
     callback format-quote();
@@ -159,6 +185,7 @@ export component MainWindow inherits Window {
     callback insert-image();
     callback insert-table();
     callback insert-code-block();
+    callback insert-horizontal-rule();
     
     // Text manipulation callbacks
     callback increase-indent();
@@ -171,11 +198,26 @@ export component MainWindow inherits Window {
     callback undo();
     callback redo();
     
+    // View toggle callbacks
+    callback toggle-preview();
+    callback toggle-split-view();
+    callback toggle-ribbon();
+    
     // Text operation callback
     callback text-operation(TextOperation);
     
     // Legacy callbacks for compatibility
     callback insert-list();
+    
+    // Focus management callbacks
+    callback editor-focus-requested(string /* editor-id */, string /* pane-id */);
+    callback editor-focus-granted(string /* editor-id */);
+    callback editor-focus-lost(string /* editor-id */);
+    callback tab-to-next-editor();
+    callback tab-to-previous-editor();
+    callback focus-editor-by-index(int /* index */);
+    callback update-cursor-position(string /* editor-id */, int /* position */);
+    callback update-selection(string /* editor-id */, int /* start */, int /* end */);
     
     callback update-status(string, string); // message, type
     
@@ -231,11 +273,10 @@ export component MainWindow inherits Window {
     callback export-close-dialog();
     callback export-view-history();
     
-    // Keyboard shortcuts
-    forward-focus: key-handler;
-    
+    // Global keyboard shortcuts - only handle specific shortcuts, let text input pass through
     key-handler := FocusScope {
         key-pressed(event) => {
+            // Only handle Control+ shortcuts, let everything else pass through to text editor
             if (event.modifiers.control) {
                 if (event.text == "n") {
                     root.file-new();
@@ -262,23 +303,11 @@ export component MainWindow inherits Window {
                 } else if (event.text == "3") {
                     root.set-layout("vertical");
                     return accept;
-                } else if (event.text == "z") {
-                    root.undo();
+                } else if (event.text == "4") {
+                    root.set-layout("grid_2x2");
                     return accept;
-                } else if (event.text == "y") {
-                    root.redo();
-                    return accept;
-                } else if (event.text == "b") {
-                    root.format-bold();
-                    return accept;
-                } else if (event.text == "i") {
-                    root.format-italic();
-                    return accept;
-                } else if (event.text == "u") {
-                    root.format-underline();
-                    return accept;
-                } else if (event.text == "k") {
-                    root.insert-link();
+                } else if (event.text == "r") {
+                    root.toggle-ribbon();
                     return accept;
                 } else if (event.text == "p") {
                     root.open-project-browser();
@@ -292,10 +321,40 @@ export component MainWindow inherits Window {
                     }
                     return accept;
                 }
+                // Let other Ctrl+ shortcuts pass through to text editor (Ctrl+Z, Ctrl+Y, Ctrl+B, etc.)
+                return reject;
+            } else if (event.text == Key.F11) {
+                // Toggle fullscreen
+                return accept;
+            } else if (event.text == Key.Tab && event.modifiers.control) {
+                // Handle Ctrl+Tab navigation between editor panes
+                if (event.modifiers.shift) {
+                    root.tab-to-previous-editor();
+                } else {
+                    root.tab-to-next-editor();
+                }
+                return accept;
+            } else if (event.modifiers.alt) {
+                // Alt+1-4 for direct editor focus
+                if (event.text == "1") {
+                    root.focus-editor-by-index(0);
+                    return accept;
+                } else if (event.text == "2") {
+                    root.focus-editor-by-index(1);
+                    return accept;
+                } else if (event.text == "3") {
+                    root.focus-editor-by-index(2);
+                    return accept;
+                } else if (event.text == "4") {
+                    root.focus-editor-by-index(3);
+                    return accept;
+                }
+                return reject;
             } else if (event.text == Key.F11) {
                 // Toggle fullscreen
                 return accept;
             }
+            // Let other Ctrl+ shortcuts pass through to text editor (Ctrl+Z, Ctrl+Y, Ctrl+B, etc.)
             return reject;
         }
     }
@@ -333,10 +392,12 @@ export component MainWindow inherits Window {
             view-single-pane => { root.set-layout("single"); }
             view-horizontal-split => { root.set-layout("horizontal"); }
             view-vertical-split => { root.set-layout("vertical"); }
+            view-grid-split => { root.set-layout("grid_2x2"); }
             view-fullscreen => { root.view-fullscreen(); }
             view-zoom-in => { root.view-zoom-in(); }
             view-zoom-out => { root.view-zoom-out(); }
             view-show-sidebar => { root.view-show-sidebar(); }
+            view-toggle-ribbon => { root.toggle-ribbon(); }
             
             // Project menu callbacks
             project-new => { root.project-new(); }
@@ -380,6 +441,61 @@ export component MainWindow inherits Window {
             help-shortcuts => { root.help-shortcuts(); }
             help-documentation => { root.help-documentation(); }
             help-support => { root.help-support(); }
+        }
+        
+        // Markdown Ribbon
+        if root.show-ribbon: markdown-ribbon := MarkdownRibbon {
+            enabled: true;
+            can-undo: root.can-undo;
+            can-redo: root.can-redo;
+            has-selection: root.has-selection;
+            
+            // Basic formatting callbacks
+            format-bold => { root.format-bold(); }
+            format-italic => { root.format-italic(); }
+            format-strikethrough => { root.format-strikethrough(); }
+            format-underline => { root.format-underline(); }
+            format-code => { root.format-code(); }
+            format-quote => { root.format-quote(); }
+            format-heading(level) => { root.format-heading(level); }
+            
+            // List callbacks
+            insert-bullet-list => { root.insert-bullet-list(); }
+            insert-numbered-list => { root.insert-numbered-list(); }
+            insert-checklist => { root.insert-checklist(); }
+            
+            // Insert callbacks
+            insert-link => { root.insert-link(); }
+            insert-image => { root.insert-image(); }
+            insert-table => { root.insert-table(); }
+            insert-code-block => { root.insert-code-block(); }
+            insert-horizontal-rule => { root.insert-horizontal-rule(); }
+            
+            // Text alignment callbacks
+            align-left => { root.align-left(); }
+            align-center => { root.align-center(); }
+            align-right => { root.align-right(); }
+            
+            // Indentation callbacks
+            increase-indent => { root.increase-indent(); }
+            decrease-indent => { root.decrease-indent(); }
+            
+            // Undo/Redo callbacks
+            undo => { root.undo(); }
+            redo => { root.redo(); }
+            
+            // View callbacks
+            toggle-preview => { root.toggle-preview(); }
+            toggle-split-view => { root.toggle-split-view(); }
+            
+            // File callbacks
+            file-new => { root.file-new(); }
+            file-open => { root.file-open(); }
+            file-save => { root.file-save(); }
+            file-export => { 
+                root.show-export-dialog = true;
+                root.open-export-dialog();
+            }
         }
         
         // Main content area
@@ -449,6 +565,7 @@ export component MainWindow inherits Window {
                 set-single-pane => { root.set-layout("single"); }
                 set-horizontal-split => { root.set-layout("horizontal"); }
                 set-vertical-split => { root.set-layout("vertical"); }
+                set-grid-split => { root.set-layout("grid_2x2"); }
             }
             
             // Main editor area
@@ -460,6 +577,9 @@ export component MainWindow inherits Window {
                         content: root.document-content;
                         mode: root.current-mode;
                         language: root.current-language;
+                        editor-id: "single-editor";
+                        pane-id: "single-pane";
+                        has-focus: root.single-editor-focused;
                         
                         content-changed(text) => {
                             root.content-changed(text, root.current-language);
@@ -467,6 +587,23 @@ export component MainWindow inherits Window {
                         
                         language-changed(lang) => {
                             root.language-changed(lang);
+                        }
+                        
+                        // Focus management callbacks
+                        focus-requested => {
+                            root.editor-focus-requested("single-editor", "single-pane");
+                        }
+                        
+                        focus-granted => {
+                            root.single-editor-focused = true;
+                            root.active-editor-id = "single-editor";
+                            root.active-pane-id = "single-pane";
+                            root.editor-focus-granted("single-editor");
+                        }
+                        
+                        focus-lost => {
+                            root.single-editor-focused = false;
+                            root.editor-focus-lost("single-editor");
                         }
                         
                         text-operation(op) => { root.text-operation(op); }
@@ -509,6 +646,9 @@ export component MainWindow inherits Window {
                         content: root.document-content;
                         mode: root.current-mode;
                         language: root.current-language;
+                        editor-id: "left-editor";
+                        pane-id: "left-pane";
+                        has-focus: root.left-editor-focused;
                         
                         content-changed(text) => {
                             root.content-changed(text, root.current-language);
@@ -516,6 +656,24 @@ export component MainWindow inherits Window {
                         
                         language-changed(lang) => {
                             root.language-changed(lang);
+                        }
+                        
+                        // Focus management callbacks
+                        focus-requested => {
+                            root.editor-focus-requested("left-editor", "left-pane");
+                        }
+                        
+                        focus-granted => {
+                            root.left-editor-focused = true;
+                            root.right-editor-focused = false;
+                            root.active-editor-id = "left-editor";
+                            root.active-pane-id = "left-pane";
+                            root.editor-focus-granted("left-editor");
+                        }
+                        
+                        focus-lost => {
+                            root.left-editor-focused = false;
+                            root.editor-focus-lost("left-editor");
                         }
                         
                         text-operation(op) => { root.text-operation(op); }
@@ -561,6 +719,9 @@ export component MainWindow inherits Window {
                         content: root.translation-content;
                         mode: root.current-mode;
                         language: "de";
+                        editor-id: "right-editor";
+                        pane-id: "right-pane";
+                        has-focus: root.right-editor-focused;
                         
                         content-changed(text) => {
                             root.content-changed(text, "de");
@@ -568,6 +729,24 @@ export component MainWindow inherits Window {
                         
                         language-changed(lang) => {
                             root.language-changed(lang);
+                        }
+                        
+                        // Focus management callbacks
+                        focus-requested => {
+                            root.editor-focus-requested("right-editor", "right-pane");
+                        }
+                        
+                        focus-granted => {
+                            root.left-editor-focused = false;
+                            root.right-editor-focused = true;
+                            root.active-editor-id = "right-editor";
+                            root.active-pane-id = "right-pane";
+                            root.editor-focus-granted("right-editor");
+                        }
+                        
+                        focus-lost => {
+                            root.right-editor-focused = false;
+                            root.editor-focus-lost("right-editor");
                         }
                         
                         text-operation(op) => { root.text-operation(op); }
@@ -703,6 +882,320 @@ export component MainWindow inherits Window {
                         // Undo/Redo callbacks
                         undo => { root.undo(); }
                         redo => { root.redo(); }
+                    }
+                }
+                
+                if root.current-layout == "grid_2x2": VerticalLayout {
+                    // Top row with two panes
+                    HorizontalLayout {
+                        // Top-left pane
+                        EditorPane {
+                            content: root.pane-1-content;
+                            mode: root.current-mode;
+                            language: root.current-language;
+                            editor-id: "pane-1-editor";
+                            pane-id: "pane-1";
+                            has-focus: root.pane-1-focused;
+                            
+                            content-changed(text) => {
+                                root.pane-1-content = text;
+                                root.content-changed(text, root.current-language);
+                            }
+                            
+                            language-changed(lang) => {
+                                root.language-changed(lang);
+                            }
+                            
+                            // Focus management callbacks
+                            focus-requested => {
+                                root.editor-focus-requested("pane-1-editor", "pane-1");
+                            }
+                            
+                            focus-granted => {
+                                root.pane-1-focused = true;
+                                root.pane-2-focused = false;
+                                root.pane-3-focused = false;
+                                root.pane-4-focused = false;
+                                root.active-editor-id = "pane-1-editor";
+                                root.active-pane-id = "pane-1";
+                                root.editor-focus-granted("pane-1-editor");
+                            }
+                            
+                            focus-lost => {
+                                root.pane-1-focused = false;
+                                root.editor-focus-lost("pane-1-editor");
+                            }
+                            
+                            text-operation(op) => { root.text-operation(op); }
+                            
+                            // Enhanced formatting callbacks
+                            format-bold => { root.format-bold(); }
+                            format-italic => { root.format-italic(); }
+                            format-underline => { root.format-underline(); }
+                            format-heading(level) => { root.format-heading(level); }
+                            format-code => { root.format-code(); }
+                            format-quote => { root.format-quote(); }
+                            
+                            // List callbacks
+                            insert-bullet-list => { root.insert-bullet-list(); }
+                            insert-numbered-list => { root.insert-numbered-list(); }
+                            insert-checklist => { root.insert-checklist(); }
+                            insert-list => { root.insert-list(); }
+                            
+                            // Insert callbacks
+                            insert-link => { root.insert-link(); }
+                            insert-image => { root.insert-image(); }
+                            insert-table => { root.insert-table(); }
+                            insert-code-block => { root.insert-code-block(); }
+                            
+                            // Text manipulation callbacks
+                            increase-indent => { root.increase-indent(); }
+                            decrease-indent => { root.decrease-indent(); }
+                            align-left => { root.align-left(); }
+                            align-center => { root.align-center(); }
+                            align-right => { root.align-right(); }
+                            
+                            // Undo/Redo callbacks
+                            undo => { root.undo(); }
+                            redo => { root.redo(); }
+                        }
+                        
+                        // Vertical divider
+                        Rectangle {
+                            width: 4px;
+                            background: Colors.border;
+                        }
+                        
+                        // Top-right pane
+                        EditorPane {
+                            content: root.pane-2-content;
+                            mode: root.current-mode;
+                            language: "de";
+                            editor-id: "pane-2-editor";
+                            pane-id: "pane-2";
+                            has-focus: root.pane-2-focused;
+                            
+                            content-changed(text) => {
+                                root.pane-2-content = text;
+                                root.content-changed(text, "de");
+                            }
+                            
+                            language-changed(lang) => {
+                                root.language-changed(lang);
+                            }
+                            
+                            // Focus management callbacks
+                            focus-requested => {
+                                root.editor-focus-requested("pane-2-editor", "pane-2");
+                            }
+                            
+                            focus-granted => {
+                                root.pane-1-focused = false;
+                                root.pane-2-focused = true;
+                                root.pane-3-focused = false;
+                                root.pane-4-focused = false;
+                                root.active-editor-id = "pane-2-editor";
+                                root.active-pane-id = "pane-2";
+                                root.editor-focus-granted("pane-2-editor");
+                            }
+                            
+                            focus-lost => {
+                                root.pane-2-focused = false;
+                                root.editor-focus-lost("pane-2-editor");
+                            }
+                            
+                            text-operation(op) => { root.text-operation(op); }
+                            
+                            // Enhanced formatting callbacks
+                            format-bold => { root.format-bold(); }
+                            format-italic => { root.format-italic(); }
+                            format-underline => { root.format-underline(); }
+                            format-heading(level) => { root.format-heading(level); }
+                            format-code => { root.format-code(); }
+                            format-quote => { root.format-quote(); }
+                            
+                            // List callbacks
+                            insert-bullet-list => { root.insert-bullet-list(); }
+                            insert-numbered-list => { root.insert-numbered-list(); }
+                            insert-checklist => { root.insert-checklist(); }
+                            insert-list => { root.insert-list(); }
+                            
+                            // Insert callbacks
+                            insert-link => { root.insert-link(); }
+                            insert-image => { root.insert-image(); }
+                            insert-table => { root.insert-table(); }
+                            insert-code-block => { root.insert-code-block(); }
+                            
+                            // Text manipulation callbacks
+                            increase-indent => { root.increase-indent(); }
+                            decrease-indent => { root.decrease-indent(); }
+                            align-left => { root.align-left(); }
+                            align-center => { root.align-center(); }
+                            align-right => { root.align-right(); }
+                            
+                            // Undo/Redo callbacks
+                            undo => { root.undo(); }
+                            redo => { root.redo(); }
+                        }
+                    }
+                    
+                    // Horizontal divider
+                    Rectangle {
+                        height: 4px;
+                        background: Colors.border;
+                    }
+                    
+                    // Bottom row with two panes
+                    HorizontalLayout {
+                        // Bottom-left pane
+                        EditorPane {
+                            content: root.pane-3-content;
+                            mode: root.current-mode;
+                            language: "fr";
+                            editor-id: "pane-3-editor";
+                            pane-id: "pane-3";
+                            has-focus: root.pane-3-focused;
+                            
+                            content-changed(text) => {
+                                root.pane-3-content = text;
+                                root.content-changed(text, "fr");
+                            }
+                            
+                            language-changed(lang) => {
+                                root.language-changed(lang);
+                            }
+                            
+                            // Focus management callbacks
+                            focus-requested => {
+                                root.editor-focus-requested("pane-3-editor", "pane-3");
+                            }
+                            
+                            focus-granted => {
+                                root.pane-1-focused = false;
+                                root.pane-2-focused = false;
+                                root.pane-3-focused = true;
+                                root.pane-4-focused = false;
+                                root.active-editor-id = "pane-3-editor";
+                                root.active-pane-id = "pane-3";
+                                root.editor-focus-granted("pane-3-editor");
+                            }
+                            
+                            focus-lost => {
+                                root.pane-3-focused = false;
+                                root.editor-focus-lost("pane-3-editor");
+                            }
+                            
+                            text-operation(op) => { root.text-operation(op); }
+                            
+                            // Enhanced formatting callbacks
+                            format-bold => { root.format-bold(); }
+                            format-italic => { root.format-italic(); }
+                            format-underline => { root.format-underline(); }
+                            format-heading(level) => { root.format-heading(level); }
+                            format-code => { root.format-code(); }
+                            format-quote => { root.format-quote(); }
+                            
+                            // List callbacks
+                            insert-bullet-list => { root.insert-bullet-list(); }
+                            insert-numbered-list => { root.insert-numbered-list(); }
+                            insert-checklist => { root.insert-checklist(); }
+                            insert-list => { root.insert-list(); }
+                            
+                            // Insert callbacks
+                            insert-link => { root.insert-link(); }
+                            insert-image => { root.insert-image(); }
+                            insert-table => { root.insert-table(); }
+                            insert-code-block => { root.insert-code-block(); }
+                            
+                            // Text manipulation callbacks
+                            increase-indent => { root.increase-indent(); }
+                            decrease-indent => { root.decrease-indent(); }
+                            align-left => { root.align-left(); }
+                            align-center => { root.align-center(); }
+                            align-right => { root.align-right(); }
+                            
+                            // Undo/Redo callbacks
+                            undo => { root.undo(); }
+                            redo => { root.redo(); }
+                        }
+                        
+                        // Vertical divider
+                        Rectangle {
+                            width: 4px;
+                            background: Colors.border;
+                        }
+                        
+                        // Bottom-right pane
+                        EditorPane {
+                            content: root.pane-4-content;
+                            mode: root.current-mode;
+                            language: "es";
+                            editor-id: "pane-4-editor";
+                            pane-id: "pane-4";
+                            has-focus: root.pane-4-focused;
+                            
+                            content-changed(text) => {
+                                root.pane-4-content = text;
+                                root.content-changed(text, "es");
+                            }
+                            
+                            language-changed(lang) => {
+                                root.language-changed(lang);
+                            }
+                            
+                            // Focus management callbacks
+                            focus-requested => {
+                                root.editor-focus-requested("pane-4-editor", "pane-4");
+                            }
+                            
+                            focus-granted => {
+                                root.pane-1-focused = false;
+                                root.pane-2-focused = false;
+                                root.pane-3-focused = false;
+                                root.pane-4-focused = true;
+                                root.active-editor-id = "pane-4-editor";
+                                root.active-pane-id = "pane-4";
+                                root.editor-focus-granted("pane-4-editor");
+                            }
+                            
+                            focus-lost => {
+                                root.pane-4-focused = false;
+                                root.editor-focus-lost("pane-4-editor");
+                            }
+                            
+                            text-operation(op) => { root.text-operation(op); }
+                            
+                            // Enhanced formatting callbacks
+                            format-bold => { root.format-bold(); }
+                            format-italic => { root.format-italic(); }
+                            format-underline => { root.format-underline(); }
+                            format-heading(level) => { root.format-heading(level); }
+                            format-code => { root.format-code(); }
+                            format-quote => { root.format-quote(); }
+                            
+                            // List callbacks
+                            insert-bullet-list => { root.insert-bullet-list(); }
+                            insert-numbered-list => { root.insert-numbered-list(); }
+                            insert-checklist => { root.insert-checklist(); }
+                            insert-list => { root.insert-list(); }
+                            
+                            // Insert callbacks
+                            insert-link => { root.insert-link(); }
+                            insert-image => { root.insert-image(); }
+                            insert-table => { root.insert-table(); }
+                            insert-code-block => { root.insert-code-block(); }
+                            
+                            // Text manipulation callbacks
+                            increase-indent => { root.increase-indent(); }
+                            decrease-indent => { root.decrease-indent(); }
+                            align-left => { root.align-left(); }
+                            align-center => { root.align-center(); }
+                            align-right => { root.align-right(); }
+                            
+                            // Undo/Redo callbacks
+                            undo => { root.undo(); }
+                            redo => { root.redo(); }
+                        }
                     }
                 }
             }

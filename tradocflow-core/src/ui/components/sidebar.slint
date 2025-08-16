@@ -700,6 +700,7 @@ export component Sidebar inherits Rectangle {
     callback set_single_pane();
     callback set_horizontal_split();
     callback set_vertical_split();
+    callback set_grid_split();
     
     // Properties for current state
     in property <string> current_mode: "markdown"; // "markdown" or "presentation"
@@ -983,6 +984,13 @@ export component Sidebar inherits Rectangle {
                 shortcut: "Ctrl+3";
                 active: root.current_layout == "vertical";
                 clicked => { root.set_vertical_split(); }
+            }
+            
+            LayoutButton {
+                text: "Grid 2x2";
+                shortcut: "Ctrl+4";
+                active: root.current_layout == "grid_2x2";
+                clicked => { root.set_grid_split(); }
             }
         }
     }

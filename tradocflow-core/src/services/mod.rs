@@ -211,11 +211,12 @@ pub use chunk_linking_service::{
     LinkingResult, MergeOptions, MergeStrategy, PhraseStatistics
 };
 pub use editor_sync_service::{
-    EditorSyncService, SyncEvent, SyncEventType, SplitPaneConfig, SplitOrientation, LanguagePaneState
+    EditorSyncService, SyncEvent as EditorSyncEvent, SyncEventType as EditorSyncEventType, 
+    SplitPaneConfig, SplitOrientation, LanguagePaneState
 };
 pub use language_syntax_service::{
     LanguageSyntaxService, LanguageSyntaxConfig, TextDirection, MarkdownExtension, 
-    SpecialCharacter, SyntaxTheme
+    SpecialCharacter as SyntaxSpecialCharacter, SyntaxTheme
 };
 pub use collaborative_editing_service::{
     CollaborativeEditingService, UserSession, DocumentChange as CollabDocumentChange, ChangeType as CollabChangeType, 
@@ -281,6 +282,55 @@ pub use focus_management_service::{
     FocusManagementService, FocusManagementBridge, EditorFocusState, 
     FocusEvent, FocusUpdateResult
 };
+
+// Sentence alignment services
+pub mod sentence_alignment_service;
+pub mod text_structure_analyzer;
+pub mod alignment_cache_service;
+pub mod multi_pane_alignment_service;
+pub mod alignment_api_service;
+
+#[cfg(test)]
+pub mod alignment_integration_tests;
+
+pub use sentence_alignment_service::{
+    SentenceAlignmentService, LanguageProfile, SentenceBoundary, BoundaryType,
+    SentenceAlignment, AlignmentMethod, ValidationStatus, AlignmentQualityIndicator,
+    ProblemArea, AlignmentIssue, AlignmentConfig, AlignmentStatistics,
+    AlignmentMLModel, AlignmentCorrection
+};
+
+pub use text_structure_analyzer::{
+    TextStructureAnalyzer, StructureAnalysisConfig, StructureAnalysisResult,
+    TextStructure, TextStructureType, ListType, StructureHierarchy,
+    StructureStatistics, LanguageSpecificFeatures, WritingDirection,
+    SpecialCharacter, CharacterContext, FormattingPattern, PatternType,
+    PatternOccurrence
+};
+
+pub use alignment_cache_service::{
+    AlignmentCacheService, AlignmentCacheConfig, AlignmentCacheEntry,
+    CacheStatistics, PerformanceMetrics as CachePerformanceMetrics,
+    EvictionStrategy, CacheMaintenanceTask, MaintenanceTaskType
+};
+
+pub use multi_pane_alignment_service::{
+    MultiPaneAlignmentService, MultiPaneAlignmentConfig, TextPane,
+    SyncEvent, SyncEventType, SyncState, QualityMonitoringResult,
+    QualityIssue, QualityIssueType, QualityIssueSeverity,
+    QualityRecommendation, RecommendationType, ImplementationEffort,
+    PerformanceMetrics as AlignmentPerformanceMetrics
+};
+
+pub use alignment_api_service::{
+    AlignmentApiService, AlignmentApiConfig, AddPaneRequest, AddPaneResponse,
+    UpdatePaneRequest, UpdatePaneResponse, SyncCursorRequest, SyncCursorResponse,
+    UserCorrectionRequest, UserCorrectionResponse, SystemStatusResponse,
+    PaneInfo, SyncStateInfo, QualityMonitoringInfo, PerformanceMetricsInfo,
+    SystemHealth, HealthStatus, AlignmentUpdate, AlignmentUpdateType,
+    AlignmentUpdateData
+};
+
 // PDF export services temporarily disabled due to API compatibility issues with genpdf 0.2.0
 // pub use pdf_export_service::{
 //     PdfExportService, PdfExportConfig, PdfExportError, PdfExportErrorKind, 

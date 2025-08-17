@@ -1,0 +1,774 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+
+// Enhanced language selector with professional UI/UX
+// Supports flags, confidence indicators, accessibility, and responsive design
+
+// Language information structure with comprehensive metadata
+export struct LanguageInfo {
+    code: string,           // ISO 639-1 code (e.g., "en", "de")
+    name: string,           // Native name (e.g., "English", "Deutsch")
+    display_name: string,   // Display name in UI language
+    flag: string,           // Unicode flag emoji
+    rtl: bool,              // Right-to-left script
+    confidence: float,      // Alignment confidence (0.0-1.0)
+    region: string,         // Optional region code
+    enabled: bool,          // Whether language is available
+}
+
+// Language group for organizing related languages
+export struct LanguageGroup {
+    name: string,
+    languages: [LanguageInfo],
+    expanded: bool,
+}
+
+// Predefined language configurations with comprehensive metadata
+export global LanguageDatabase {
+    out property <[LanguageInfo]> common_languages: [
+        {
+            code: "en",
+            name: "English",
+            display_name: "English",
+            flag: "🇺🇸",
+            rtl: false,
+            confidence: 1.0,
+            region: "US",
+            enabled: true
+        },
+        {
+            code: "de",
+            name: "Deutsch",
+            display_name: "German",
+            flag: "🇩🇪",
+            rtl: false,
+            confidence: 1.0,
+            region: "DE",
+            enabled: true
+        },
+        {
+            code: "fr",
+            name: "Français",
+            display_name: "French",
+            flag: "🇫🇷",
+            rtl: false,
+            confidence: 1.0,
+            region: "FR",
+            enabled: true
+        },
+        {
+            code: "es",
+            name: "Español",
+            display_name: "Spanish",
+            flag: "🇪🇸",
+            rtl: false,
+            confidence: 1.0,
+            region: "ES",
+            enabled: true
+        },
+        {
+            code: "it",
+            name: "Italiano",
+            display_name: "Italian",
+            flag: "🇮🇹",
+            rtl: false,
+            confidence: 1.0,
+            region: "IT",
+            enabled: true
+        },
+        {
+            code: "nl",
+            name: "Nederlands",
+            display_name: "Dutch",
+            flag: "🇳🇱",
+            rtl: false,
+            confidence: 1.0,
+            region: "NL",
+            enabled: true
+        },
+        {
+            code: "pt",
+            name: "Português",
+            display_name: "Portuguese",
+            flag: "🇵🇹",
+            rtl: false,
+            confidence: 1.0,
+            region: "PT",
+            enabled: true
+        },
+        {
+            code: "zh",
+            name: "中文",
+            display_name: "Chinese",
+            flag: "🇨🇳",
+            rtl: false,
+            confidence: 1.0,
+            region: "CN",
+            enabled: true
+        },
+        {
+            code: "ja",
+            name: "日本語",
+            display_name: "Japanese",
+            flag: "🇯🇵",
+            rtl: false,
+            confidence: 1.0,
+            region: "JP",
+            enabled: true
+        },
+        {
+            code: "ko",
+            name: "한국어",
+            display_name: "Korean",
+            flag: "🇰🇷",
+            rtl: false,
+            confidence: 1.0,
+            region: "KR",
+            enabled: true
+        },
+        {
+            code: "ar",
+            name: "العربية",
+            display_name: "Arabic",
+            flag: "🇸🇦",
+            rtl: true,
+            confidence: 1.0,
+            region: "SA",
+            enabled: true
+        },
+        {
+            code: "he",
+            name: "עברית",
+            display_name: "Hebrew",
+            flag: "🇮🇱",
+            rtl: true,
+            confidence: 1.0,
+            region: "IL",
+            enabled: true
+        },
+        {
+            code: "ru",
+            name: "Русский",
+            display_name: "Russian",
+            flag: "🇷🇺",
+            rtl: false,
+            confidence: 1.0,
+            region: "RU",
+            enabled: true
+        },
+        {
+            code: "hi",
+            name: "हिन्दी",
+            display_name: "Hindi",
+            flag: "🇮🇳",
+            rtl: false,
+            confidence: 1.0,
+            region: "IN",
+            enabled: true
+        },
+        {
+            code: "th",
+            name: "ไทย",
+            display_name: "Thai",
+            flag: "🇹🇭",
+            rtl: false,
+            confidence: 1.0,
+            region: "TH",
+            enabled: true
+        }
+    ];
+}
+
+// Confidence indicator component with visual feedback
+component ConfidenceIndicator inherits Rectangle {
+    in property <float> confidence: 0.0;
+    in property <length> size: 16px;
+    
+    width: root.size;
+    height: root.size;
+    
+    // Confidence color mapping
+    property <color> confidence_color: root.confidence >= 0.9 ? Colors.success :
+                                     root.confidence >= 0.7 ? Colors.warning :
+                                     root.confidence >= 0.5 ? Colors.error :
+                                     Colors.text_muted;
+    
+    // Background circle
+    Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border_radius: parent.width / 2;
+        background: root.confidence_color;
+        opacity: 0.2;
+    }
+    
+    // Confidence arc (simplified as filled circle for now)
+    Rectangle {
+        width: parent.width * 0.6;
+        height: parent.height * 0.6;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        border_radius: self.width / 2;
+        background: root.confidence_color;
+        opacity: root.confidence;
+    }
+    
+    // Confidence percentage text (for sizes >= 20px)
+    if root.size >= 20px: Text {
+        text: Math.round(root.confidence * 100) + "%";
+        font_size: root.size * 0.3;
+        color: root.confidence_color;
+        horizontal_alignment: center;
+        vertical_alignment: center;
+        font_weight: 600;
+    }
+}
+
+// Language item component for dropdown lists
+component LanguageItem inherits Rectangle {
+    in property <LanguageInfo> language;
+    in property <bool> selected: false;
+    in property <bool> disabled: false;
+    in property <bool> show_confidence: true;
+    in property <bool> show_region: false;
+    
+    callback language_selected(LanguageInfo);
+    
+    height: 36px;
+    
+    states [
+        disabled when root.disabled: {
+            opacity: 0.5;
+        }
+        selected when root.selected: {
+            background: Colors.primary_light;
+            border_width: 1px;
+            border_color: Colors.primary;
+        }
+        hover when touch_area.has_hover && !root.disabled: {
+            background: Colors.surface_hover;
+        }
+    ]
+    
+    touch_area := TouchArea {
+        enabled: !root.disabled && root.language.enabled;
+        
+        clicked => {
+            if (!root.disabled && root.language.enabled) {
+                root.language_selected(root.language);
+            }
+        }
+    }
+    
+    HorizontalLayout {
+        padding_left: Theme.spacing_sm;
+        padding_right: Theme.spacing_sm;
+        spacing: Theme.spacing_xs;
+        alignment: start;
+        
+        // Flag emoji
+        Text {
+            text: root.language.flag;
+            font_size: Theme.font_size_lg;
+            vertical_alignment: center;
+            min_width: 24px;
+        }
+        
+        // Language information
+        VerticalLayout {
+            spacing: 2px;
+            alignment: center;
+            
+            // Primary name
+            HorizontalLayout {
+                spacing: Theme.spacing_xs;
+                alignment: start;
+                
+                Text {
+                    text: root.language.name;
+                    font_size: Theme.font_size_base;
+                    color: root.disabled ? Colors.text_muted : Colors.text_primary;
+                    font_weight: root.selected ? 600 : 400;
+                    vertical_alignment: center;
+                }
+                
+                // Language code
+                Text {
+                    text: "(" + root.language.code.to_uppercase() + ")";
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_muted;
+                    vertical_alignment: center;
+                }
+                
+                // Region indicator (optional)
+                if root.show_region && root.language.region != "": Text {
+                    text: "[" + root.language.region + "]";
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_muted;
+                    vertical_alignment: center;
+                }
+            }
+            
+            // Display name (if different from native name)
+            if root.language.display_name != root.language.name && root.language.display_name != "": Text {
+                text: root.language.display_name;
+                font_size: Theme.font_size_small;
+                color: Colors.text_secondary;
+                vertical_alignment: center;
+            }
+        }
+        
+        // Spacer
+        Rectangle {
+            // Takes remaining space
+        }
+        
+        // RTL indicator
+        if root.language.rtl: Text {
+            text: "RTL";
+            font_size: Theme.font_size_small;
+            color: Colors.info;
+            vertical_alignment: center;
+            font_weight: 500;
+        }
+        
+        // Confidence indicator
+        if root.show_confidence: ConfidenceIndicator {
+            confidence: root.language.confidence;
+            size: 16px;
+        }
+        
+        // Disabled indicator
+        if !root.language.enabled: Text {
+            text: "🚫";
+            font_size: Theme.font_size_small;
+            vertical_alignment: center;
+        }
+    }
+}
+
+// Enhanced dropdown component with search and grouping
+component LanguageDropdown inherits Rectangle {
+    in property <[LanguageInfo]> languages: LanguageDatabase.common_languages;
+    in property <[LanguageGroup]> language_groups: [];
+    in property <bool> show_dropdown: false;
+    in property <bool> show_search: true;
+    in property <bool> show_confidence: true;
+    in property <bool> show_region: false;
+    in property <bool> group_by_region: false;
+    in property <string> search_text: "";
+    in property <LanguageInfo> selected_language;
+    in property <length> max_height: 300px;
+    
+    callback language_selected(LanguageInfo);
+    callback search_changed(string);
+    callback dropdown_closed();
+    
+    width: 200px;
+    height: Math.min(root.max_height, (root.languages.length + (root.show_search ? 1 : 0)) * 36px + 16px);
+    z: 1000;
+    
+    // Filter languages based on search
+    property <[LanguageInfo]> filtered_languages: root.languages.filter(lang => 
+        root.search_text == "" || 
+        lang.name.to_lowercase().contains(root.search_text.to_lowercase()) ||
+        lang.display_name.to_lowercase().contains(root.search_text.to_lowercase()) ||
+        lang.code.to_lowercase().contains(root.search_text.to_lowercase())
+    );
+    
+    if root.show_dropdown: dropdown_container := Rectangle {
+        background: Colors.surface;
+        border_width: 1px;
+        border_color: Colors.border_active;
+        border_radius: Theme.border_radius_sm;
+        drop_shadow_blur: 12px;
+        drop_shadow_color: #00000030;
+        
+        // Close dropdown when clicking outside (handled by parent)
+        
+        VerticalLayout {
+            padding: Theme.spacing_xs;
+            spacing: 0px;
+            
+            // Search field
+            if root.show_search: search_container := Rectangle {
+                height: 32px;
+                background: Colors.background;
+                border_width: 1px;
+                border_color: Colors.border;
+                border_radius: Theme.border_radius_sm;
+                
+                HorizontalLayout {
+                    padding_left: Theme.spacing_sm;
+                    padding_right: Theme.spacing_sm;
+                    spacing: Theme.spacing_xs;
+                    alignment: start;
+                    
+                    // Search icon
+                    Text {
+                        text: "🔍";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        vertical_alignment: center;
+                    }
+                    
+                    // Search input (simplified - would need TextInput in real implementation)
+                    Text {
+                        text: root.search_text == "" ? "Search languages..." : root.search_text;
+                        font_size: Theme.font_size_small;
+                        color: root.search_text == "" ? Colors.text_muted : Colors.text_primary;
+                        vertical_alignment: center;
+                    }
+                    
+                    // Clear search button
+                    if root.search_text != "": TouchArea {
+                        width: 16px;
+                        height: 16px;
+                        
+                        clicked => {
+                            root.search_changed("");
+                        }
+                        
+                        Rectangle {
+                            background: parent.has_hover ? Colors.error_light : transparent;
+                            border_radius: 8px;
+                            
+                            Text {
+                                text: "✖";
+                                font_size: Theme.font_size_small;
+                                color: Colors.error;
+                                horizontal_alignment: center;
+                                vertical_alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Separator after search
+            if root.show_search: Rectangle {
+                height: 1px;
+                background: Colors.border;
+            }
+            
+            // Language list with scroll
+            ScrollView {
+                height: Math.min(250px, root.filtered_languages.length * 36px);
+                
+                VerticalLayout {
+                    spacing: 0px;
+                    
+                    // Language items
+                    for lang[index] in root.filtered_languages: LanguageItem {
+                        language: lang;
+                        selected: lang.code == root.selected_language.code;
+                        show_confidence: root.show_confidence;
+                        show_region: root.show_region;
+                        
+                        language_selected(selected_lang) => {
+                            root.language_selected(selected_lang);
+                        }
+                    }
+                    
+                    // No results message
+                    if root.filtered_languages.length == 0 && root.search_text != "": Rectangle {
+                        height: 48px;
+                        
+                        VerticalLayout {
+                            spacing: 4px;
+                            alignment: center;
+                            
+                            Text {
+                                text: "🔍";
+                                font_size: Theme.font_size_lg;
+                                color: Colors.text_muted;
+                                horizontal_alignment: center;
+                            }
+                            
+                            Text {
+                                text: "No languages found";
+                                font_size: Theme.font_size_small;
+                                color: Colors.text_muted;
+                                horizontal_alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Main language selector component with enhanced UX
+export component LanguageSelector inherits Rectangle {
+    in property <LanguageInfo> current_language: LanguageDatabase.common_languages[0];
+    in property <[LanguageInfo]> available_languages: LanguageDatabase.common_languages;
+    in property <bool> compact_mode: false;
+    in property <bool> show_confidence: true;
+    in property <bool> show_search: true;
+    in property <bool> disabled: false;
+    in property <string> placeholder: "Select Language";
+    
+    callback language_changed(LanguageInfo);
+    callback dropdown_opened();
+    callback dropdown_closed();
+    
+    property <bool> is_open: false;
+    property <string> search_text: "";
+    
+    width: root.compact_mode ? 80px : 160px;
+    height: 32px;
+    
+    states [
+        disabled when root.disabled: {
+            opacity: 0.6;
+        }
+        open when root.is_open: {
+            border_color: Colors.primary;
+            background: Colors.primary_light;
+        }
+        hover when selector_touch.has_hover && !root.disabled: {
+            border_color: Colors.border_active;
+            background: Colors.surface_hover;
+        }
+    ]
+    
+    background: Colors.background;
+    border_width: 1px;
+    border_color: Colors.border;
+    border_radius: Theme.border_radius_sm;
+    
+    selector_touch := TouchArea {
+        enabled: !root.disabled;
+        
+        clicked => {
+            root.is_open = !root.is_open;
+            if (root.is_open) {
+                root.dropdown_opened();
+            } else {
+                root.dropdown_closed();
+            }
+        }
+    }
+    
+    // Current language display
+    HorizontalLayout {
+        padding_left: Theme.spacing_sm;
+        padding_right: Theme.spacing_sm;
+        spacing: Theme.spacing_xs;
+        alignment: space_between;
+        
+        // Language info
+        HorizontalLayout {
+            spacing: Theme.spacing_xs;
+            alignment: start;
+            
+            // Flag
+            Text {
+                text: root.current_language.flag;
+                font_size: root.compact_mode ? Theme.font_size_small : Theme.font_size_base;
+                vertical_alignment: center;
+            }
+            
+            // Language code or name
+            if !root.compact_mode: Text {
+                text: root.current_language.name;
+                font_size: Theme.font_size_small;
+                color: Colors.text_primary;
+                vertical_alignment: center;
+                font_weight: 500;
+            }
+            
+            if root.compact_mode: Text {
+                text: root.current_language.code.to_uppercase();
+                font_size: Theme.font_size_small;
+                color: Colors.text_primary;
+                vertical_alignment: center;
+                font_weight: 500;
+            }
+            
+            // Confidence indicator
+            if root.show_confidence && !root.compact_mode: ConfidenceIndicator {
+                confidence: root.current_language.confidence;
+                size: 14px;
+            }
+        }
+        
+        // Dropdown arrow
+        Text {
+            text: root.is_open ? "▲" : "▼";
+            font_size: Theme.font_size_small;
+            color: Colors.text_muted;
+            vertical_alignment: center;
+        }
+    }
+    
+    // Dropdown
+    dropdown := LanguageDropdown {
+        show_dropdown: root.is_open;
+        languages: root.available_languages;
+        selected_language: root.current_language;
+        show_confidence: root.show_confidence;
+        show_search: root.show_search;
+        search_text: root.search_text;
+        x: 0;
+        y: root.height + 2px;
+        width: Math.max(200px, root.width);
+        
+        language_selected(lang) => {
+            root.language_changed(lang);
+            root.is_open = false;
+            root.dropdown_closed();
+        }
+        
+        search_changed(text) => {
+            root.search_text = text;
+        }
+        
+        dropdown_closed => {
+            root.is_open = false;
+            root.dropdown_closed();
+        }
+    }
+    
+    // Accessibility support
+    accessible_role: AccessibleRole.combobox;
+    accessible_label: "Language selector: " + root.current_language.display_name;
+    accessible_description: "Select source or target language for translation. Current: " + 
+                           root.current_language.name + " with " + 
+                           Math.round(root.current_language.confidence * 100) + "% confidence";
+}
+
+// Quick language switcher for common language pairs
+export component QuickLanguageSwitcher inherits Rectangle {
+    in property <LanguageInfo> source_language;
+    in property <LanguageInfo> target_language;
+    in property <[LanguageInfo]> recent_languages: [];
+    in property <bool> can_swap: true;
+    
+    callback swap_languages();
+    callback language_selected(LanguageInfo, string /* role: "source" or "target" */);
+    
+    height: 36px;
+    background: Colors.surface;
+    border_width: 1px;
+    border_color: Colors.border;
+    border_radius: Theme.border_radius_sm;
+    
+    HorizontalLayout {
+        padding: Theme.spacing_xs;
+        spacing: Theme.spacing_xs;
+        alignment: start;
+        
+        // Source language
+        Rectangle {
+            width: 60px;
+            height: 28px;
+            background: Colors.background;
+            border_width: 1px;
+            border_color: Colors.border;
+            border_radius: Theme.border_radius_sm;
+            
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 4px;
+                alignment: center;
+                
+                Text {
+                    text: root.source_language.flag;
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                }
+                
+                Text {
+                    text: root.source_language.code.to_uppercase();
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_primary;
+                    vertical_alignment: center;
+                }
+            }
+        }
+        
+        // Swap button
+        if root.can_swap: swap_button := TouchArea {
+            width: 32px;
+            height: 28px;
+            
+            clicked => {
+                root.swap_languages();
+            }
+            
+            Rectangle {
+                background: parent.has_hover ? Colors.primary_light : Colors.surface;
+                border_width: 1px;
+                border_color: parent.has_hover ? Colors.primary : Colors.border;
+                border_radius: Theme.border_radius_sm;
+                
+                Text {
+                    text: "⇄";
+                    font_size: Theme.font_size_base;
+                    color: Colors.primary;
+                    horizontal_alignment: center;
+                    vertical_alignment: center;
+                }
+            }
+        }
+        
+        // Target language
+        Rectangle {
+            width: 60px;
+            height: 28px;
+            background: Colors.background;
+            border_width: 1px;
+            border_color: Colors.border;
+            border_radius: Theme.border_radius_sm;
+            
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 4px;
+                alignment: center;
+                
+                Text {
+                    text: root.target_language.flag;
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                }
+                
+                Text {
+                    text: root.target_language.code.to_uppercase();
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_primary;
+                    vertical_alignment: center;
+                }
+            }
+        }
+        
+        // Recent languages (if space allows)
+        if root.recent_languages.length > 0: Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        for recent_lang[index] in root.recent_languages: TouchArea {
+            width: 32px;
+            height: 24px;
+            
+            clicked => {
+                root.language_selected(recent_lang, "target");
+            }
+            
+            Rectangle {
+                background: parent.has_hover ? Colors.surface_hover : transparent;
+                border_radius: Theme.border_radius_sm;
+                
+                Text {
+                    text: recent_lang.flag;
+                    font_size: Theme.font_size_small;
+                    horizontal_alignment: center;
+                    vertical_alignment: center;
+                }
+            }
+        }
+    }
+}

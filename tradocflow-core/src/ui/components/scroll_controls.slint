@@ -1,0 +1,942 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { ScrollCoordinator, CoordinationLayout, SyncGroup, CoordinationMetrics } from "./scroll_coordinator.slint";
+import { SyncState, ScrollPerformance } from "./synchronized_scroll_container.slint";
+
+// User controls for scroll synchronization with comprehensive settings
+// Provides intuitive interface for managing complex sync scenarios
+
+// Control panel configuration
+export struct ControlsConfig {
+    show_advanced_options: bool,
+    compact_mode: bool,
+    show_performance_metrics: bool,
+    show_visual_feedback: bool,
+    enable_keyboard_shortcuts: bool,
+    auto_hide_inactive: bool,
+}
+
+// Sync mode definition with detailed settings
+export struct SyncModeConfig {
+    mode_id: string,                // "proportional", "ratio", "absolute", "sentence", "custom"
+    display_name: string,
+    description: string,
+    icon: string,
+    adjustment_strength: float,     // 0.0 to 2.0 - how strongly to apply adjustments
+    smoothing_factor: float,        // 0.0 to 1.0 - smoothing for jerky content
+    supports_sentence_alignment: bool,
+    optimal_for_languages: [string], // Language codes this mode works best with
+}
+
+// Layout mode configuration
+export struct LayoutModeConfig {
+    mode_id: string,               // "horizontal", "vertical", "grid_2x2", "custom"
+    display_name: string,
+    icon: string,
+    max_panes: int,
+    sync_complexity: string,       // "simple", "moderate", "complex"
+    performance_impact: string,    // "low", "medium", "high"
+}
+
+// User preferences for scroll synchronization
+export struct UserSyncPreferences {
+    preferred_sync_mode: string,
+    preferred_layout_mode: string,
+    auto_enable_sync: bool,
+    sync_sensitivity: float,       // 0.1 to 2.0 - how sensitive to scroll changes
+    animation_speed: float,        // 0.5 to 2.0 - animation speed multiplier
+    visual_feedback_level: string, // "minimal", "standard", "detailed"
+    performance_priority: string,  // "quality", "balanced", "performance"
+}
+
+// Real-time status information
+export struct SyncStatusInfo {
+    is_syncing: bool,
+    active_mode: string,
+    sync_quality_percentage: int,
+    performance_score: int,
+    active_panes: [string],
+    last_sync_source: string,
+    sync_conflicts: [string],      // Panes with sync conflicts
+    drift_detected: bool,
+}
+
+// Main scroll controls component with comprehensive UI
+export component ScrollControls inherits Rectangle {
+    // Configuration properties
+    in property <ControlsConfig> controls_config: {
+        show_advanced_options: false,
+        compact_mode: false,
+        show_performance_metrics: true,
+        show_visual_feedback: true,
+        enable_keyboard_shortcuts: true,
+        auto_hide_inactive: false,
+    };
+    
+    // Available modes and configurations
+    in property <[SyncModeConfig]> available_sync_modes: [
+        {
+            mode_id: "proportional",
+            display_name: "Proportional",
+            description: "Adjust scroll position based on content length differences",
+            icon: "⚖",
+            adjustment_strength: 1.0,
+            smoothing_factor: 0.8,
+            supports_sentence_alignment: true,
+            optimal_for_languages: ["en", "de", "fr", "es"],
+        },
+        {
+            mode_id: "ratio",
+            display_name: "Ratio",
+            description: "Maintain the same scroll percentage across all panes",
+            icon: "%",
+            adjustment_strength: 1.0,
+            smoothing_factor: 0.9,
+            supports_sentence_alignment: false,
+            optimal_for_languages: ["all"],
+        },
+        {
+            mode_id: "sentence",
+            display_name: "Sentence Align",
+            description: "Align panes by sentence boundaries for translation work",
+            icon: "📝",
+            adjustment_strength: 1.2,
+            smoothing_factor: 0.6,
+            supports_sentence_alignment: true,
+            optimal_for_languages: ["all"],
+        },
+        {
+            mode_id: "absolute",
+            display_name: "Absolute",
+            description: "Maintain exact pixel-perfect scroll positions",
+            icon: "=",
+            adjustment_strength: 1.0,
+            smoothing_factor: 1.0,
+            supports_sentence_alignment: false,
+            optimal_for_languages: ["code", "data"],
+        }
+    ];
+    
+    in property <[LayoutModeConfig]> available_layout_modes: [
+        {
+            mode_id: "horizontal",
+            display_name: "Side by Side",
+            icon: "⬌",
+            max_panes: 4,
+            sync_complexity: "simple",
+            performance_impact: "low",
+        },
+        {
+            mode_id: "vertical",
+            display_name: "Top to Bottom",
+            icon: "↕",
+            max_panes: 4,
+            sync_complexity: "moderate",
+            performance_impact: "medium",
+        },
+        {
+            mode_id: "grid_2x2",
+            display_name: "2x2 Grid",
+            icon: "⬚",
+            max_panes: 4,
+            sync_complexity: "complex",
+            performance_impact: "high",
+        }
+    ];
+    
+    // Current state and preferences
+    in-out property <UserSyncPreferences> user_preferences: {
+        preferred_sync_mode: "proportional",
+        preferred_layout_mode: "horizontal",
+        auto_enable_sync: true,
+        sync_sensitivity: 1.0,
+        animation_speed: 1.0,
+        visual_feedback_level: "standard",
+        performance_priority: "balanced",
+    };
+    
+    in-out property <SyncStatusInfo> sync_status: {
+        is_syncing: false,
+        active_mode: "proportional",
+        sync_quality_percentage: 100,
+        performance_score: 95,
+        active_panes: [],
+        last_sync_source: "",
+        sync_conflicts: [],
+        drift_detected: false,
+    };
+    
+    // Coordination integration
+    in property <CoordinationMetrics> coordination_metrics;
+    in property <[string]> available_panes: [];
+    
+    // UI state management
+    property <bool> expanded_view: false;
+    property <string> active_tab: "sync"; // "sync", "layout", "performance", "advanced"
+    property <bool> dropdown_open: false;
+    property <string> selected_sync_mode: "proportional";
+    property <string> selected_layout_mode: "horizontal";
+    
+    // Animation and interaction state
+    property <bool> controls_visible: true;
+    property <bool> performance_alert_active: false;
+    property <duration> auto_hide_timer: 0s;
+    
+    // Callbacks for user interactions
+    callback sync_enabled_changed(bool);
+    callback sync_mode_changed(string);
+    callback layout_mode_changed(string);
+    callback sensitivity_changed(float);
+    callback animation_speed_changed(float);
+    
+    // Advanced control callbacks
+    callback manual_sync_triggered();
+    callback reset_all_positions();
+    callback calibrate_synchronization();
+    callback force_sync_to_primary();
+    callback pane_priority_changed(string /* pane_id */, int /* priority */);
+    
+    // Performance and monitoring callbacks
+    callback performance_mode_changed(string);
+    callback visual_feedback_changed(string);
+    callback export_sync_settings();
+    callback import_sync_settings(string /* settings_json */);
+    
+    // Error handling and recovery callbacks
+    callback resolve_sync_conflict(string /* pane_id */);
+    callback emergency_stop_sync();
+    callback diagnostic_mode_enabled(bool);
+    
+    height: root.controls_config.compact_mode ? 40px : 
+           (root.expanded_view ? 280px : 80px);
+    background: Colors.surface;
+    border_radius: Theme.border_radius_md;
+    border_width: 1px;
+    border_color: Colors.border;
+    
+    // Smooth height transitions
+    animate height {
+        duration: 300ms;
+        easing: ease_in_out;
+    }
+    
+    VerticalLayout {
+        padding: Theme.spacing_sm;
+        spacing: Theme.spacing_xs;
+        
+        // Main control bar
+        main_controls := HorizontalLayout {
+            height: root.controls_config.compact_mode ? 32px : 48px;
+            spacing: Theme.spacing_sm;
+            alignment: space_between;
+            
+            // Left section: Primary controls
+            primary_controls := HorizontalLayout {
+                spacing: Theme.spacing_xs;
+                alignment: start;
+                
+                // Master sync toggle with enhanced visual feedback
+                sync_master_toggle := Rectangle {
+                    width: 80px;
+                    height: 36px;
+                    border_radius: 18px;
+                    
+                    background: root.sync_status.is_syncing ? 
+                        (root.sync_status.sync_quality_percentage > 80 ? Colors.success :
+                         root.sync_status.sync_quality_percentage > 60 ? Colors.warning : Colors.error) :
+                        Colors.surface_hover;
+                    
+                    border_width: 2px;
+                    border_color: root.sync_status.is_syncing ? Colors.white : Colors.border;
+                    
+                    states [
+                        hover when sync_toggle_touch.has_hover: {
+                            drop_shadow_blur: 4px;
+                            drop_shadow_color: Colors.primary;
+                        }
+                        active when root.sync_status.is_syncing: {
+                            drop_shadow_blur: 6px;
+                            drop_shadow_color: Colors.success;
+                        }
+                    ]
+                    
+                    animate background, drop_shadow_blur {
+                        duration: 200ms;
+                        easing: ease_in_out;
+                    }
+                    
+                    sync_toggle_touch := TouchArea {
+                        clicked => {
+                            root.sync_enabled_changed(!root.sync_status.is_syncing);
+                        }
+                    }
+                    
+                    HorizontalLayout {
+                        padding: 3px;
+                        alignment: start;
+                        
+                        // Toggle indicator with smooth movement
+                        toggle_indicator := Rectangle {
+                            width: 30px;
+                            height: 30px;
+                            border_radius: 15px;
+                            background: Colors.white;
+                            x: root.sync_status.is_syncing ? parent.width - 33px : 3px;
+                            
+                            animate x {
+                                duration: 250ms;
+                                easing: ease_out;
+                            }
+                            
+                            Text {
+                                text: root.sync_status.is_syncing ? "⚡" : "⏸";
+                                font_size: 14px;
+                                horizontal_alignment: center;
+                                vertical_alignment: center;
+                            }
+                        }
+                    }
+                    
+                    // Toggle label
+                    Text {
+                        text: root.sync_status.is_syncing ? "ON" : "OFF";
+                        font_size: Theme.font_size_small;
+                        font_weight: 600;
+                        color: Colors.white;
+                        x: root.sync_status.is_syncing ? 8px : 50px;
+                        vertical_alignment: center;
+                        
+                        animate x, color {
+                            duration: 250ms;
+                        }
+                    }
+                }
+                
+                Rectangle { width: 1px; height: 32px; background: Colors.border; }
+                
+                // Sync mode selector with enhanced dropdown
+                sync_mode_selector := Rectangle {
+                    width: 140px;
+                    height: 36px;
+                    border_radius: Theme.border_radius_sm;
+                    border_width: 1px;
+                    border_color: Colors.border;
+                    background: Colors.background;
+                    
+                    mode_touch := TouchArea {
+                        enabled: root.sync_status.is_syncing;
+                        clicked => {
+                            root.dropdown_open = !root.dropdown_open;
+                        }
+                    }
+                    
+                    HorizontalLayout {
+                        padding_left: Theme.spacing_sm;
+                        padding_right: Theme.spacing_sm;
+                        alignment: space_between;
+                        
+                        // Current mode display
+                        HorizontalLayout {
+                            spacing: 6px;
+                            alignment: start;
+                            
+                            Text {
+                                text: root.get_sync_mode_icon(root.selected_sync_mode);
+                                font_size: Theme.font_size_base;
+                                vertical_alignment: center;
+                            }
+                            
+                            Text {
+                                text: root.get_sync_mode_name(root.selected_sync_mode);
+                                font_size: Theme.font_size_small;
+                                color: root.sync_status.is_syncing ? Colors.text_primary : Colors.text_muted;
+                                vertical_alignment: center;
+                            }
+                        }
+                        
+                        Text {
+                            text: root.dropdown_open ? "▲" : "▼";
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_muted;
+                            vertical_alignment: center;
+                        }
+                    }
+                    
+                    // Enhanced dropdown menu
+                    if root.dropdown_open: mode_dropdown := Rectangle {
+                        y: parent.height + 4px;
+                        width: 280px; // Wider for detailed info
+                        height: root.available_sync_modes.length * 60px + 8px;
+                        background: Colors.surface;
+                        border_width: 1px;
+                        border_color: Colors.border;
+                        border_radius: Theme.border_radius_md;
+                        drop_shadow_blur: 12px;
+                        drop_shadow_color: #00000030;
+                        z: 1000;
+                        
+                        VerticalLayout {
+                            padding: 4px;
+                            spacing: 2px;
+                            
+                            for mode in root.available_sync_modes: mode_item := TouchArea {
+                                height: 56px;
+                                
+                                clicked => {
+                                    root.selected_sync_mode = mode.mode_id;
+                                    root.dropdown_open = false;
+                                    root.sync_mode_changed(mode.mode_id);
+                                }
+                                
+                                Rectangle {
+                                    background: mode_item.has_hover ? Colors.surface_hover : 
+                                               (mode.mode_id == root.selected_sync_mode ? Colors.primary_light : transparent);
+                                    border_radius: Theme.border_radius_sm;
+                                    
+                                    HorizontalLayout {
+                                        padding: Theme.spacing_sm;
+                                        spacing: Theme.spacing_sm;
+                                        alignment: start;
+                                        
+                                        // Mode icon
+                                        Rectangle {
+                                            width: 32px;
+                                            height: 32px;
+                                            border_radius: 16px;
+                                            background: mode.mode_id == root.selected_sync_mode ? 
+                                                       Colors.primary : Colors.surface_active;
+                                            
+                                            Text {
+                                                text: mode.icon;
+                                                font_size: 16px;
+                                                color: mode.mode_id == root.selected_sync_mode ? 
+                                                       Colors.white : Colors.text_primary;
+                                                horizontal_alignment: center;
+                                                vertical_alignment: center;
+                                            }
+                                        }
+                                        
+                                        // Mode details
+                                        VerticalLayout {
+                                            spacing: 2px;
+                                            alignment: start;
+                                            
+                                            Text {
+                                                text: mode.display_name;
+                                                font_size: Theme.font_size_base;
+                                                font_weight: 600;
+                                                color: Colors.text_primary;
+                                            }
+                                            
+                                            Text {
+                                                text: mode.description;
+                                                font_size: Theme.font_size_small;
+                                                color: Colors.text_secondary;
+                                                wrap: word_wrap;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Layout mode quick switcher
+                layout_switcher := HorizontalLayout {
+                    spacing: 2px;
+                    
+                    for layout_mode in root.available_layout_modes: layout_btn := Rectangle {
+                        width: 32px;
+                        height: 32px;
+                        border_radius: Theme.border_radius_sm;
+                        background: layout_mode.mode_id == root.selected_layout_mode ? 
+                                   Colors.primary : transparent;
+                        border_width: 1px;
+                        border_color: layout_mode.mode_id == root.selected_layout_mode ? 
+                                     Colors.primary : Colors.border;
+                        
+                        states [
+                            hover when layout_touch.has_hover: {
+                                background: layout_mode.mode_id == root.selected_layout_mode ? 
+                                           Colors.primary_light : Colors.surface_hover;
+                            }
+                        ]
+                        
+                        layout_touch := TouchArea {
+                            clicked => {
+                                root.selected_layout_mode = layout_mode.mode_id;
+                                root.layout_mode_changed(layout_mode.mode_id);
+                            }
+                        }
+                        
+                        Text {
+                            text: layout_mode.icon;
+                            font_size: 14px;
+                            color: layout_mode.mode_id == root.selected_layout_mode ? 
+                                   Colors.white : Colors.text_primary;
+                            horizontal_alignment: center;
+                            vertical_alignment: center;
+                        }
+                    }
+                }
+            }
+            
+            // Right section: Status and controls
+            status_controls := HorizontalLayout {
+                spacing: Theme.spacing_xs;
+                alignment: end;
+                
+                // Sync status indicator
+                if root.sync_status.is_syncing: status_display := Rectangle {
+                    width: 120px;
+                    height: 32px;
+                    background: Colors.surface_active;
+                    border_radius: Theme.border_radius_sm;
+                    border_width: 1px;
+                    border_color: Colors.border;
+                    
+                    HorizontalLayout {
+                        padding: Theme.spacing_xs;
+                        spacing: 4px;
+                        alignment: center;
+                        
+                        Text {
+                            text: "Quality:";
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_secondary;
+                            vertical_alignment: center;
+                        }
+                        
+                        Text {
+                            text: root.sync_status.sync_quality_percentage + "%";
+                            font_size: Theme.font_size_small;
+                            font_weight: 600;
+                            color: root.sync_status.sync_quality_percentage > 80 ? Colors.success :
+                                   root.sync_status.sync_quality_percentage > 60 ? Colors.warning : Colors.error;
+                            vertical_alignment: center;
+                        }
+                        
+                        Rectangle { width: 1px; height: 16px; background: Colors.border; }
+                        
+                        Text {
+                            text: root.sync_status.active_panes.length + " panes";
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_secondary;
+                            vertical_alignment: center;
+                        }
+                    }
+                }
+                
+                // Expand/collapse toggle
+                expand_toggle := Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    border_radius: Theme.border_radius_sm;
+                    background: transparent;
+                    border_width: 1px;
+                    border_color: Colors.border;
+                    
+                    states [
+                        hover when expand_touch.has_hover: {
+                            background: Colors.surface_hover;
+                        }
+                    ]
+                    
+                    expand_touch := TouchArea {
+                        clicked => {
+                            root.expanded_view = !root.expanded_view;
+                        }
+                    }
+                    
+                    Text {
+                        text: root.expanded_view ? "−" : "+";
+                        font_size: 16px;
+                        color: Colors.text_primary;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                    }
+                }
+            }
+        }
+        
+        // Expanded controls section
+        if root.expanded_view && !root.controls_config.compact_mode: expanded_controls := Rectangle {
+            height: 200px;
+            background: Colors.background;
+            border_radius: Theme.border_radius_sm;
+            border_width: 1px;
+            border_color: Colors.border;
+            
+            VerticalLayout {
+                padding: Theme.spacing_sm;
+                spacing: Theme.spacing_sm;
+                
+                // Tab navigation
+                tab_nav := HorizontalLayout {
+                    height: 32px;
+                    spacing: 2px;
+                    
+                    for tab[index] in ["Sync", "Layout", "Performance", "Advanced"]: tab_btn := Rectangle {
+                        width: 80px;
+                        height: 28px;
+                        border_radius: Theme.border_radius_sm;
+                        background: root.active_tab == tab.to_lowercase() ? Colors.primary : transparent;
+                        
+                        tab_touch := TouchArea {
+                            clicked => {
+                                root.active_tab = tab.to_lowercase();
+                            }
+                        }
+                        
+                        Text {
+                            text: tab;
+                            font_size: Theme.font_size_small;
+                            color: root.active_tab == tab.to_lowercase() ? Colors.white : Colors.text_primary;
+                            horizontal_alignment: center;
+                            vertical_alignment: center;
+                        }
+                    }
+                }
+                
+                // Tab content area
+                tab_content := Rectangle {
+                    height: parent.height - 60px;
+                    background: transparent;
+                    
+                    // Sync settings tab
+                    if root.active_tab == "sync": sync_settings := VerticalLayout {
+                        spacing: Theme.spacing_sm;
+                        
+                        // Sensitivity slider
+                        sensitivity_control := HorizontalLayout {
+                            spacing: Theme.spacing_sm;
+                            alignment: space_between;
+                            
+                            Text {
+                                text: "Sensitivity:";
+                                font_size: Theme.font_size_small;
+                                color: Colors.text_primary;
+                                vertical_alignment: center;
+                            }
+                            
+                            HorizontalLayout {
+                                spacing: 4px;
+                                width: 150px;
+                                
+                                // Simplified slider representation
+                                Rectangle {
+                                    height: 4px;
+                                    background: Colors.surface_active;
+                                    border_radius: 2px;
+                                    
+                                    Rectangle {
+                                        width: parent.width * root.user_preferences.sync_sensitivity;
+                                        height: parent.height;
+                                        background: Colors.primary;
+                                        border_radius: 2px;
+                                    }
+                                }
+                                
+                                Text {
+                                    text: Math.round(root.user_preferences.sync_sensitivity * 100) + "%";
+                                    font_size: Theme.font_size_small;
+                                    color: Colors.text_secondary;
+                                    vertical_alignment: center;
+                                }
+                            }
+                        }
+                        
+                        // Animation speed control
+                        animation_control := HorizontalLayout {
+                            spacing: Theme.spacing_sm;
+                            alignment: space_between;
+                            
+                            Text {
+                                text: "Animation Speed:";
+                                font_size: Theme.font_size_small;
+                                color: Colors.text_primary;
+                                vertical_alignment: center;
+                            }
+                            
+                            HorizontalLayout {
+                                spacing: Theme.spacing_xs;
+                                
+                                for speed[index] in ["0.5x", "1x", "1.5x", "2x"]: speed_btn := Rectangle {
+                                    width: 32px;
+                                    height: 24px;
+                                    border_radius: Theme.border_radius_sm;
+                                    background: index == 1 ? Colors.primary : transparent; // Default to 1x
+                                    border_width: 1px;
+                                    border_color: Colors.border;
+                                    
+                                    Text {
+                                        text: speed;
+                                        font_size: Theme.font_size_small;
+                                        color: index == 1 ? Colors.white : Colors.text_primary;
+                                        horizontal_alignment: center;
+                                        vertical_alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Quick action buttons
+                        action_buttons := HorizontalLayout {
+                            spacing: Theme.spacing_xs;
+                            
+                            for action in ["Reset", "Calibrate", "Sync All"]: action_btn := Rectangle {
+                                width: 60px;
+                                height: 28px;
+                                border_radius: Theme.border_radius_sm;
+                                background: transparent;
+                                border_width: 1px;
+                                border_color: Colors.border;
+                                
+                                states [
+                                    hover when action_touch.has_hover: {
+                                        background: Colors.surface_hover;
+                                    }
+                                ]
+                                
+                                action_touch := TouchArea {
+                                    clicked => {
+                                        if action == "Reset" {
+                                            root.reset_all_positions();
+                                        } else if action == "Calibrate" {
+                                            root.calibrate_synchronization();
+                                        } else if action == "Sync All" {
+                                            root.force_sync_to_primary();
+                                        }
+                                    }
+                                }
+                                
+                                Text {
+                                    text: action;
+                                    font_size: Theme.font_size_small;
+                                    color: Colors.text_primary;
+                                    horizontal_alignment: center;
+                                    vertical_alignment: center;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Performance tab
+                    if root.active_tab == "performance": performance_settings := VerticalLayout {
+                        spacing: Theme.spacing_sm;
+                        
+                        // Performance metrics display
+                        metrics_display := HorizontalLayout {
+                            spacing: Theme.spacing_sm;
+                            alignment: space_between;
+                            
+                            for metric in [
+                                {name: "Sync Latency", value: root.coordination_metrics.average_sync_latency + "ms", 
+                                 status: root.coordination_metrics.average_sync_latency < 30 ? "good" : "warning"},
+                                {name: "Success Rate", value: Math.round(root.coordination_metrics.successful_syncs * 100 / 
+                                 max(1, root.coordination_metrics.total_sync_events)) + "%", status: "good"},
+                                {name: "Queue Size", value: "0", status: "good"}
+                            ]: metric_card := Rectangle {
+                                width: 80px;
+                                height: 48px;
+                                background: Colors.surface;
+                                border_radius: Theme.border_radius_sm;
+                                border_width: 1px;
+                                border_color: metric.status == "good" ? Colors.success : Colors.warning;
+                                
+                                VerticalLayout {
+                                    padding: 4px;
+                                    spacing: 2px;
+                                    
+                                    Text {
+                                        text: metric.name;
+                                        font_size: 10px;
+                                        color: Colors.text_muted;
+                                        horizontal_alignment: center;
+                                    }
+                                    
+                                    Text {
+                                        text: metric.value;
+                                        font_size: Theme.font_size_small;
+                                        font_weight: 600;
+                                        color: metric.status == "good" ? Colors.success : Colors.warning;
+                                        horizontal_alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Performance priority selector
+                        priority_selector := HorizontalLayout {
+                            spacing: Theme.spacing_sm;
+                            alignment: space_between;
+                            
+                            Text {
+                                text: "Priority:";
+                                font_size: Theme.font_size_small;
+                                color: Colors.text_primary;
+                                vertical_alignment: center;
+                            }
+                            
+                            HorizontalLayout {
+                                spacing: 2px;
+                                
+                                for priority in ["Quality", "Balanced", "Performance"]: priority_btn := Rectangle {
+                                    width: 70px;
+                                    height: 24px;
+                                    border_radius: Theme.border_radius_sm;
+                                    background: priority.to_lowercase() == root.user_preferences.performance_priority ? 
+                                               Colors.primary : transparent;
+                                    border_width: 1px;
+                                    border_color: Colors.border;
+                                    
+                                    Text {
+                                        text: priority;
+                                        font_size: Theme.font_size_small;
+                                        color: priority.to_lowercase() == root.user_preferences.performance_priority ? 
+                                               Colors.white : Colors.text_primary;
+                                        horizontal_alignment: center;
+                                        vertical_alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Advanced settings tab
+                    if root.active_tab == "advanced": advanced_settings := VerticalLayout {
+                        spacing: Theme.spacing_sm;
+                        
+                        Text {
+                            text: "Advanced synchronization settings and diagnostics";
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_secondary;
+                        }
+                        
+                        // Diagnostic tools
+                        diagnostic_tools := HorizontalLayout {
+                            spacing: Theme.spacing_xs;
+                            
+                            for tool in ["Export Settings", "Import Settings", "Diagnostics"]: tool_btn := Rectangle {
+                                width: 80px;
+                                height: 28px;
+                                border_radius: Theme.border_radius_sm;
+                                background: transparent;
+                                border_width: 1px;
+                                border_color: Colors.border;
+                                
+                                Text {
+                                    text: tool;
+                                    font_size: Theme.font_size_small;
+                                    color: Colors.text_primary;
+                                    horizontal_alignment: center;
+                                    vertical_alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Alert overlay for performance warnings
+    if root.performance_alert_active: alert_overlay := Rectangle {
+        x: parent.width - 280px;
+        y: -60px;
+        width: 260px;
+        height: 48px;
+        background: Colors.warning;
+        border_radius: Theme.border_radius_md;
+        drop_shadow_blur: 8px;
+        drop_shadow_color: #00000030;
+        
+        HorizontalLayout {
+            padding: Theme.spacing_sm;
+            spacing: Theme.spacing_xs;
+            alignment: start;
+            
+            Text {
+                text: "⚠";
+                font_size: 16px;
+                color: Colors.white;
+                vertical_alignment: center;
+            }
+            
+            Text {
+                text: "Sync performance degraded";
+                font_size: Theme.font_size_small;
+                color: Colors.white;
+                vertical_alignment: center;
+            }
+        }
+    }
+    
+    // Auto-hide timer for inactive state
+    auto_hide_timer := Timer {
+        interval: 5000ms;
+        running: root.controls_config.auto_hide_inactive && !root.sync_status.is_syncing;
+        
+        triggered => {
+            root.controls_visible = false;
+        }
+    }
+    
+    // Helper functions
+    
+    function get_sync_mode_icon(mode_id: string) -> string {
+        for mode in root.available_sync_modes {
+            if mode.mode_id == mode_id {
+                return mode.icon;
+            }
+        }
+        return "⚖";
+    }
+    
+    function get_sync_mode_name(mode_id: string) -> string {
+        for mode in root.available_sync_modes {
+            if mode.mode_id == mode_id {
+                return mode.display_name;
+            }
+        }
+        return "Proportional";
+    }
+    
+    public function show_performance_alert() {
+        root.performance_alert_active = true;
+        
+        // Auto-hide alert after 3 seconds
+        Timer {
+            interval: 3000ms;
+            running: true;
+            triggered => {
+                root.performance_alert_active = false;
+            }
+        }
+    }
+    
+    public function update_sync_status(status: SyncStatusInfo) {
+        root.sync_status = status;
+        
+        // Reset auto-hide timer on activity
+        if root.controls_config.auto_hide_inactive {
+            root.controls_visible = true;
+            auto_hide_timer.running = true;
+        }
+    }
+    
+    // Accessibility support
+    accessible_role: AccessibleRole.group;
+    accessible_label: "Scroll synchronization controls";
+    accessible_description: "Sync " + 
+        (root.sync_status.is_syncing ? "enabled" : "disabled") + 
+        ", mode: " + root.sync_status.active_mode + 
+        ", quality: " + root.sync_status.sync_quality_percentage + "%";
+    
+    // Keyboard shortcuts (would be handled by Rust backend)
+    // Ctrl+S: Toggle sync
+    // Ctrl+M: Change sync mode
+    // Ctrl+R: Reset positions
+    // Ctrl+C: Calibrate
+}

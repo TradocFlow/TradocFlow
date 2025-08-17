@@ -1,0 +1,628 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { EnhancedMultiPaneEditor, EditorPane, LayoutConfig, LayoutMode } from "./enhanced_multi_pane_editor.slint";
+import { PaneConfig, PaneType, PaneStatus } from "./pane_header.slint";
+import { LanguageInfo, LanguageDatabase } from "./language_selector.slint";
+
+// Comprehensive showcase and demo of the enhanced pane header system
+// Demonstrates all layout modes, language selectors, and visual indicators
+
+export component PaneHeaderShowcase inherits Rectangle {
+    // Demo configuration
+    property <int> current_demo: 0;
+    property <[string]> demo_names: [
+        "Two-Pane Horizontal",
+        "Two-Pane Vertical", 
+        "Four-Pane Grid",
+        "Source + Target + Reference",
+        "Real-time Translation Demo"
+    ];
+    
+    // Demo data with realistic content
+    property <[EditorPane]> demo_panes_horizontal: [
+        {
+            id: "source",
+            config: {
+                id: "source",
+                title: "Source Document",
+                pane_type: PaneType.Source,
+                language: LanguageDatabase.common_languages[0], // English
+                status: PaneStatus.Active,
+                word_count: 245,
+                char_count: 1456,
+                progress: 0.75,
+                last_modified: "2 minutes ago",
+                is_dirty: true,
+                show_stats: true,
+                allow_language_change: true,
+                confidence: 1.0,
+                alignment_score: 0.92,
+            },
+            content: "# Technical Documentation Translation\n\nThis document contains technical specifications for the new translation management system. The system supports multiple languages and provides real-time synchronization between editor panes.\n\n## Key Features\n\n- **Multi-language support**: Over 15 languages supported\n- **Real-time sync**: Cursor and scroll synchronization\n- **Translation memory**: Intelligent suggestions based on previous translations\n- **Terminology management**: Consistent term usage across documents\n\n## Getting Started\n\nTo begin translating, select your source and target languages from the dropdown menus in each pane header.",
+            cursor_position: 156,
+            scroll_position: 0px,
+            selection_start: 0,
+            selection_end: 0,
+            term_highlights: [],
+            has_focus: true,
+            is_dirty: true,
+            last_save_time: "14:23:45",
+            undo_stack_size: 8,
+            redo_stack_size: 2,
+        },
+        {
+            id: "target",
+            config: {
+                id: "target",
+                title: "Target Document",
+                pane_type: PaneType.Target,
+                language: LanguageDatabase.common_languages[1], // German
+                status: PaneStatus.Inactive,
+                word_count: 198,
+                char_count: 1342,
+                progress: 0.65,
+                last_modified: "5 minutes ago",
+                is_dirty: false,
+                show_stats: true,
+                allow_language_change: true,
+                confidence: 0.87,
+                alignment_score: 0.88,
+            },
+            content: "# Technische Dokumentation Übersetzung\n\nDieses Dokument enthält technische Spezifikationen für das neue Übersetzungsmanagement-System. Das System unterstützt mehrere Sprachen und bietet Echtzeit-Synchronisation zwischen Editor-Bereichen.\n\n## Hauptfunktionen\n\n- **Mehrsprachige Unterstützung**: Über 15 Sprachen unterstützt\n- **Echtzeit-Sync**: Cursor- und Scroll-Synchronisation\n- **Translation Memory**: Intelligente Vorschläge basierend auf früheren Übersetzungen\n- **Terminologie-Management**: Konsistente Begriffsverwendung in Dokumenten\n\n## Erste Schritte\n\nUm mit der Übersetzung zu beginnen, wählen Sie Ihre Quell- und Zielsprachen aus den Dropdown-Menüs in jedem Pane-Header.",
+            cursor_position: 89,
+            scroll_position: 0px,
+            selection_start: 0,
+            selection_end: 0,
+            term_highlights: [],
+            has_focus: false,
+            is_dirty: false,
+            last_save_time: "14:18:23",
+            undo_stack_size: 12,
+            redo_stack_size: 0,
+        }
+    ];
+    
+    property <[EditorPane]> demo_panes_grid: [
+        {
+            id: "en-source",
+            config: {
+                id: "en-source",
+                title: "English Source",
+                pane_type: PaneType.Source,
+                language: LanguageDatabase.common_languages[0], // English
+                status: PaneStatus.Active,
+                word_count: 89,
+                char_count: 534,
+                progress: 1.0,
+                last_modified: "1 minute ago",
+                is_dirty: false,
+                show_stats: true,
+                allow_language_change: true,
+                confidence: 1.0,
+                alignment_score: 1.0,
+            },
+            content: "## Product Features\n\n- Advanced AI translation\n- Real-time collaboration\n- Cloud synchronization\n- Mobile support\n- Offline mode\n\nOur platform provides enterprise-grade translation management with cutting-edge technology.",
+            cursor_position: 45,
+            scroll_position: 0px,
+            selection_start: 0,
+            selection_end: 0,
+            term_highlights: [],
+            has_focus: true,
+            is_dirty: false,
+            last_save_time: "14:25:12",
+            undo_stack_size: 3,
+            redo_stack_size: 0,
+        },
+        {
+            id: "de-target",
+            config: {
+                id: "de-target",
+                title: "German Target",
+                pane_type: PaneType.Target,
+                language: LanguageDatabase.common_languages[1], // German
+                status: PaneStatus.Syncing,
+                word_count: 76,
+                char_count: 512,
+                progress: 0.85,
+                last_modified: "2 minutes ago",
+                is_dirty: true,
+                show_stats: true,
+                allow_language_change: true,
+                confidence: 0.91,
+                alignment_score: 0.94,
+            },
+            content: "## Produktfunktionen\n\n- Erweiterte KI-Übersetzung\n- Echtzeit-Zusammenarbeit\n- Cloud-Synchronisation\n- Mobile Unterstützung\n- Offline-Modus\n\nUnsere Plattform bietet Übersetzungsmanagement auf Unternehmensebene mit modernster Technologie.",
+            cursor_position: 78,
+            scroll_position: 0px,
+            selection_start: 45,
+            selection_end: 67,
+            term_highlights: [],
+            has_focus: false,
+            is_dirty: true,
+            last_save_time: "14:23:45",
+            undo_stack_size: 5,
+            redo_stack_size: 1,
+        },
+        {
+            id: "fr-target",
+            config: {
+                id: "fr-target",
+                title: "French Target",
+                pane_type: PaneType.Target,
+                language: LanguageDatabase.common_languages[2], // French
+                status: PaneStatus.Inactive,
+                word_count: 82,
+                char_count: 548,
+                progress: 0.72,
+                last_modified: "8 minutes ago",
+                is_dirty: false,
+                show_stats: true,
+                allow_language_change: true,
+                confidence: 0.83,
+                alignment_score: 0.89,
+            },
+            content: "## Fonctionnalités du produit\n\n- Traduction IA avancée\n- Collaboration en temps réel\n- Synchronisation cloud\n- Support mobile\n- Mode hors ligne\n\nNotre plateforme fournit une gestion de traduction de niveau entreprise avec une technologie de pointe.",
+            cursor_position: 23,
+            scroll_position: 0px,
+            selection_start: 0,
+            selection_end: 0,
+            term_highlights: [],
+            has_focus: false,
+            is_dirty: false,
+            last_save_time: "14:17:33",
+            undo_stack_size: 7,
+            redo_stack_size: 0,
+        },
+        {
+            id: "es-target",
+            config: {
+                id: "es-target",
+                title: "Spanish Target",
+                pane_type: PaneType.Target,
+                language: LanguageDatabase.common_languages[3], // Spanish
+                status: PaneStatus.Loading,
+                word_count: 0,
+                char_count: 0,
+                progress: 0.0,
+                last_modified: "Never",
+                is_dirty: false,
+                show_stats: true,
+                allow_language_change: true,
+                confidence: 0.0,
+                alignment_score: 0.0,
+            },
+            content: "",
+            cursor_position: 0,
+            scroll_position: 0px,
+            selection_start: 0,
+            selection_end: 0,
+            term_highlights: [],
+            has_focus: false,
+            is_dirty: false,
+            last_save_time: "",
+            undo_stack_size: 0,
+            redo_stack_size: 0,
+        }
+    ];
+    
+    // Demo layout configurations
+    property <LayoutConfig> layout_horizontal: {
+        mode: LayoutMode.Horizontal,
+        pane_count: 2,
+        primary_pane_id: "source",
+        split_ratios: [0.5, 0.5],
+        show_headers: true,
+        compact_headers: false,
+        synchronized_scrolling: true,
+        synchronized_cursor: false,
+        auto_save_interval: 30s,
+    };
+    
+    property <LayoutConfig> layout_vertical: {
+        mode: LayoutMode.Vertical,
+        pane_count: 2,
+        primary_pane_id: "source",
+        split_ratios: [0.5, 0.5],
+        show_headers: true,
+        compact_headers: false,
+        synchronized_scrolling: true,
+        synchronized_cursor: true,
+        auto_save_interval: 30s,
+    };
+    
+    property <LayoutConfig> layout_grid: {
+        mode: LayoutMode.Grid2x2,
+        pane_count: 4,
+        primary_pane_id: "en-source",
+        split_ratios: [0.25, 0.25, 0.25, 0.25],
+        show_headers: true,
+        compact_headers: true,
+        synchronized_scrolling: false,
+        synchronized_cursor: false,
+        auto_save_interval: 15s,
+    };
+    
+    background: Colors.background;
+    
+    VerticalLayout {
+        spacing: Theme.spacing_md;
+        padding: Theme.spacing_lg;
+        
+        // Demo selector and information
+        header_section := Rectangle {
+            height: 80px;
+            background: Colors.surface;
+            border_radius: Theme.border_radius_lg;
+            border_width: 1px;
+            border_color: Colors.border;
+            
+            HorizontalLayout {
+                padding: Theme.spacing_md;
+                spacing: Theme.spacing_lg;
+                alignment: space_between;
+                
+                // Demo info
+                VerticalLayout {
+                    spacing: 4px;
+                    alignment: center;
+                    
+                    Text {
+                        text: "Enhanced Pane Headers Showcase";
+                        font_size: Theme.font_size_xl;
+                        color: Colors.text_primary;
+                        font_weight: 700;
+                        horizontal_alignment: left;
+                    }
+                    
+                    Text {
+                        text: "Professional multi-language editor with responsive design and accessibility features";
+                        font_size: Theme.font_size_base;
+                        color: Colors.text_secondary;
+                        horizontal_alignment: left;
+                    }
+                }
+                
+                // Demo controls
+                HorizontalLayout {
+                    spacing: Theme.spacing_sm;
+                    alignment: center;
+                    
+                    Text {
+                        text: "Demo:";
+                        font_size: Theme.font_size_base;
+                        color: Colors.text_primary;
+                        vertical_alignment: center;
+                        font_weight: 600;
+                    }
+                    
+                    // Previous demo button
+                    prev_button := TouchArea {
+                        width: 32px;
+                        height: 32px;
+                        
+                        clicked => {
+                            root.current_demo = Math.max(0, root.current_demo - 1);
+                        }
+                        
+                        Rectangle {
+                            background: parent.has_hover ? Colors.primary_light : Colors.surface;
+                            border_width: 1px;
+                            border_color: Colors.border;
+                            border_radius: Theme.border_radius_sm;
+                            
+                            Text {
+                                text: "◀";
+                                font_size: Theme.font_size_base;
+                                color: Colors.primary;
+                                horizontal_alignment: center;
+                                vertical_alignment: center;
+                            }
+                        }
+                    }
+                    
+                    // Current demo name
+                    Rectangle {
+                        width: 200px;
+                        height: 32px;
+                        background: Colors.primary_light;
+                        border_width: 1px;
+                        border_color: Colors.primary;
+                        border_radius: Theme.border_radius_sm;
+                        
+                        Text {
+                            text: root.demo_names[root.current_demo];
+                            font_size: Theme.font_size_small;
+                            color: Colors.primary;
+                            font_weight: 600;
+                            horizontal_alignment: center;
+                            vertical_alignment: center;
+                        }
+                    }
+                    
+                    // Next demo button
+                    next_button := TouchArea {
+                        width: 32px;
+                        height: 32px;
+                        
+                        clicked => {
+                            root.current_demo = Math.min(root.demo_names.length - 1, root.current_demo + 1);
+                        }
+                        
+                        Rectangle {
+                            background: parent.has_hover ? Colors.primary_light : Colors.surface;
+                            border_width: 1px;
+                            border_color: Colors.border;
+                            border_radius: Theme.border_radius_sm;
+                            
+                            Text {
+                                text: "▶";
+                                font_size: Theme.font_size_base;
+                                color: Colors.primary;
+                                horizontal_alignment: center;
+                                vertical_alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Main demo area
+        demo_area := Rectangle {
+            height: 600px;
+            background: Colors.editor_background;
+            border_radius: Theme.border_radius_lg;
+            border_width: 2px;
+            border_color: Colors.border_active;
+            drop_shadow_blur: 8px;
+            drop_shadow_color: #00000020;
+            
+            // Two-Pane Horizontal Demo
+            if root.current_demo == 0: EnhancedMultiPaneEditor {
+                layout_config: root.layout_horizontal;
+                panes: root.demo_panes_horizontal;
+                available_languages: LanguageDatabase.common_languages;
+                editor_mode: "markdown";
+                terminology_highlighting: true;
+                translation_memory_enabled: true;
+                performance_monitoring: true;
+                
+                content_changed(pane_id, content) => {
+                    // Update demo data
+                    debug("Content changed in pane " + pane_id + ": " + content.length + " characters");
+                }
+                
+                language_changed(pane_id, lang) => {
+                    debug("Language changed in pane " + pane_id + " to " + lang.name);
+                }
+                
+                pane_focused(pane_id) => {
+                    debug("Pane focused: " + pane_id);
+                }
+                
+                layout_changed(new_mode) => {
+                    debug("Layout changed to: " + 
+                          (new_mode == LayoutMode.Horizontal ? "Horizontal" :
+                           new_mode == LayoutMode.Vertical ? "Vertical" : "Grid"));
+                }
+            }
+            
+            // Two-Pane Vertical Demo
+            if root.current_demo == 1: EnhancedMultiPaneEditor {
+                layout_config: root.layout_vertical;
+                panes: root.demo_panes_horizontal;
+                available_languages: LanguageDatabase.common_languages;
+                editor_mode: "markdown";
+                terminology_highlighting: true;
+                translation_memory_enabled: true;
+                
+                content_changed(pane_id, content) => {
+                    debug("Vertical demo - Content changed in pane " + pane_id);
+                }
+                
+                language_changed(pane_id, lang) => {
+                    debug("Vertical demo - Language changed in pane " + pane_id + " to " + lang.name);
+                }
+                
+                pane_focused(pane_id) => {
+                    debug("Vertical demo - Pane focused: " + pane_id);
+                }
+            }
+            
+            // Four-Pane Grid Demo
+            if root.current_demo == 2: EnhancedMultiPaneEditor {
+                layout_config: root.layout_grid;
+                panes: root.demo_panes_grid;
+                available_languages: LanguageDatabase.common_languages;
+                editor_mode: "markdown";
+                terminology_highlighting: true;
+                translation_memory_enabled: false;
+                performance_monitoring: true;
+                
+                content_changed(pane_id, content) => {
+                    debug("Grid demo - Content changed in pane " + pane_id);
+                }
+                
+                language_changed(pane_id, lang) => {
+                    debug("Grid demo - Language changed in pane " + pane_id + " to " + lang.name);
+                }
+                
+                pane_focused(pane_id) => {
+                    debug("Grid demo - Pane focused: " + pane_id);
+                }
+            }
+            
+            // Placeholder for additional demos
+            if root.current_demo >= 3: Rectangle {
+                background: Colors.surface;
+                border_radius: Theme.border_radius_lg;
+                
+                VerticalLayout {
+                    spacing: Theme.spacing_lg;
+                    alignment: center;
+                    
+                    Text {
+                        text: "🚧";
+                        font_size: 48px;
+                        horizontal_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "Demo Coming Soon";
+                        font_size: Theme.font_size_xl;
+                        color: Colors.text_primary;
+                        font_weight: 600;
+                        horizontal_alignment: center;
+                    }
+                    
+                    Text {
+                        text: root.demo_names[root.current_demo];
+                        font_size: Theme.font_size_lg;
+                        color: Colors.text_secondary;
+                        horizontal_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "This demo will showcase advanced features like:\n• Real-time collaboration\n• Advanced terminology management\n• Translation memory integration\n• Multi-user editing";
+                        font_size: Theme.font_size_base;
+                        color: Colors.text_muted;
+                        horizontal_alignment: center;
+                    }
+                }
+            }
+        }
+        
+        // Feature highlights
+        features_section := Rectangle {
+            height: 120px;
+            background: Colors.surface;
+            border_radius: Theme.border_radius_lg;
+            border_width: 1px;
+            border_color: Colors.border;
+            
+            HorizontalLayout {
+                padding: Theme.spacing_md;
+                spacing: Theme.spacing_lg;
+                alignment: space_around;
+                
+                // Language Support Feature
+                VerticalLayout {
+                    spacing: Theme.spacing_xs;
+                    alignment: center;
+                    
+                    Text {
+                        text: "🌍";
+                        font_size: 32px;
+                        horizontal_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "15+ Languages";
+                        font_size: Theme.font_size_base;
+                        color: Colors.text_primary;
+                        font_weight: 600;
+                        horizontal_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "Comprehensive language support with native flags and RTL scripts";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        horizontal_alignment: center;
+                    }
+                }
+                
+                // Responsive Design Feature
+                VerticalLayout {
+                    spacing: Theme.spacing_xs;
+                    alignment: center;
+                    
+                    Text {
+                        text: "📱";
+                        font_size: 32px;
+                        horizontal_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "Responsive Layouts";
+                        font_size: Theme.font_size_base;
+                        color: Colors.text_primary;
+                        font_weight: 600;
+                        horizontal_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "Horizontal, vertical, and grid layouts for optimal screen usage";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        horizontal_alignment: center;
+                    }
+                }
+                
+                // Accessibility Feature
+                VerticalLayout {
+                    spacing: Theme.spacing_xs;
+                    alignment: center;
+                    
+                    Text {
+                        text: "♿";
+                        font_size: 32px;
+                        horizontal_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "Full Accessibility";
+                        font_size: Theme.font_size_base;
+                        color: Colors.text_primary;
+                        font_weight: 600;
+                        horizontal_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "ARIA labels, keyboard navigation, and screen reader support";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        horizontal_alignment: center;
+                    }
+                }
+                
+                // Performance Feature
+                VerticalLayout {
+                    spacing: Theme.spacing_xs;
+                    alignment: center;
+                    
+                    Text {
+                        text: "⚡";
+                        font_size: 32px;
+                        horizontal_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "High Performance";
+                        font_size: Theme.font_size_base;
+                        color: Colors.text_primary;
+                        font_weight: 600;
+                        horizontal_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "Optimized rendering with real-time performance monitoring";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        horizontal_alignment: center;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Auto-advance demo timer (optional)
+    demo_timer := Timer {
+        interval: 10s;
+        running: false; // Disabled by default
+        
+        triggered => {
+            root.current_demo = (root.current_demo + 1) % root.demo_names.length;
+        }
+    }
+}

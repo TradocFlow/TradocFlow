@@ -1,0 +1,725 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { LanguageSelector, LanguageInfo, ConfidenceIndicator, QuickLanguageSwitcher } from "./language_selector.slint";
+
+// Pane type enumeration for different editor modes
+export enum PaneType {
+    Source,           // Source language pane
+    Target,           // Target language pane
+    Reference,        // Reference document pane
+    Preview,          // Live preview pane
+}
+
+// Pane status enumeration for visual feedback
+export enum PaneStatus {
+    Active,           // Currently focused/editing
+    Inactive,         // Available but not focused
+    Syncing,          // Currently synchronizing
+    Error,            // Error state
+    ReadOnly,         // Read-only mode
+    Loading,          // Loading content
+}
+
+// Layout mode enumeration for responsive design
+export enum LayoutMode {
+    Horizontal,       // Side-by-side layout
+    Vertical,         // Top-bottom layout
+    Grid2x2,          // 2x2 grid layout
+    Grid2x1,          // 2x1 grid layout
+    Single,           // Single pane mode
+}
+
+// Pane configuration structure
+export struct PaneConfig {
+    id: string,
+    title: string,
+    pane_type: PaneType,
+    language: LanguageInfo,
+    status: PaneStatus,
+    word_count: int,
+    char_count: int,
+    progress: float,           // 0.0 to 1.0
+    last_modified: string,
+    is_dirty: bool,
+    show_stats: bool,
+    allow_language_change: bool,
+    confidence: float,
+    alignment_score: float,
+}
+
+// Status indicator component with animated feedback
+component StatusIndicator inherits Rectangle {
+    in property <PaneStatus> status: PaneStatus.Inactive;
+    in property <length> size: 12px;
+    
+    width: root.size;
+    height: root.size;
+    border_radius: root.size / 2;
+    
+    // Status color mapping with semantic meanings
+    property <color> status_color: 
+        root.status == PaneStatus.Active ? Colors.primary :
+        root.status == PaneStatus.Syncing ? Colors.info :
+        root.status == PaneStatus.Error ? Colors.error :
+        root.status == PaneStatus.ReadOnly ? Colors.warning :
+        root.status == PaneStatus.Loading ? Colors.text_muted :
+        Colors.surface_hover; // Inactive
+    
+    background: root.status_color;
+    
+    // Animated pulse for active states
+    animate background {
+        duration: Theme.animation_normal;
+        easing: ease_in_out;
+    }
+    
+    // Blinking animation for syncing and loading states
+    if root.status == PaneStatus.Syncing || root.status == PaneStatus.Loading: Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border_radius: parent.border_radius;
+        background: parent.background;
+        opacity: 0.3;
+        
+        animate opacity {
+            duration: 1s;
+            iteration_count: -1;
+            easing: ease_in_out;
+        }
+    }
+    
+    // Error indicator
+    if root.status == PaneStatus.Error: Text {
+        text: "!";
+        font_size: root.size * 0.7;
+        color: Colors.background;
+        font_weight: 700;
+        horizontal_alignment: center;
+        vertical_alignment: center;
+    }
+    
+    // Lock icon for read-only
+    if root.status == PaneStatus.ReadOnly: Text {
+        text: "🔒";
+        font_size: root.size * 0.6;
+        horizontal_alignment: center;
+        vertical_alignment: center;
+    }
+}
+
+// Progress indicator for translation progress
+component ProgressIndicator inherits Rectangle {
+    in property <float> progress: 0.0;  // 0.0 to 1.0
+    in property <length> width_value: 100px;
+    in property <length> height_value: 4px;
+    in property <bool> show_percentage: false;
+    
+    width: root.width_value;
+    height: root.height_value + (root.show_percentage ? 16px : 0px);
+    
+    VerticalLayout {
+        spacing: 2px;
+        alignment: start;
+        
+        // Progress bar
+        progress_bar := Rectangle {
+            width: root.width_value;
+            height: root.height_value;
+            background: Colors.surface;
+            border_radius: root.height_value / 2;
+            border_width: 1px;
+            border_color: Colors.border;
+            
+            // Progress fill
+            Rectangle {
+                width: Math.max(0px, Math.min(parent.width - 2px, (parent.width - 2px) * root.progress));
+                height: parent.height - 2px;
+                x: 1px;
+                y: 1px;
+                background: root.progress >= 0.9 ? Colors.success :
+                           root.progress >= 0.7 ? Colors.primary :
+                           root.progress >= 0.3 ? Colors.warning :
+                           Colors.error;
+                border_radius: (parent.height - 2px) / 2;
+                
+                animate width {
+                    duration: Theme.animation_normal;
+                    easing: ease_out;
+                }
+            }
+        }
+        
+        // Percentage text
+        if root.show_percentage: Text {
+            text: Math.round(root.progress * 100) + "%";
+            font_size: Theme.font_size_small;
+            color: Colors.text_muted;
+            horizontal_alignment: center;
+        }
+    }
+}
+
+// Word/character count display
+component WordCountDisplay inherits Rectangle {
+    in property <int> word_count: 0;
+    in property <int> char_count: 0;
+    in property <bool> compact: false;
+    
+    height: 20px;
+    
+    HorizontalLayout {
+        spacing: Theme.spacing_xs;
+        alignment: start;
+        
+        if !root.compact: Text {
+            text: "📝";
+            font_size: Theme.font_size_small;
+            vertical_alignment: center;
+        }
+        
+        Text {
+            text: root.word_count + (root.compact ? "w" : " words");
+            font_size: Theme.font_size_small;
+            color: Colors.text_secondary;
+            vertical_alignment: center;
+        }
+        
+        if !root.compact: Text {
+            text: "•";
+            font_size: Theme.font_size_small;
+            color: Colors.text_muted;
+            vertical_alignment: center;
+        }
+        
+        Text {
+            text: root.char_count + (root.compact ? "c" : " chars");
+            font_size: Theme.font_size_small;
+            color: Colors.text_secondary;
+            vertical_alignment: center;
+        }
+    }
+}
+
+// Pane action button (minimize, maximize, close, etc.)
+component PaneActionButton inherits Rectangle {
+    in property <string> icon: "";
+    in property <string> tooltip: "";
+    in property <bool> danger: false;
+    in property <bool> disabled: false;
+    
+    callback clicked();
+    
+    width: 24px;
+    height: 24px;
+    border_radius: Theme.border_radius_sm;
+    
+    states [
+        disabled when root.disabled: {
+            opacity: 0.4;
+        }
+        danger when root.danger && touch_area.has_hover: {
+            background: Colors.error_light;
+        }
+        hover when touch_area.has_hover && !root.disabled: {
+            background: root.danger ? Colors.error_light : Colors.surface_hover;
+            drop_shadow_blur: 2px;
+            drop_shadow_color: #00000020;
+        }
+    ]
+    
+    touch_area := TouchArea {
+        enabled: !root.disabled;
+        
+        clicked => {
+            if (!root.disabled) {
+                root.clicked();
+            }
+        }
+    }
+    
+    Text {
+        text: root.icon;
+        font_size: Theme.font_size_small;
+        color: root.danger && touch_area.has_hover ? Colors.error : Colors.text_muted;
+        horizontal_alignment: center;
+        vertical_alignment: center;
+    }
+    
+    // Tooltip would be implemented by parent component or Rust backend
+    accessible_role: AccessibleRole.button;
+    accessible_label: root.tooltip;
+}
+
+// Main pane header component with comprehensive features
+export component PaneHeader inherits Rectangle {
+    in property <PaneConfig> config: {
+        id: "pane-1",
+        title: "Source Document",
+        pane_type: PaneType.Source,
+        language: {
+            code: "en",
+            name: "English",
+            display_name: "English",
+            flag: "🇺🇸",
+            rtl: false,
+            confidence: 1.0,
+            region: "US",
+            enabled: true
+        },
+        status: PaneStatus.Inactive,
+        word_count: 0,
+        char_count: 0,
+        progress: 0.0,
+        last_modified: "",
+        is_dirty: false,
+        show_stats: true,
+        allow_language_change: true,
+        confidence: 1.0,
+        alignment_score: 0.0,
+    };
+    
+    in property <LayoutMode> layout_mode: LayoutMode.Horizontal;
+    in property <[LanguageInfo]> available_languages: [];
+    in property <bool> show_actions: true;
+    in property <bool> compact_mode: false;
+    in property <bool> show_confidence: true;
+    in property <bool> show_progress: true;
+    in property <bool> show_word_count: true;
+    
+    // Callbacks for user interactions
+    callback language_changed(string /* pane_id */, LanguageInfo);
+    callback pane_focused(string /* pane_id */);
+    callback pane_action(string /* pane_id */, string /* action */);
+    callback settings_opened(string /* pane_id */);
+    callback help_requested(string /* pane_id */);
+    
+    // Responsive height based on layout mode and features
+    height: root.compact_mode ? 32px : 
+            root.layout_mode == LayoutMode.Grid2x2 ? 36px : 
+            48px;
+    
+    background: root.config.status == PaneStatus.Active ? Colors.primary_light : Colors.surface;
+    border_width: 1px;
+    border_color: root.config.status == PaneStatus.Active ? Colors.primary : Colors.border;
+    border_radius: Theme.border_radius_sm;
+    
+    // Enhanced visual feedback for different states
+    states [
+        active when root.config.status == PaneStatus.Active: {
+            drop_shadow_blur: 4px;
+            drop_shadow_color: Colors.primary_light;
+        }
+        error when root.config.status == PaneStatus.Error: {
+            border_color: Colors.error;
+            background: Colors.error_light;
+        }
+        readonly when root.config.status == PaneStatus.ReadOnly: {
+            background: Colors.warning_light;
+            border_color: Colors.warning;
+        }
+    ]
+    
+    // Main header content
+    header_touch := TouchArea {
+        clicked => {
+            root.pane_focused(root.config.id);
+        }
+    }
+    
+    HorizontalLayout {
+        padding_left: Theme.spacing_sm;
+        padding_right: Theme.spacing_sm;
+        spacing: Theme.spacing_xs;
+        alignment: space_between;
+        
+        // Left section: Status, Language, Title
+        HorizontalLayout {
+            spacing: Theme.spacing_xs;
+            alignment: start;
+            
+            // Status indicator
+            StatusIndicator {
+                status: root.config.status;
+                size: root.compact_mode ? 8px : 12px;
+            }
+            
+            // Language selector
+            if root.config.allow_language_change: LanguageSelector {
+                current_language: root.config.language;
+                available_languages: root.available_languages;
+                compact_mode: root.compact_mode || root.layout_mode == LayoutMode.Grid2x2;
+                show_confidence: root.show_confidence;
+                disabled: root.config.status == PaneStatus.ReadOnly;
+                
+                language_changed(lang) => {
+                    root.language_changed(root.config.id, lang);
+                }
+            }
+            
+            // Static language display (when language change is not allowed)
+            if !root.config.allow_language_change: Rectangle {
+                width: root.compact_mode ? 60px : 100px;
+                height: 24px;
+                background: Colors.background;
+                border_width: 1px;
+                border_color: Colors.border;
+                border_radius: Theme.border_radius_sm;
+                
+                HorizontalLayout {
+                    padding: 4px;
+                    spacing: 4px;
+                    alignment: center;
+                    
+                    Text {
+                        text: root.config.language.flag;
+                        font_size: Theme.font_size_small;
+                        vertical_alignment: center;
+                    }
+                    
+                    Text {
+                        text: root.compact_mode ? root.config.language.code.to_uppercase() : root.config.language.name;
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_primary;
+                        vertical_alignment: center;
+                    }
+                }
+            }
+            
+            // Pane title (if not too compact)
+            if !root.compact_mode && root.layout_mode != LayoutMode.Grid2x2: VerticalLayout {
+                spacing: 0px;
+                alignment: center;
+                
+                Text {
+                    text: root.config.title;
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_primary;
+                    font_weight: 600;
+                    vertical_alignment: center;
+                }
+                
+                // Subtitle with pane type
+                Text {
+                    text: root.config.pane_type == PaneType.Source ? "Source" :
+                          root.config.pane_type == PaneType.Target ? "Target" :
+                          root.config.pane_type == PaneType.Reference ? "Reference" :
+                          "Preview";
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_muted;
+                    vertical_alignment: center;
+                }
+            }
+        }
+        
+        // Center section: Progress and stats (flexible space)
+        HorizontalLayout {
+            spacing: Theme.spacing_sm;
+            alignment: center;
+            
+            // Progress indicator
+            if root.show_progress && root.config.progress > 0.0 && !root.compact_mode: ProgressIndicator {
+                progress: root.config.progress;
+                width_value: 80px;
+                height_value: 3px;
+                show_percentage: false;
+            }
+            
+            // Alignment confidence
+            if root.show_confidence && root.config.alignment_score > 0.0 && !root.compact_mode: HorizontalLayout {
+                spacing: 4px;
+                alignment: center;
+                
+                Text {
+                    text: "⚡";
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                }
+                
+                ConfidenceIndicator {
+                    confidence: root.config.alignment_score;
+                    size: 14px;
+                }
+            }
+            
+            // Word count
+            if root.show_word_count && root.config.show_stats && !root.compact_mode: WordCountDisplay {
+                word_count: root.config.word_count;
+                char_count: root.config.char_count;
+                compact: root.layout_mode == LayoutMode.Grid2x2;
+            }
+        }
+        
+        // Right section: Actions and controls
+        HorizontalLayout {
+            spacing: 2px;
+            alignment: end;
+            
+            // Dirty indicator (unsaved changes)
+            if root.config.is_dirty: Text {
+                text: "●";
+                font_size: Theme.font_size_base;
+                color: Colors.warning;
+                vertical_alignment: center;
+            }
+            
+            // Sync indicator for active synchronization
+            if root.config.status == PaneStatus.Syncing: Text {
+                text: "🔄";
+                font_size: Theme.font_size_small;
+                vertical_alignment: center;
+                
+                animate rotation {
+                    duration: 2s;
+                    iteration_count: -1;
+                    easing: linear;
+                }
+                rotation: 360deg;
+            }
+            
+            // Action buttons (when space allows)
+            if root.show_actions && !root.compact_mode: HorizontalLayout {
+                spacing: 2px;
+                alignment: end;
+                
+                // Settings button
+                PaneActionButton {
+                    icon: "⚙";
+                    tooltip: "Pane Settings";
+                    
+                    clicked => {
+                        root.settings_opened(root.config.id);
+                    }
+                }
+                
+                // Help button
+                PaneActionButton {
+                    icon: "?";
+                    tooltip: "Help";
+                    
+                    clicked => {
+                        root.help_requested(root.config.id);
+                    }
+                }
+                
+                // Minimize/Maximize button
+                PaneActionButton {
+                    icon: root.config.status == PaneStatus.Active ? "▼" : "▲";
+                    tooltip: root.config.status == PaneStatus.Active ? "Minimize Pane" : "Maximize Pane";
+                    
+                    clicked => {
+                        root.pane_action(root.config.id, "toggle_size");
+                    }
+                }
+                
+                // Close button (only for non-essential panes)
+                if root.config.pane_type == PaneType.Reference || root.config.pane_type == PaneType.Preview: PaneActionButton {
+                    icon: "✖";
+                    tooltip: "Close Pane";
+                    danger: true;
+                    
+                    clicked => {
+                        root.pane_action(root.config.id, "close");
+                    }
+                }
+            }
+        }
+    }
+    
+    // Accessibility enhancements
+    accessible_role: AccessibleRole.group;
+    accessible_label: "Pane header for " + root.config.title + " in " + root.config.language.display_name;
+    accessible_description: "Status: " + 
+        (root.config.status == PaneStatus.Active ? "Active" :
+         root.config.status == PaneStatus.Syncing ? "Synchronizing" :
+         root.config.status == PaneStatus.Error ? "Error" :
+         root.config.status == PaneStatus.ReadOnly ? "Read-only" :
+         root.config.status == PaneStatus.Loading ? "Loading" : "Inactive") +
+        ". Word count: " + root.config.word_count + 
+        ". Character count: " + root.config.char_count +
+        (root.config.is_dirty ? ". Has unsaved changes." : "");
+}
+
+// Multi-pane header container for coordinated layout
+export component MultiPaneHeaderContainer inherits Rectangle {
+    in property <[PaneConfig]> pane_configs: [];
+    in property <LayoutMode> layout_mode: LayoutMode.Horizontal;
+    in property <[LanguageInfo]> available_languages: [];
+    in property <bool> show_quick_switcher: true;
+    in property <bool> synchronized_scrolling: false;
+    
+    callback language_changed(string /* pane_id */, LanguageInfo);
+    callback pane_focused(string /* pane_id */);
+    callback pane_action(string /* pane_id */, string /* action */);
+    callback layout_changed(LayoutMode);
+    callback sync_toggled(bool);
+    callback quick_language_swap();
+    
+    height: 48px;
+    background: Colors.surface;
+    border_width: 1px;
+    border_color: Colors.border;
+    
+    // Layout-specific arrangements
+    if root.layout_mode == LayoutMode.Horizontal || root.layout_mode == LayoutMode.Vertical: HorizontalLayout {
+        spacing: 2px;
+        
+        // Two-pane layout
+        for config[index] in root.pane_configs: PaneHeader {
+            config: config;
+            layout_mode: root.layout_mode;
+            available_languages: root.available_languages;
+            compact_mode: false;
+            
+            language_changed(pane_id, lang) => {
+                root.language_changed(pane_id, lang);
+            }
+            
+            pane_focused(pane_id) => {
+                root.pane_focused(pane_id);
+            }
+            
+            pane_action(pane_id, action) => {
+                root.pane_action(pane_id, action);
+            }
+        }
+        
+        // Quick language switcher (if enabled and exactly 2 panes)
+        if root.show_quick_switcher && root.pane_configs.length == 2: Rectangle {
+            width: 1px;
+            height: 20px;
+            background: Colors.border;
+        }
+        
+        if root.show_quick_switcher && root.pane_configs.length == 2: QuickLanguageSwitcher {
+            source_language: root.pane_configs[0].language;
+            target_language: root.pane_configs[1].language;
+            
+            swap_languages => {
+                root.quick_language_swap();
+            }
+        }
+    }
+    
+    if root.layout_mode == LayoutMode.Grid2x2: GridLayout {
+        spacing: 2px;
+        
+        // 2x2 grid layout with compact headers
+        for config[index] in root.pane_configs: PaneHeader {
+            config: config;
+            layout_mode: root.layout_mode;
+            available_languages: root.available_languages;
+            compact_mode: true;
+            
+            language_changed(pane_id, lang) => {
+                root.language_changed(pane_id, lang);
+            }
+            
+            pane_focused(pane_id) => {
+                root.pane_focused(pane_id);
+            }
+            
+            pane_action(pane_id, action) => {
+                root.pane_action(pane_id, action);
+            }
+        }
+    }
+    
+    // Global controls toolbar
+    global_controls := Rectangle {
+        x: parent.width - 120px;
+        y: 2px;
+        width: 118px;
+        height: parent.height - 4px;
+        background: Colors.surface_hover;
+        border_radius: Theme.border_radius_sm;
+        
+        HorizontalLayout {
+            padding: 4px;
+            spacing: 4px;
+            alignment: center;
+            
+            // Layout mode toggle
+            layout_toggle := TouchArea {
+                width: 28px;
+                height: 24px;
+                
+                clicked => {
+                    let next_mode = root.layout_mode == LayoutMode.Horizontal ? LayoutMode.Vertical :
+                                   root.layout_mode == LayoutMode.Vertical ? LayoutMode.Grid2x2 :
+                                   LayoutMode.Horizontal;
+                    root.layout_changed(next_mode);
+                }
+                
+                Rectangle {
+                    background: parent.has_hover ? Colors.primary_light : transparent;
+                    border_radius: Theme.border_radius_sm;
+                    
+                    Text {
+                        text: root.layout_mode == LayoutMode.Horizontal ? "⬌" :
+                              root.layout_mode == LayoutMode.Vertical ? "⬍" : "⊞";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_primary;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                    }
+                }
+            }
+            
+            // Sync toggle
+            sync_toggle := TouchArea {
+                width: 28px;
+                height: 24px;
+                
+                clicked => {
+                    root.sync_toggled(!root.synchronized_scrolling);
+                }
+                
+                Rectangle {
+                    background: root.synchronized_scrolling ? Colors.success_light : 
+                               parent.has_hover ? Colors.surface_hover : transparent;
+                    border_width: root.synchronized_scrolling ? 1px : 0px;
+                    border_color: Colors.success;
+                    border_radius: Theme.border_radius_sm;
+                    
+                    Text {
+                        text: "🔄";
+                        font_size: Theme.font_size_small;
+                        color: root.synchronized_scrolling ? Colors.success : Colors.text_muted;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                        
+                        animate rotation {
+                            duration: 2s;
+                            iteration_count: -1;
+                            easing: linear;
+                        }
+                        rotation: root.synchronized_scrolling ? 360deg : 0deg;
+                    }
+                }
+            }
+            
+            // More options button
+            options_button := TouchArea {
+                width: 28px;
+                height: 24px;
+                
+                clicked => {
+                    root.pane_action("global", "options");
+                }
+                
+                Rectangle {
+                    background: parent.has_hover ? Colors.surface_hover : transparent;
+                    border_radius: Theme.border_radius_sm;
+                    
+                    Text {
+                        text: "⋯";
+                        font_size: Theme.font_size_base;
+                        color: Colors.text_primary;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                    }
+                }
+            }
+        }
+    }
+}

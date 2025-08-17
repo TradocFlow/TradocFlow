@@ -1,0 +1,659 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+
+// Problem highlighting and visual feedback system for alignment issues
+// Provides real-time visual indicators for alignment quality problems
+
+// Problem severity levels for visual categorization
+export enum ProblemSeverity {
+    Info,         // Light blue - informational
+    Warning,      // Yellow - needs attention
+    Error,        // Red - requires correction
+    Critical,     // Dark red - severe problem
+}
+
+// Problem area data structure
+export struct ProblemArea {
+    id: string,
+    start_position: int,
+    end_position: int,
+    sentence_index: int,
+    severity: ProblemSeverity,
+    issue_type: string,           // "length_mismatch", "structure_divergence", etc.
+    confidence_score: float,
+    description: string,
+    suggestion: string,
+    auto_fixable: bool,
+    affected_pane_ids: [string],
+    created_at: string,
+}
+
+// Overlay display configuration
+export struct OverlayConfig {
+    show_problem_highlights: bool,
+    show_confidence_overlay: bool,
+    show_alignment_lines: bool,
+    show_problem_tooltips: bool,
+    enable_hover_details: bool,
+    auto_highlight_critical: bool,
+    fade_resolved_problems: bool,
+    animation_enabled: bool,
+}
+
+// Visual styling configuration
+export struct OverlayStyle {
+    highlight_opacity: float,      // 0.1 to 0.8
+    border_thickness: float,       // 1.0 to 4.0
+    corner_radius: float,          // 0.0 to 8.0
+    glow_effect: bool,
+    high_contrast_mode: bool,
+    color_blind_friendly: bool,
+    animation_duration: duration,
+}
+
+// Alignment connection visual data
+export struct AlignmentConnection {
+    source_sentence_index: int,
+    target_sentence_index: int,
+    source_pane_id: string,
+    target_pane_id: string,
+    confidence_score: float,
+    connection_type: string,      // "strong", "weak", "uncertain", "broken"
+    is_validated: bool,
+    has_problems: bool,
+}
+
+// Filter configuration for problem display
+export struct ProblemFilter {
+    min_severity: ProblemSeverity,
+    max_severity: ProblemSeverity,
+    show_resolved: bool,
+    show_auto_fixable: bool,
+    issue_types: [string],
+    affected_panes: [string],
+}
+
+// Main alignment feedback overlay component
+export component AlignmentFeedbackOverlay inherits Rectangle {
+    // Configuration properties
+    in property <[ProblemArea]> problem_areas: [];
+    in property <[AlignmentConnection]> alignment_connections: [];
+    in property <OverlayConfig> overlay_config: {
+        show_problem_highlights: true,
+        show_confidence_overlay: true,
+        show_alignment_lines: true,
+        show_problem_tooltips: true,
+        enable_hover_details: true,
+        auto_highlight_critical: true,
+        fade_resolved_problems: true,
+        animation_enabled: true,
+    };
+    in property <OverlayStyle> overlay_style: {
+        highlight_opacity: 0.3,
+        border_thickness: 2.0,
+        corner_radius: 4.0,
+        glow_effect: true,
+        high_contrast_mode: false,
+        color_blind_friendly: false,
+        animation_duration: 250ms,
+    };
+    in property <ProblemFilter> problem_filter: {
+        min_severity: ProblemSeverity.Info,
+        max_severity: ProblemSeverity.Critical,
+        show_resolved: false,
+        show_auto_fixable: true,
+        issue_types: [],
+        affected_panes: [],
+    };
+    
+    // Editor layout properties (from parent editor)
+    in property <int> editor_pane_count: 2;
+    in property <[string]> editor_pane_ids: ["pane-1", "pane-2"];
+    in property <float> pane_width: 300.0;
+    in property <float> content_height: 600.0;
+    in property <string> layout_mode: "horizontal"; // "horizontal", "vertical"
+    
+    // State properties
+    in-out property <int> hovered_problem_index: -1;
+    in-out property <int> selected_problem_index: -1;
+    in-out property <bool> show_all_connections: false;
+    in-out property <string> active_pane_id: "";
+    
+    // Interaction callbacks
+    callback problem_clicked(int /* index */, ProblemArea);
+    callback problem_hovered(int /* index */, ProblemArea);
+    callback connection_clicked(int /* index */, AlignmentConnection);
+    callback auto_fix_requested(int /* problem_index */);
+    callback manual_fix_requested(int /* problem_index */);
+    callback problem_dismissed(int /* problem_index */);
+    
+    // Visual feedback callbacks
+    callback highlight_sentence_requested(string /* pane_id */, int /* sentence_index */);
+    callback show_problem_details(ProblemArea);
+    callback show_suggestion_popup(string /* suggestion */, float /* x */, float /* y */);
+    
+    background: transparent;
+    
+    // Filter problem areas based on current filter settings
+    property <[ProblemArea]> filtered_problems: root.filter_problems();
+    
+    // Main overlay container
+    overlay_container := Rectangle {
+        width: parent.width;
+        height: parent.height;
+        background: transparent;
+        
+        // Problem highlight overlays
+        if root.overlay_config.show_problem_highlights: problems_layer := Rectangle {
+            width: parent.width;
+            height: parent.height;
+            background: transparent;
+            
+            for problem[problem_index] in root.filtered_problems: problem_highlight := Rectangle {
+                x: self.calculate_problem_x(problem);
+                y: self.calculate_problem_y(problem);
+                width: self.calculate_problem_width(problem);
+                height: self.calculate_problem_height(problem);
+                background: self.get_problem_color(problem);
+                border_radius: root.overlay_style.corner_radius;
+                border_width: root.overlay_style.border_thickness;
+                border_color: self.get_problem_border_color(problem);
+                opacity: problem_index == root.hovered_problem_index ? 
+                    root.overlay_style.highlight_opacity + 0.2 : 
+                    root.overlay_style.highlight_opacity;
+                
+                // Glow effect for critical problems
+                states [
+                    critical when problem.severity == ProblemSeverity.Critical && root.overlay_style.glow_effect: {
+                        drop_shadow_blur: 8px;
+                        drop_shadow_color: self.get_problem_border_color(problem);
+                        drop_shadow_offset_x: 0px;
+                        drop_shadow_offset_y: 0px;
+                    }
+                    hover when problem_touch.has_hover: {
+                        opacity: root.overlay_style.highlight_opacity + 0.3;
+                        border_width: root.overlay_style.border_thickness + 1.0;
+                    }
+                ]
+                
+                // Problem icon indicator
+                problem_icon := Rectangle {
+                    width: 20px;
+                    height: 20px;
+                    x: parent.width - 22px;
+                    y: -10px;
+                    background: self.get_problem_border_color(problem);
+                    border_radius: 10px;
+                    border_width: 2px;
+                    border_color: Colors.background;
+                    
+                    Text {
+                        text: self.get_problem_icon(problem.severity);
+                        font_size: 12px;
+                        color: Colors.background;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                        font_weight: 600;
+                    }
+                    
+                    function get_problem_icon(severity: ProblemSeverity) -> string {
+                        if severity == ProblemSeverity.Critical {
+                            return "⚠";
+                        } else if severity == ProblemSeverity.Error {
+                            return "✗";
+                        } else if severity == ProblemSeverity.Warning {
+                            return "!";
+                        } else {
+                            return "i";
+                        }
+                    }
+                }
+                
+                // Tooltip area
+                if root.overlay_config.show_problem_tooltips && problem_index == root.hovered_problem_index: tooltip := Rectangle {
+                    x: parent.width + 10px;
+                    y: 0px;
+                    width: 250px;
+                    height: 80px;
+                    background: Colors.surface;
+                    border_radius: Theme.border_radius_md;
+                    border_width: 1px;
+                    border_color: Colors.border;
+                    drop_shadow_blur: 4px;
+                    drop_shadow_color: Colors.shadow;
+                    z: 100;
+                    
+                    VerticalLayout {
+                        padding: Theme.spacing_sm;
+                        spacing: 4px;
+                        
+                        Text {
+                            text: problem.description;
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_primary;
+                            font_weight: 600;
+                            wrap: text_wrap;
+                        }
+                        
+                        Text {
+                            text: problem.suggestion;
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_secondary;
+                            wrap: text_wrap;
+                        }
+                        
+                        HorizontalLayout {
+                            spacing: Theme.spacing_xs;
+                            
+                            Text {
+                                text: "Confidence: " + Math.round(problem.confidence_score * 100) + "%";
+                                font_size: 10px;
+                                color: Colors.text_muted;
+                            }
+                            
+                            if problem.auto_fixable: Text {
+                                text: "🔧 Auto-fixable";
+                                font_size: 10px;
+                                color: Colors.info;
+                            }
+                        }
+                    }
+                }
+                
+                problem_touch := TouchArea {
+                    mouse_cursor: pointer;
+                    
+                    clicked => {
+                        root.selected_problem_index = problem_index;
+                        root.problem_clicked(problem_index, problem);
+                        
+                        if problem.auto_fixable {
+                            root.auto_fix_requested(problem_index);
+                        } else {
+                            root.manual_fix_requested(problem_index);
+                        }
+                    }
+                    
+                    pointer_event(event) => {
+                        if event.kind == PointerEventKind.move {
+                            root.hovered_problem_index = problem_index;
+                            root.problem_hovered(problem_index, problem);
+                        }
+                    }
+                    
+                    moved => {
+                        root.hovered_problem_index = -1;
+                    }
+                }
+                
+                function calculate_problem_x(problem: ProblemArea) -> length {
+                    // Calculate x position based on pane and position
+                    let pane_index = root.get_pane_index(problem.affected_pane_ids[0]);
+                    return pane_index * root.pane_width + Theme.spacing_sm;
+                }
+                
+                function calculate_problem_y(problem: ProblemArea) -> length {
+                    // Calculate y position based on sentence position
+                    return (problem.start_position / 1000.0) * root.content_height;
+                }
+                
+                function calculate_problem_width(problem: ProblemArea) -> length {
+                    return root.pane_width - Theme.spacing_md;
+                }
+                
+                function calculate_problem_height(problem: ProblemArea) -> length {
+                    let sentence_height = (problem.end_position - problem.start_position) / 1000.0 * root.content_height;
+                    return max(20px, sentence_height);
+                }
+                
+                function get_problem_color(problem: ProblemArea) -> color {
+                    if root.overlay_style.color_blind_friendly {
+                        // Color-blind friendly palette
+                        if problem.severity == ProblemSeverity.Critical {
+                            return #8b0000; // Dark red
+                        } else if problem.severity == ProblemSeverity.Error {
+                            return #d2691e; // Orange red
+                        } else if problem.severity == ProblemSeverity.Warning {
+                            return #ffd700; // Gold
+                        } else {
+                            return #4169e1; // Royal blue
+                        }
+                    } else {
+                        // Standard color palette
+                        if problem.severity == ProblemSeverity.Critical {
+                            return Colors.error;
+                        } else if problem.severity == ProblemSeverity.Error {
+                            return #ff6b6b;
+                        } else if problem.severity == ProblemSeverity.Warning {
+                            return Colors.warning;
+                        } else {
+                            return Colors.info;
+                        }
+                    }
+                }
+                
+                function get_problem_border_color(problem: ProblemArea) -> color {
+                    let base_color = self.get_problem_color(problem);
+                    return root.overlay_style.high_contrast_mode ? base_color.darker(0.3) : base_color.darker(0.2);
+                }
+            }
+        }
+        
+        // Alignment connection lines
+        if root.overlay_config.show_alignment_lines && root.layout_mode == "horizontal": connections_layer := Rectangle {
+            width: parent.width;
+            height: parent.height;
+            background: transparent;
+            
+            for connection[conn_index] in root.alignment_connections: alignment_line := Rectangle {
+                x: root.pane_width;
+                y: self.calculate_connection_y(connection);
+                width: 2px;
+                height: self.calculate_connection_height(connection);
+                background: self.get_connection_color(connection);
+                opacity: connection.has_problems ? 0.5 : 0.8;
+                
+                // Connection strength indicator
+                connection_strength := Rectangle {
+                    width: 6px;
+                    height: 6px;
+                    x: -2px;
+                    y: parent.height / 2 - 3px;
+                    background: self.get_connection_color(connection);
+                    border_radius: 3px;
+                    border_width: 1px;
+                    border_color: Colors.background;
+                }
+                
+                // Validation status indicator
+                if connection.is_validated: validation_check := Rectangle {
+                    width: 12px;
+                    height: 12px;
+                    x: -5px;
+                    y: parent.height / 2 - 6px;
+                    background: Colors.success;
+                    border_radius: 6px;
+                    border_width: 1px;
+                    border_color: Colors.background;
+                    
+                    Text {
+                        text: "✓";
+                        font_size: 8px;
+                        color: Colors.background;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                    }
+                }
+                
+                connection_touch := TouchArea {
+                    mouse_cursor: pointer;
+                    
+                    clicked => {
+                        root.connection_clicked(conn_index, connection);
+                    }
+                }
+                
+                function calculate_connection_y(connection: AlignmentConnection) -> length {
+                    return (connection.source_sentence_index * 30.0) + Theme.spacing_md;
+                }
+                
+                function calculate_connection_height(connection: AlignmentConnection) -> length {
+                    let target_y = (connection.target_sentence_index * 30.0) + Theme.spacing_md;
+                    let source_y = self.calculate_connection_y(connection);
+                    return abs(target_y - source_y) + 20px;
+                }
+                
+                function get_connection_color(connection: AlignmentConnection) -> color {
+                    if connection.connection_type == "strong" {
+                        return Colors.success;
+                    } else if connection.connection_type == "weak" {
+                        return Colors.warning;
+                    } else if connection.connection_type == "uncertain" {
+                        return Colors.info;
+                    } else {
+                        return Colors.error;
+                    }
+                }
+            }
+        }
+        
+        // Confidence overlay (heatmap-style background)
+        if root.overlay_config.show_confidence_overlay: confidence_layer := Rectangle {
+            width: parent.width;
+            height: parent.height;
+            background: transparent;
+            opacity: 0.1;
+            
+            // Would be implemented with more sophisticated rendering
+            // for actual heatmap visualization
+        }
+        
+        // Problem summary panel (floating)
+        if root.filtered_problems.length > 0: summary_panel := Rectangle {
+            width: 280px;
+            height: 120px;
+            x: parent.width - 300px;
+            y: 20px;
+            background: Colors.surface;
+            border_radius: Theme.border_radius_md;
+            border_width: 1px;
+            border_color: Colors.border;
+            drop_shadow_blur: 6px;
+            drop_shadow_color: Colors.shadow;
+            z: 50;
+            
+            VerticalLayout {
+                padding: Theme.spacing_md;
+                spacing: Theme.spacing_sm;
+                
+                // Header
+                HorizontalLayout {
+                    spacing: Theme.spacing_sm;
+                    alignment: space_between;
+                    
+                    Text {
+                        text: "Alignment Issues (" + root.filtered_problems.length + ")";
+                        font_size: Theme.font_size_base;
+                        font_weight: 600;
+                        color: Colors.text_primary;
+                    }
+                    
+                    // Close button
+                    close_button := Rectangle {
+                        width: 20px;
+                        height: 20px;
+                        background: close_button.has_hover ? Colors.surface_hover : transparent;
+                        border_radius: 10px;
+                        
+                        property <bool> has_hover: false;
+                        
+                        Text {
+                            text: "×";
+                            font_size: Theme.font_size_base;
+                            color: Colors.text_muted;
+                            horizontal_alignment: center;
+                            vertical_alignment: center;
+                        }
+                        
+                        TouchArea {
+                            mouse_cursor: pointer;
+                            
+                            pointer_event(event) => {
+                                if event.kind == PointerEventKind.move {
+                                    close_button.has_hover = true;
+                                }
+                            }
+                            
+                            moved => {
+                                close_button.has_hover = false;
+                            }
+                            
+                            clicked => {
+                                // Hide summary panel
+                            }
+                        }
+                    }
+                }
+                
+                // Problem breakdown
+                HorizontalLayout {
+                    spacing: Theme.spacing_md;
+                    
+                    for severity_info[severity_index] in [
+                        {label: "Critical", severity: ProblemSeverity.Critical, color: Colors.error},
+                        {label: "Error", severity: ProblemSeverity.Error, color: #ff6b6b},
+                        {label: "Warning", severity: ProblemSeverity.Warning, color: Colors.warning},
+                        {label: "Info", severity: ProblemSeverity.Info, color: Colors.info}
+                    ]: severity_count := VerticalLayout {
+                        spacing: 2px;
+                        alignment: center;
+                        
+                        Text {
+                            text: root.count_problems_by_severity(severity_info.severity);
+                            font_size: Theme.font_size_lg;
+                            font_weight: 600;
+                            color: severity_info.color;
+                            horizontal_alignment: center;
+                        }
+                        
+                        Text {
+                            text: severity_info.label;
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_muted;
+                            horizontal_alignment: center;
+                        }
+                    }
+                }
+                
+                // Action buttons
+                HorizontalLayout {
+                    spacing: Theme.spacing_xs;
+                    alignment: center;
+                    
+                    auto_fix_button := Rectangle {
+                        width: 80px;
+                        height: 24px;
+                        background: auto_fix_button.has_hover ? Colors.primary_hover : Colors.primary;
+                        border_radius: Theme.border_radius_sm;
+                        
+                        property <bool> has_hover: false;
+                        
+                        Text {
+                            text: "Auto Fix";
+                            font_size: Theme.font_size_small;
+                            color: Colors.background;
+                            horizontal_alignment: center;
+                            vertical_alignment: center;
+                        }
+                        
+                        TouchArea {
+                            mouse_cursor: pointer;
+                            
+                            pointer_event(event) => {
+                                if event.kind == PointerEventKind.move {
+                                    auto_fix_button.has_hover = true;
+                                }
+                            }
+                            
+                            moved => {
+                                auto_fix_button.has_hover = false;
+                            }
+                            
+                            clicked => {
+                                // Auto-fix all fixable problems
+                                for problem[problem_index] in root.filtered_problems {
+                                    if problem.auto_fixable {
+                                        root.auto_fix_requested(problem_index);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    review_button := Rectangle {
+                        width: 80px;
+                        height: 24px;
+                        background: review_button.has_hover ? Colors.surface_hover : Colors.surface;
+                        border_radius: Theme.border_radius_sm;
+                        border_width: 1px;
+                        border_color: Colors.border;
+                        
+                        property <bool> has_hover: false;
+                        
+                        Text {
+                            text: "Review All";
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_primary;
+                            horizontal_alignment: center;
+                            vertical_alignment: center;
+                        }
+                        
+                        TouchArea {
+                            mouse_cursor: pointer;
+                            
+                            pointer_event(event) => {
+                                if event.kind == PointerEventKind.move {
+                                    review_button.has_hover = true;
+                                }
+                            }
+                            
+                            moved => {
+                                review_button.has_hover = false;
+                            }
+                            
+                            clicked => {
+                                // Open review interface
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Helper functions
+    function filter_problems() -> [ProblemArea] {
+        let filtered: [ProblemArea] = [];
+        
+        for problem in root.problem_areas {
+            let severity_match = problem.severity >= root.problem_filter.min_severity && 
+                               problem.severity <= root.problem_filter.max_severity;
+            
+            let type_match = root.problem_filter.issue_types.length == 0 || 
+                           root.problem_filter.issue_types.contains(problem.issue_type);
+            
+            let pane_match = root.problem_filter.affected_panes.length == 0 || 
+                           problem.affected_pane_ids.any(|pane_id| root.problem_filter.affected_panes.contains(pane_id));
+            
+            if severity_match && type_match && pane_match {
+                filtered.push(problem);
+            }
+        }
+        
+        return filtered;
+    }
+    
+    function get_pane_index(pane_id: string) -> int {
+        for pane[index] in root.editor_pane_ids {
+            if pane == pane_id {
+                return index;
+            }
+        }
+        return 0;
+    }
+    
+    function count_problems_by_severity(severity: ProblemSeverity) -> string {
+        let count = 0;
+        for problem in root.filtered_problems {
+            if problem.severity == severity {
+                count += 1;
+            }
+        }
+        return count;
+    }
+    
+    // Accessibility support
+    accessible_role: AccessibleRole.group;
+    accessible_label: "Alignment feedback overlay showing " + root.filtered_problems.length + " problems";
+    accessible_description: "Visual overlay highlighting alignment problems and quality issues in the text editor";
+}

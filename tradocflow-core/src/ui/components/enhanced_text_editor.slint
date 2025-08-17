@@ -251,7 +251,7 @@ export component EnhancedTextEditor inherits Rectangle {
     // Focus management properties
     in property <string> editor-id: "editor-default";
     in property <string> pane-id: "pane-default";
-    in property <bool> has-editor-focus: false;
+    in-out property <bool> has-editor-focus: false;
     in property <bool> show-focus-indicator: true;
     in property <bool> enable-cursor-blink: true;
     
@@ -335,21 +335,11 @@ export component EnhancedTextEditor inherits Rectangle {
     // Touch area to capture focus requests
     editor-focus-area := TouchArea {
         clicked => {
+            // Request focus through the proper callback system
             root.focus-requested();
+            // Focus the TextEdit widget
             text-edit.focus();
         }
-        
-        // Handle focus changes (TouchArea doesn't have focus-changed callback)
-        // This will be handled by the backend
-        // focus-changed => {
-        //     if self.has-focus {
-        //         root.focus-granted();
-        //         root.editor-activated();
-        //     } else {
-        //         root.focus-lost();
-        //         root.editor-deactivated();
-        //     }
-        // }
     }
     
     ScrollView {
@@ -365,7 +355,7 @@ export component EnhancedTextEditor inherits Rectangle {
             read-only: root.read-only;
             horizontal-alignment: left;
             
-            // Focus and cursor management
+            // Focus and cursor management - this is the critical fix
             has-focus: root.has-editor-focus;
             
             // Enable cursor blinking when focused
@@ -550,10 +540,10 @@ export component EnhancedTextEditor inherits Rectangle {
         }
     }
     
-    // Cursor blinking animation timer
+    // Cursor blinking animation timer - this ensures the cursor blinks
     cursor-blink-timer := Timer {
         interval: root.blink-interval;
-        running: root.has-editor-focus && root.enable-cursor-blink && root.selection.start == root.selection.end && !root.read-only;
+        running: root.has-editor-focus && root.enable-cursor-blink && !root.read-only;
         
         triggered => {
             root.cursor-blink-state = !root.cursor-blink-state;
@@ -855,7 +845,7 @@ export component ProfessionalEditor inherits Rectangle {
     // Focus management properties
     in property <string> editor-id: "professional-editor";
     in property <string> pane-id: "default-pane";
-    in property <bool> has-focus: false;
+    in-out property <bool> has-focus: false;
     in property <bool> show-focus-indicator: true;
     
     // Text operation callbacks

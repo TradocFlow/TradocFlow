@@ -1,0 +1,668 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+
+// Real-time confidence visualization component for sentence alignment
+// Provides 0-100% confidence scores with color-coded feedback
+
+// Confidence level enumeration for visual categorization
+export enum ConfidenceLevel {
+    Excellent,    // 90-100%: Green
+    Good,         // 70-89%:  Light Green
+    Moderate,     // 50-69%:  Yellow
+    Poor,         // 30-49%:  Orange
+    Critical,     // 0-29%:   Red
+}
+
+// Individual confidence indicator data structure
+export struct ConfidenceIndicator {
+    sentence_index: int,
+    confidence_score: float,        // 0.0 to 1.0
+    confidence_level: ConfidenceLevel,
+    alignment_method: string,       // "position", "length", "ml", "user"
+    validation_status: string,      // "pending", "validated", "rejected", "review"
+    position_start: int,
+    position_end: int,
+    is_problematic: bool,
+    last_updated: string,
+}
+
+// Confidence threshold configuration
+export struct ConfidenceThresholds {
+    excellent_threshold: float,     // Default: 0.9
+    good_threshold: float,          // Default: 0.7
+    moderate_threshold: float,      // Default: 0.5
+    poor_threshold: float,          // Default: 0.3
+    auto_validation_threshold: float, // Default: 0.9
+    review_required_threshold: float, // Default: 0.5
+}
+
+// Visual configuration for confidence display
+export struct ConfidenceVisualConfig {
+    show_percentage: bool,
+    show_method_labels: bool,
+    show_validation_icons: bool,
+    compact_mode: bool,
+    animation_enabled: bool,
+    color_blind_mode: bool,
+    high_contrast_mode: bool,
+}
+
+// Confidence statistics for aggregated display
+export struct ConfidenceStatistics {
+    total_alignments: int,
+    excellent_count: int,
+    good_count: int,
+    moderate_count: int,
+    poor_count: int,
+    critical_count: int,
+    average_confidence: float,
+    improvement_trend: float,       // -1.0 to 1.0 (getting worse to better)
+}
+
+// Main confidence indicator component
+export component AlignmentConfidenceIndicator inherits Rectangle {
+    // Configuration properties
+    in property <[ConfidenceIndicator]> confidence_indicators: [];
+    in property <ConfidenceThresholds> thresholds: {
+        excellent_threshold: 0.9,
+        good_threshold: 0.7,
+        moderate_threshold: 0.5,
+        poor_threshold: 0.3,
+        auto_validation_threshold: 0.9,
+        review_required_threshold: 0.5,
+    };
+    in property <ConfidenceVisualConfig> visual_config: {
+        show_percentage: true,
+        show_method_labels: true,
+        show_validation_icons: true,
+        compact_mode: false,
+        animation_enabled: true,
+        color_blind_mode: false,
+        high_contrast_mode: false,
+    };
+    
+    // Display properties
+    in property <string> display_mode: "bar"; // "bar", "dots", "heatmap", "meter"
+    in property <int> max_visible_indicators: 20;
+    in property <bool> show_statistics: true;
+    in property <bool> show_legend: true;
+    in property <float> indicator_height: 24.0;
+    
+    // State properties
+    in-out property <int> selected_indicator_index: -1;
+    in-out property <ConfidenceStatistics> statistics: {
+        total_alignments: 0,
+        excellent_count: 0,
+        good_count: 0,
+        moderate_count: 0,
+        poor_count: 0,
+        critical_count: 0,
+        average_confidence: 0.0,
+        improvement_trend: 0.0,
+    };
+    
+    // Interaction callbacks
+    callback indicator_clicked(int /* index */, ConfidenceIndicator);
+    callback indicator_hovered(int /* index */, ConfidenceIndicator);
+    callback threshold_changed(string /* threshold_type */, float /* value */);
+    callback confidence_filter_changed(ConfidenceLevel /* min_level */);
+    
+    // Visual feedback callbacks
+    callback show_details_requested(int /* index */);
+    callback improvement_suggestions_requested(int /* index */);
+    callback manual_correction_requested(int /* index */);
+    
+    background: Colors.background;
+    border_radius: Theme.border_radius_md;
+    border_width: 1px;
+    border_color: Colors.border;
+    
+    // Update statistics when indicators change
+    changed confidence_indicators => {
+        self.update_statistics();
+    }
+    
+    VerticalLayout {
+        padding: Theme.spacing_md;
+        spacing: Theme.spacing_sm;
+        
+        // Header with title and controls
+        header_container := HorizontalLayout {
+            spacing: Theme.spacing_md;
+            alignment: space_between;
+            
+            // Title and statistics
+            HorizontalLayout {
+                spacing: Theme.spacing_sm;
+                alignment: start;
+                
+                Text {
+                    text: "Alignment Confidence";
+                    font_size: Theme.font_size_lg;
+                    font_weight: 600;
+                    color: Colors.text_primary;
+                    vertical_alignment: center;
+                }
+                
+                if root.show_statistics && root.statistics.total_alignments > 0: statistics_badge := Rectangle {
+                    width: 120px;
+                    height: 24px;
+                    background: self.get_average_confidence_color();
+                    border_radius: 12px;
+                    
+                    Text {
+                        text: Math.round(root.statistics.average_confidence * 100) + "% avg";
+                        font_size: Theme.font_size_small;
+                        color: root.statistics.average_confidence > 0.7 ? Colors.background : Colors.text_primary;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                        font_weight: 600;
+                    }
+                    
+                    function get_average_confidence_color() -> color {
+                        if root.statistics.average_confidence >= root.thresholds.excellent_threshold {
+                            return Colors.success;
+                        } else if root.statistics.average_confidence >= root.thresholds.good_threshold {
+                            return #4ade80;  // Light green
+                        } else if root.statistics.average_confidence >= root.thresholds.moderate_threshold {
+                            return Colors.warning;
+                        } else if root.statistics.average_confidence >= root.thresholds.poor_threshold {
+                            return #fb923c;  // Orange
+                        } else {
+                            return Colors.error;
+                        }
+                    }
+                }
+            }
+            
+            // Controls
+            HorizontalLayout {
+                spacing: Theme.spacing_xs;
+                alignment: end;
+                
+                // Display mode selector
+                mode_selector := Rectangle {
+                    width: 80px;
+                    height: 28px;
+                    background: Colors.surface;
+                    border_radius: Theme.border_radius_sm;
+                    border_width: 1px;
+                    border_color: Colors.border;
+                    
+                    Text {
+                        text: root.display_mode == "bar" ? "📊" : 
+                              root.display_mode == "dots" ? "⚪" :
+                              root.display_mode == "heatmap" ? "🔥" : "📏";
+                        font_size: Theme.font_size_base;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                    }
+                    
+                    TouchArea {
+                        clicked => {
+                            // Cycle through display modes
+                            if root.display_mode == "bar" {
+                                root.display_mode = "dots";
+                            } else if root.display_mode == "dots" {
+                                root.display_mode = "heatmap";
+                            } else if root.display_mode == "heatmap" {
+                                root.display_mode = "meter";
+                            } else {
+                                root.display_mode = "bar";
+                            }
+                        }
+                    }
+                }
+                
+                // Settings button
+                settings_button := Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    background: root.has_hover ? Colors.surface_hover : Colors.surface;
+                    border_radius: Theme.border_radius_sm;
+                    border_width: 1px;
+                    border_color: Colors.border;
+                    
+                    property <bool> has_hover: false;
+                    
+                    Text {
+                        text: "⚙️";
+                        font_size: Theme.font_size_base;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                    }
+                    
+                    TouchArea {
+                        mouse_cursor: pointer;
+                        
+                        pointer_event(event) => {
+                            if event.kind == PointerEventKind.move {
+                                settings_button.has_hover = true;
+                            }
+                        }
+                        
+                        moved => {
+                            settings_button.has_hover = false;
+                        }
+                        
+                        clicked => {
+                            // Show settings dialog (would be implemented by parent)
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Main confidence visualization area
+        if root.confidence_indicators.length > 0: visualization_container := Rectangle {
+            height: root.visual_config.compact_mode ? 60px : 120px;
+            background: Colors.surface;
+            border_radius: Theme.border_radius_sm;
+            border_width: 1px;
+            border_color: Colors.border;
+            
+            // Bar chart display mode
+            if root.display_mode == "bar": bar_chart := ScrollView {
+                HorizontalLayout {
+                    padding: Theme.spacing_sm;
+                    spacing: 2px;
+                    
+                    for indicator[index] in root.confidence_indicators: confidence_bar := Rectangle {
+                        width: max(2px, (parent.width - Theme.spacing_sm * 2) / root.confidence_indicators.length);
+                        height: parent.height - Theme.spacing_sm * 2;
+                        background: self.get_confidence_color(indicator.confidence_score);
+                        border_radius: 1px;
+                        
+                        // Hover tooltip
+                        states [
+                            hover when bar_touch.has_hover: {
+                                background: self.get_confidence_color(indicator.confidence_score).darker(0.1);
+                            }
+                        ]
+                        
+                        // Confidence percentage overlay
+                        if root.visual_config.show_percentage && !root.visual_config.compact_mode: Rectangle {
+                            y: parent.height - 16px;
+                            height: 14px;
+                            background: #00000080;
+                            border_radius: 2px;
+                            
+                            Text {
+                                text: Math.round(indicator.confidence_score * 100) + "%";
+                                font_size: 10px;
+                                color: Colors.background;
+                                horizontal_alignment: center;
+                                vertical_alignment: center;
+                            }
+                        }
+                        
+                        // Validation status indicator
+                        if root.visual_config.show_validation_icons: validation_indicator := Rectangle {
+                            width: 12px;
+                            height: 12px;
+                            x: parent.width - 14px;
+                            y: 2px;
+                            background: self.get_validation_color(indicator.validation_status);
+                            border_radius: 6px;
+                            border_width: 1px;
+                            border_color: Colors.background;
+                            
+                            function get_validation_color(status: string) -> color {
+                                if status == "validated" {
+                                    return Colors.success;
+                                } else if status == "rejected" {
+                                    return Colors.error;
+                                } else if status == "review" {
+                                    return Colors.warning;
+                                } else {
+                                    return Colors.text_muted;
+                                }
+                            }
+                        }
+                        
+                        bar_touch := TouchArea {
+                            mouse_cursor: pointer;
+                            
+                            clicked => {
+                                root.selected_indicator_index = index;
+                                root.indicator_clicked(index, indicator);
+                            }
+                            
+                            pointer_event(event) => {
+                                if event.kind == PointerEventKind.move {
+                                    root.indicator_hovered(index, indicator);
+                                }
+                            }
+                        }
+                        
+                        function get_confidence_color(confidence: float) -> color {
+                            if confidence >= root.thresholds.excellent_threshold {
+                                return root.visual_config.color_blind_mode ? #0066cc : Colors.success;
+                            } else if confidence >= root.thresholds.good_threshold {
+                                return root.visual_config.color_blind_mode ? #3399ff : #4ade80;
+                            } else if confidence >= root.thresholds.moderate_threshold {
+                                return root.visual_config.color_blind_mode ? #ffcc00 : Colors.warning;
+                            } else if confidence >= root.thresholds.poor_threshold {
+                                return root.visual_config.color_blind_mode ? #ff6600 : #fb923c;
+                            } else {
+                                return root.visual_config.color_blind_mode ? #cc0000 : Colors.error;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Dots display mode
+            if root.display_mode == "dots": dots_grid := Rectangle {
+                padding: Theme.spacing_sm;
+                
+                for indicator[index] in root.confidence_indicators: confidence_dot := Rectangle {
+                    width: 8px;
+                    height: 8px;
+                    x: Theme.spacing_sm + (index % 20) * 12px;
+                    y: Theme.spacing_sm + (index / 20) * 12px;
+                    background: self.get_confidence_color(indicator.confidence_score);
+                    border_radius: 4px;
+                    border_width: indicator.is_problematic ? 2px : 1px;
+                    border_color: indicator.is_problematic ? Colors.error : Colors.border;
+                    
+                    states [
+                        hover when dot_touch.has_hover: {
+                            width: 12px;
+                            height: 12px;
+                            x: Theme.spacing_sm + (index % 20) * 12px - 2px;
+                            y: Theme.spacing_sm + (index / 20) * 12px - 2px;
+                        }
+                    ]
+                    
+                    dot_touch := TouchArea {
+                        mouse_cursor: pointer;
+                        
+                        clicked => {
+                            root.selected_indicator_index = index;
+                            root.indicator_clicked(index, indicator);
+                        }
+                    }
+                    
+                    function get_confidence_color(confidence: float) -> color {
+                        if confidence >= root.thresholds.excellent_threshold {
+                            return Colors.success;
+                        } else if confidence >= root.thresholds.good_threshold {
+                            return #4ade80;
+                        } else if confidence >= root.thresholds.moderate_threshold {
+                            return Colors.warning;
+                        } else if confidence >= root.thresholds.poor_threshold {
+                            return #fb923c;
+                        } else {
+                            return Colors.error;
+                        }
+                    }
+                }
+            }
+            
+            // Heatmap display mode
+            if root.display_mode == "heatmap": heatmap_container := Rectangle {
+                padding: Theme.spacing_sm;
+                
+                for indicator[index] in root.confidence_indicators: heatmap_cell := Rectangle {
+                    width: (parent.width - Theme.spacing_sm * 2) / min(10, root.confidence_indicators.length);
+                    height: (parent.height - Theme.spacing_sm * 2) / max(1, (root.confidence_indicators.length - 1) / 10 + 1);
+                    x: Theme.spacing_sm + (index % 10) * self.width;
+                    y: Theme.spacing_sm + (index / 10) * self.height;
+                    background: self.get_heatmap_color(indicator.confidence_score);
+                    border_width: 1px;
+                    border_color: Colors.border;
+                    
+                    heatmap_touch := TouchArea {
+                        mouse_cursor: pointer;
+                        
+                        clicked => {
+                            root.selected_indicator_index = index;
+                            root.indicator_clicked(index, indicator);
+                        }
+                    }
+                    
+                    function get_heatmap_color(confidence: float) -> color {
+                        // Gradient from red (low) to green (high)
+                        let red_component = (1.0 - confidence) * 255;
+                        let green_component = confidence * 255;
+                        return @rgba(red_component, green_component, 50, 0.8);
+                    }
+                }
+            }
+            
+            // Meter display mode (circular progress indicators)
+            if root.display_mode == "meter": meter_container := Rectangle {
+                padding: Theme.spacing_sm;
+                
+                for indicator[index] in root.confidence_indicators: confidence_meter := Rectangle {
+                    width: 40px;
+                    height: 40px;
+                    x: Theme.spacing_sm + (index % 8) * 50px;
+                    y: Theme.spacing_sm + (index / 8) * 50px;
+                    
+                    // Background circle
+                    background_circle := Rectangle {
+                        width: 36px;
+                        height: 36px;
+                        x: 2px;
+                        y: 2px;
+                        background: Colors.surface_hover;
+                        border_radius: 18px;
+                        border_width: 2px;
+                        border_color: Colors.border;
+                    }
+                    
+                    // Progress circle (simplified - would use Path in full implementation)
+                    progress_indicator := Rectangle {
+                        width: 32px;
+                        height: 32px;
+                        x: 4px;
+                        y: 4px;
+                        border_radius: 16px;
+                        border_width: 3px;
+                        border_color: self.get_confidence_color(indicator.confidence_score);
+                        background: transparent;
+                    }
+                    
+                    // Percentage text
+                    Text {
+                        text: Math.round(indicator.confidence_score * 100) + "%";
+                        font_size: 10px;
+                        color: Colors.text_primary;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                        font_weight: 600;
+                    }
+                    
+                    meter_touch := TouchArea {
+                        mouse_cursor: pointer;
+                        
+                        clicked => {
+                            root.selected_indicator_index = index;
+                            root.indicator_clicked(index, indicator);
+                        }
+                    }
+                    
+                    function get_confidence_color(confidence: float) -> color {
+                        if confidence >= root.thresholds.excellent_threshold {
+                            return Colors.success;
+                        } else if confidence >= root.thresholds.good_threshold {
+                            return #4ade80;
+                        } else if confidence >= root.thresholds.moderate_threshold {
+                            return Colors.warning;
+                        } else if confidence >= root.thresholds.poor_threshold {
+                            return #fb923c;
+                        } else {
+                            return Colors.error;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Legend and statistics summary
+        if root.show_legend || root.show_statistics: footer_container := HorizontalLayout {
+            spacing: Theme.spacing_md;
+            alignment: space_between;
+            
+            // Color legend
+            if root.show_legend: legend_container := HorizontalLayout {
+                spacing: Theme.spacing_sm;
+                alignment: start;
+                
+                Text {
+                    text: "Legend:";
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_secondary;
+                    vertical_alignment: center;
+                }
+                
+                for level[level_index] in [
+                    {label: "Excellent", color: Colors.success, threshold: root.thresholds.excellent_threshold},
+                    {label: "Good", color: #4ade80, threshold: root.thresholds.good_threshold},
+                    {label: "Moderate", color: Colors.warning, threshold: root.thresholds.moderate_threshold},
+                    {label: "Poor", color: #fb923c, threshold: root.thresholds.poor_threshold},
+                    {label: "Critical", color: Colors.error, threshold: 0.0}
+                ]: legend_item := HorizontalLayout {
+                    spacing: 4px;
+                    alignment: start;
+                    
+                    Rectangle {
+                        width: 12px;
+                        height: 12px;
+                        background: level.color;
+                        border_radius: 2px;
+                        border_width: 1px;
+                        border_color: Colors.border;
+                    }
+                    
+                    Text {
+                        text: level.label;
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        vertical_alignment: center;
+                    }
+                }
+            }
+            
+            // Statistics summary
+            if root.show_statistics && root.statistics.total_alignments > 0: stats_summary := HorizontalLayout {
+                spacing: Theme.spacing_sm;
+                alignment: end;
+                
+                Text {
+                    text: "Total: " + root.statistics.total_alignments;
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_secondary;
+                    vertical_alignment: center;
+                }
+                
+                Text {
+                    text: "Good+: " + (root.statistics.excellent_count + root.statistics.good_count);
+                    font_size: Theme.font_size_small;
+                    color: Colors.success;
+                    vertical_alignment: center;
+                }
+                
+                if root.statistics.critical_count > 0: Text {
+                    text: "Critical: " + root.statistics.critical_count;
+                    font_size: Theme.font_size_small;
+                    color: Colors.error;
+                    vertical_alignment: center;
+                }
+                
+                // Trend indicator
+                if root.statistics.improvement_trend != 0: Text {
+                    text: root.statistics.improvement_trend > 0 ? "📈" : "📉";
+                    font_size: Theme.font_size_small;
+                    vertical_alignment: center;
+                }
+            }
+        }
+        
+        // Empty state
+        if root.confidence_indicators.length == 0: empty_state := Rectangle {
+            height: 100px;
+            background: Colors.surface;
+            border_radius: Theme.border_radius_sm;
+            border_width: 1px;
+            border_color: Colors.border;
+            border_style: dashed;
+            
+            VerticalLayout {
+                alignment: center;
+                spacing: Theme.spacing_sm;
+                
+                Text {
+                    text: "📊";
+                    font_size: Theme.font_size_xxl;
+                    horizontal_alignment: center;
+                    color: Colors.text_muted;
+                }
+                
+                Text {
+                    text: "No alignment data available";
+                    font_size: Theme.font_size_base;
+                    color: Colors.text_muted;
+                    horizontal_alignment: center;
+                }
+                
+                Text {
+                    text: "Load documents to see confidence indicators";
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_muted;
+                    horizontal_alignment: center;
+                }
+            }
+        }
+    }
+    
+    // Helper function to update statistics
+    function update_statistics() {
+        let total = root.confidence_indicators.length;
+        let excellent = 0;
+        let good = 0;
+        let moderate = 0;
+        let poor = 0;
+        let critical = 0;
+        let sum_confidence = 0.0;
+        
+        for indicator in root.confidence_indicators {
+            sum_confidence += indicator.confidence_score;
+            
+            if indicator.confidence_score >= root.thresholds.excellent_threshold {
+                excellent += 1;
+            } else if indicator.confidence_score >= root.thresholds.good_threshold {
+                good += 1;
+            } else if indicator.confidence_score >= root.thresholds.moderate_threshold {
+                moderate += 1;
+            } else if indicator.confidence_score >= root.thresholds.poor_threshold {
+                poor += 1;
+            } else {
+                critical += 1;
+            }
+        }
+        
+        root.statistics = {
+            total_alignments: total,
+            excellent_count: excellent,
+            good_count: good,
+            moderate_count: moderate,
+            poor_count: poor,
+            critical_count: critical,
+            average_confidence: total > 0 ? sum_confidence / total : 0.0,
+            improvement_trend: 0.0, // Would be calculated based on historical data
+        };
+    }
+    
+    // Accessibility support
+    accessible_role: AccessibleRole.group;
+    accessible_label: "Alignment confidence indicators showing " + root.statistics.total_alignments + " alignments with " + Math.round(root.statistics.average_confidence * 100) + "% average confidence";
+    accessible_description: "Visual display of sentence alignment confidence scores. " + 
+        root.statistics.excellent_count + " excellent, " + 
+        root.statistics.good_count + " good, " + 
+        root.statistics.moderate_count + " moderate, " + 
+        root.statistics.poor_count + " poor, " + 
+        root.statistics.critical_count + " critical alignments.";
+}

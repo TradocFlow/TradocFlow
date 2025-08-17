@@ -1,0 +1,368 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { SynchronizedScrollContainer, ScrollSyncEvent, EnhancedScrollPosition, ContentDimensions } from "../components/synchronized_scroll_container.slint";
+import { ScrollCoordinator, CoordinationLayout, SyncGroup } from "../components/scroll_coordinator.slint";
+import { ScrollControls, UserSyncPreferences, SyncStatusInfo } from "../components/scroll_controls.slint";
+
+// Example integration showing how to use the synchronized scrolling system
+// This demonstrates a basic two-pane synchronized editor setup
+
+export component SynchronizedScrollingExample inherits Window {
+    title: "Synchronized Scrolling Example";
+    width: 1200px;
+    height: 800px;
+    
+    // Example content for demonstration
+    property <string> left_content: 
+        "This is the source document content.\n" +
+        "Line 1: Lorem ipsum dolor sit amet, consectetur adipiscing elit.\n" +
+        "Line 2: Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n" +
+        "Line 3: Ut enim ad minim veniam, quis nostrud exercitation ullamco.\n" +
+        "Line 4: Laboris nisi ut aliquip ex ea commodo consequat.\n" +
+        "Line 5: Duis aute irure dolor in reprehenderit in voluptate velit esse.\n" +
+        "Line 6: Cillum dolore eu fugiat nulla pariatur.\n" +
+        "Line 7: Excepteur sint occaecat cupidatat non proident.\n" +
+        "Line 8: Sunt in culpa qui officia deserunt mollit anim id est laborum.\n" +
+        "Line 9: Sed ut perspiciatis unde omnis iste natus error sit voluptatem.\n" +
+        "Line 10: Accusantium doloremque laudantium, totam rem aperiam.\n" +
+        "Line 11: Eaque ipsa quae ab illo inventore veritatis et quasi architecto.\n" +
+        "Line 12: Beatae vitae dicta sunt explicabo nemo enim ipsam voluptatem.\n" +
+        "Line 13: Quia voluptas sit aspernatur aut odit aut fugit.\n" +
+        "Line 14: Sed quia consequuntur magni dolores eos qui ratione.\n" +
+        "Line 15: Voluptatem sequi nesciunt neque porro quisquam est.\n" +
+        "Line 16: Qui dolorem ipsum quia dolor sit amet consectetur.\n" +
+        "Line 17: Adipisci velit sed quia non numquam eius modi tempora.\n" +
+        "Line 18: Incidunt ut labore et dolore magnam aliquam quaerat.\n" +
+        "Line 19: Voluptatem ut enim ad minima veniam quis nostrum.\n" +
+        "Line 20: Exercitationem ullam corporis suscipit laboriosam.";
+    
+    property <string> right_content: 
+        "Das ist der Zieldokumentinhalt.\n" +
+        "Zeile 1: Lorem ipsum dolor sit amet, consectetur adipiscing elit.\n" +
+        "Zeile 2: Aber ich werde Zeit-Arbeit und große Schmerzen haben.\n" +
+        "Zeile 3: Um zum Minimum zu kommen, wer wird unsere Übung üben?\n" +
+        "Zeile 4: Arbeitszeit so dass wir es bequem machen können.\n" +
+        "Zeile 5: Ich möchte schmerzfrei in der Lust sein zu fliehen.\n" +
+        "Zeile 6: Es sei denn, er leidet unter der Flucht der Schuld.\n" +
+        "Zeile 7: Außer sie sind durch Begierde verblendet und vorhersehen nicht.\n" +
+        "Zeile 8: Sie sind in der Schuld, die Pflichten verlassen weiche Seele ist Arbeit.\n" +
+        "Zeile 9: Aber um zu verstehen, woher all dieser geborene Fehler sitzt Vergnügen.\n" +
+        "Zeile 10: Vorwurf der lobenswerten Trauer, die ganze Sache ist offenbart.\n" +
+        "Zeile 11: Diese selbst, die von diesem Erfinder der Wahrheit und quasi Architekt.\n" +
+        "Zeile 12: Das glückliche Leben wird gesagt, das niemand erklärt, sogar das Vergnügen.\n" +
+        "Zeile 13: Weil das Vergnügen verachtet wird oder hasst oder flieht.\n" +
+        "Zeile 14: Aber weil große Schmerzen folgen, die durch Vernunft entstehen.\n" +
+        "Zeile 15: Vergnügen zu folgen wissen nicht noch jemand ist.\n" +
+        "Zeile 16: Wer schmerzt lorem weil Schmerz sitzt amet consectetur.\n" +
+        "Zeile 17: Fett wählen aber weil nicht niemals sein Modus Zeit.\n" +
+        "Zeile 18: Fallen so dass Arbeit und Schmerz große jemand sucht.\n" +
+        "Zeile 19: Vergnügen so dass zum Minimum veniam wer ist unser.\n" +
+        "Zeile 20: Übung ullam Körper unterstützt arbeitsam.";
+    
+    // Sync configuration
+    property <UserSyncPreferences> sync_prefs: {
+        preferred_sync_mode: "proportional",
+        preferred_layout_mode: "horizontal",
+        auto_enable_sync: true,
+        sync_sensitivity: 1.0,
+        animation_speed: 1.0,
+        visual_feedback_level: "standard",
+        performance_priority: "balanced",
+    };
+    
+    property <SyncStatusInfo> sync_status: {
+        is_syncing: true,
+        active_mode: "proportional",
+        sync_quality_percentage: 95,
+        performance_score: 92,
+        active_panes: ["left-pane", "right-pane"],
+        last_sync_source: "",
+        sync_conflicts: [],
+        drift_detected: false,
+    };
+    
+    // Layout configuration
+    property <CoordinationLayout> coord_layout: {
+        mode: "horizontal",
+        pane_count: 2,
+        primary_pane_id: "left-pane",
+        sync_groups: [{
+            group_id: "main_sync_group",
+            pane_ids: ["left-pane", "right-pane"],
+            sync_mode: "proportional",
+            master_pane_id: "left-pane",
+            sync_strength: 1.0,
+            enabled: true,
+        }],
+        master_slave_pairs: [],
+        global_sync_enabled: true,
+    };
+    
+    background: Colors.background;
+    
+    VerticalLayout {
+        spacing: Theme.spacing_sm;
+        padding: Theme.spacing_sm;
+        
+        // Title
+        Text {
+            text: "Synchronized Scrolling Example";
+            font_size: Theme.font_size_large;
+            font_weight: 700;
+            color: Colors.text_primary;
+            horizontal_alignment: center;
+        }
+        
+        // Description
+        Text {
+            text: "This example demonstrates synchronized scrolling between German and English text. " +
+                  "Scroll in either pane to see the synchronization in action.";
+            font_size: Theme.font_size_base;
+            color: Colors.text_secondary;
+            horizontal_alignment: center;
+            wrap: word_wrap;
+        }
+        
+        // Scroll coordinator (invisible coordination layer)
+        coordinator := ScrollCoordinator {
+            height: 0px;
+            layout_config: root.coord_layout;
+            intelligent_routing: true;
+            performance_optimization: true;
+            enable_analytics: true;
+            
+            coordination_started => {
+                debug("Coordination started");
+            }
+            
+            sync_event_processed(sync_event, success) => {
+                debug("Sync event processed: " + sync_event.source_pane_id + " -> success: " + success);
+            }
+            
+            performance_threshold_exceeded(metric, value) => {
+                debug("Performance threshold exceeded: " + metric + " = " + value);
+            }
+        }
+        
+        // Sync controls
+        controls := ScrollControls {
+            height: 80px;
+            user_preferences: root.sync_prefs;
+            sync_status: root.sync_status;
+            available_panes: ["left-pane", "right-pane"];
+            
+            sync_enabled_changed(enabled) => {
+                root.sync_status.is_syncing = enabled;
+                coordinator.set_global_sync_enabled(enabled);
+                debug("Sync enabled changed: " + enabled);
+            }
+            
+            sync_mode_changed(mode) => {
+                root.sync_prefs.preferred_sync_mode = mode;
+                root.sync_status.active_mode = mode;
+                debug("Sync mode changed: " + mode);
+            }
+            
+            sensitivity_changed(sensitivity) => {
+                root.sync_prefs.sync_sensitivity = sensitivity;
+                debug("Sensitivity changed: " + sensitivity);
+            }
+            
+            manual_sync_triggered => {
+                coordinator.force_sync_all_to_primary();
+                debug("Manual sync triggered");
+            }
+        }
+        
+        // Main content area with synchronized panes
+        content_area := HorizontalLayout {
+            spacing: Theme.spacing_sm;
+            
+            // Left pane (English - source)
+            left_pane := SynchronizedScrollContainer {
+                width: parent.width * 0.5;
+                pane_id: "left-pane";
+                sync_enabled: root.sync_status.is_syncing;
+                proportional_enabled: root.sync_prefs.preferred_sync_mode == "proportional";
+                smooth_animations: true;
+                sync_mode: root.sync_prefs.preferred_sync_mode;
+                sync_threshold: root.sync_prefs.sync_sensitivity;
+                show_scroll_indicators: true;
+                
+                content_dimensions: {
+                    total_lines: root.left_content.split("\n").length,
+                    total_characters: root.left_content.length,
+                    average_line_height: 18px,
+                    content_density: root.left_content.length / max(1, root.left_content.split("\n").length),
+                    language_factor: 1.0, // English baseline\n                    effective_height: root.left_content.split("\n").length * 18px,
+                };
+                
+                scroll_changed(pane_id, position) => {
+                    debug("Left pane scroll changed: " + pane_id + " at " + position.vertical_offset);
+                    
+                    // Create sync event\n                    let sync_event: ScrollSyncEvent = {
+                        source_pane_id: pane_id,
+                        target_pane_ids: ["right-pane"],
+                        source_position: position,
+                        adjustment_factor: 1.0,
+                        sync_mode: root.sync_prefs.preferred_sync_mode,
+                        timestamp: "now",
+                        priority: 1,
+                    };
+                    
+                    coordinator.handle_scroll_event(sync_event);
+                }
+                
+                sync_completed(pane_id, quality) => {
+                    debug("Left pane sync completed with quality: " + quality);
+                }
+                
+                // Content container with English text
+                Rectangle {
+                    background: Colors.surface;
+                    border_radius: Theme.border_radius_md;
+                    border_width: 1px;
+                    border_color: Colors.border;
+                    
+                    VerticalLayout {
+                        padding: Theme.spacing_md;
+                        
+                        // Header
+                        Text {
+                            text: "🇺🇸 English (Source)";
+                            font_size: Theme.font_size_base;
+                            font_weight: 600;
+                            color: Colors.primary;
+                        }
+                        
+                        // Content
+                        Text {
+                            text: root.left_content;
+                            font_size: Theme.font_size_base;
+                            color: Colors.text_primary;
+                            wrap: word_wrap;
+                            vertical_alignment: top;
+                        }
+                    }
+                }
+            }
+            
+            // Right pane (German - target)
+            right_pane := SynchronizedScrollContainer {
+                width: parent.width * 0.5;
+                pane_id: "right-pane";
+                sync_enabled: root.sync_status.is_syncing;
+                proportional_enabled: root.sync_prefs.preferred_sync_mode == "proportional";
+                smooth_animations: true;
+                sync_mode: root.sync_prefs.preferred_sync_mode;
+                sync_threshold: root.sync_prefs.sync_sensitivity;
+                show_scroll_indicators: true;
+                
+                content_dimensions: {
+                    total_lines: root.right_content.split("\n").length,
+                    total_characters: root.right_content.length,
+                    average_line_height: 18px,
+                    content_density: root.right_content.length / max(1, root.right_content.split("\n").length),
+                    language_factor: 1.1, // German typically 10% longer
+                    effective_height: root.right_content.split("\n").length * 18px,
+                };
+                
+                scroll_changed(pane_id, position) => {
+                    debug("Right pane scroll changed: " + pane_id + " at " + position.vertical_offset);
+                    
+                    // Create sync event
+                    let sync_event: ScrollSyncEvent = {
+                        source_pane_id: pane_id,
+                        target_pane_ids: ["left-pane"],
+                        source_position: position,
+                        adjustment_factor: 1.0,
+                        sync_mode: root.sync_prefs.preferred_sync_mode,
+                        timestamp: "now",
+                        priority: 1,
+                    };
+                    
+                    coordinator.handle_scroll_event(sync_event);
+                }
+                
+                sync_completed(pane_id, quality) => {
+                    debug("Right pane sync completed with quality: " + quality);
+                }
+                
+                // Content container with German text
+                Rectangle {
+                    background: Colors.surface;
+                    border_radius: Theme.border_radius_md;
+                    border_width: 1px;
+                    border_color: Colors.border;
+                    
+                    VerticalLayout {
+                        padding: Theme.spacing_md;
+                        
+                        // Header
+                        Text {
+                            text: "🇩🇪 Deutsch (Target)";
+                            font_size: Theme.font_size_base;
+                            font_weight: 600;
+                            color: Colors.success;
+                        }
+                        
+                        // Content
+                        Text {
+                            text: root.right_content;
+                            font_size: Theme.font_size_base;
+                            color: Colors.text_primary;
+                            wrap: word_wrap;
+                            vertical_alignment: top;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Status footer
+        status_footer := Rectangle {
+            height: 32px;
+            background: Colors.surface;
+            border_radius: Theme.border_radius_sm;
+            border_width: 1px;
+            border_color: Colors.border;
+            
+            HorizontalLayout {
+                padding: Theme.spacing_sm;
+                spacing: Theme.spacing_sm;
+                alignment: space_between;
+                
+                Text {
+                    text: "Sync Status: " + (root.sync_status.is_syncing ? "Active" : "Inactive");
+                    font_size: Theme.font_size_small;
+                    color: root.sync_status.is_syncing ? Colors.success : Colors.text_muted;
+                    vertical_alignment: center;
+                }
+                
+                Text {
+                    text: "Mode: " + root.sync_status.active_mode.to_uppercase();
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_secondary;
+                    vertical_alignment: center;
+                }
+                
+                Text {
+                    text: "Quality: " + root.sync_status.sync_quality_percentage + "%";
+                    font_size: Theme.font_size_small;
+                    color: root.sync_status.sync_quality_percentage > 90 ? Colors.success :
+                           root.sync_status.sync_quality_percentage > 70 ? Colors.warning : Colors.error;
+                    vertical_alignment: center;
+                }
+            }
+        }
+    }
+    
+    // Initialize the coordination system
+    init => {
+        // Register both panes with the coordinator
+        coordinator.register_pane("left-pane", left_pane, left_pane.content_dimensions);
+        coordinator.register_pane("right-pane", right_pane, right_pane.content_dimensions);
+        
+        debug("Synchronized scrolling example initialized");
+    }
+}

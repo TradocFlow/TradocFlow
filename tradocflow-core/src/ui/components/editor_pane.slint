@@ -17,7 +17,7 @@ export component EditorPane inherits Rectangle {
     // Focus management properties
     in property <string> editor-id: "editor-default";
     in property <string> pane-id: "pane-default";
-    in property <bool> has-focus: false;
+    in-out property <bool> has-focus: false;
     in property <bool> show-focus-indicator: true;
     
     // Callbacks for basic operations

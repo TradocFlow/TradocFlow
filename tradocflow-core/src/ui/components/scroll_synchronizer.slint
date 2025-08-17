@@ -1,0 +1,923 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+
+// Scroll synchronization configuration
+export struct ScrollSyncConfig {
+    enabled: bool,
+    proportional_adjustment: bool,
+    smooth_animation: bool,
+    sync_threshold: float,              // Minimum scroll difference to trigger sync
+    animation_duration: duration,
+    preserve_position_on_resize: bool,
+    debounce_ms: int,                  // Milliseconds to debounce scroll events
+    visual_feedback: bool,
+}
+
+// Scroll position information for a pane
+export struct ScrollPosition {
+    vertical_offset: length,
+    horizontal_offset: length,
+    content_height: length,
+    content_width: length,
+    viewport_height: length,
+    viewport_width: length,
+    scroll_ratio_vertical: float,       // 0.0 to 1.0
+    scroll_ratio_horizontal: float,     // 0.0 to 1.0
+}
+
+// Content metrics for proportional adjustment
+export struct ContentMetrics {
+    pane_id: string,
+    total_lines: int,
+    total_characters: int,
+    content_height: length,
+    line_height: length,
+    average_line_length: float,
+    language: string,
+    text_density: float,               // Characters per pixel
+}
+
+// Synchronized scroll event
+export struct ScrollSyncEvent {
+    source_pane_id: string,
+    target_pane_id: string,
+    source_position: ScrollPosition,
+    target_position: ScrollPosition,
+    adjustment_factor: float,          // Proportional adjustment multiplier
+    sync_type: string,                 // "proportional", "ratio", "absolute"
+    timestamp: string,
+}
+
+// Scroll synchronization status
+export struct ScrollSyncStatus {
+    is_syncing: bool,
+    sync_quality: float,               // 0.0 to 1.0 - how well synced the panes are
+    active_panes: [string],            // Pane IDs currently being synchronized
+    last_sync_source: string,          // ID of pane that triggered last sync
+    drift_compensation: float,         // Accumulated drift compensation
+    performance_score: float,          // Sync performance metric
+}
+
+// Visual feedback for scroll synchronization
+export component ScrollSyncIndicator inherits Rectangle {
+    in property <bool> is_active: false;
+    in property <float> sync_quality: 1.0;
+    in property <bool> is_source: false;
+    in property <string> sync_mode: "proportional";
+    
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    
+    background: root.is_active ? 
+        (root.sync_quality > 0.8 ? Colors.success : 
+         root.sync_quality > 0.6 ? Colors.warning : Colors.error) :
+        Colors.surface;
+    
+    border-width: root.is_source ? 2px : 1px;
+    border-color: root.is_source ? Colors.primary : Colors.border;
+    
+    opacity: root.is_active ? 1.0 : 0.5;
+    
+    // Animated pulsing when actively syncing
+    states [
+        syncing when root.is_active && root.is_source: {
+            opacity: 0.8;
+            drop-shadow-blur: 6px;
+            drop-shadow-color: Colors.primary-light;
+        }
+    ]
+    
+    animate opacity, drop-shadow-blur {
+        duration: 300ms;
+        easing: ease-in-out;
+    }
+    
+    // Sync icon
+    Text {
+        text: root.sync_mode == "proportional" ? "⚖" : 
+              root.sync_mode == "ratio" ? "%" : "=";
+        font-size: 12px;
+        color: root.is_active ? Colors.white : Colors.text-muted;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    
+    // Quality indicator ring
+    if root.is_active: Rectangle {
+        width: parent.width + 4px;
+        height: parent.height + 4px;
+        x: -2px;
+        y: -2px;
+        border-radius: (parent.width + 4px) / 2;
+        border-width: 2px;
+        border-color: transparent;
+        background: transparent;
+        
+        // Quality-based ring color
+        states [
+            excellent when root.sync_quality > 0.9: {
+                border-color: Colors.success;
+            }
+            good when root.sync_quality > 0.7: {
+                border-color: Colors.info;
+            }
+            fair when root.sync_quality > 0.5: {
+                border-color: Colors.warning;
+            }
+            poor when root.sync_quality <= 0.5: {
+                border-color: Colors.error;
+            }
+        ]
+        
+        animate border-color {
+            duration: 250ms;
+        }
+    }
+}
+
+// Scroll synchronization controls
+export component ScrollSyncControls inherits Rectangle {
+    in property <ScrollSyncConfig> config;
+    in property <ScrollSyncStatus> status;
+    in property <[string]> available_panes;
+    
+    callback sync_toggled(bool);
+    callback proportional_toggled(bool);
+    callback smooth_animation_toggled(bool);
+    callback sync_mode_changed(string);
+    callback reset_sync_positions();
+    callback calibrate_sync();
+    
+    height: 32px;
+    background: Colors.surface;
+    border-radius: Theme.border-radius-sm;
+    border-width: 1px;
+    border-color: Colors.border;
+    
+    HorizontalLayout {
+        padding: Theme.spacing-xs;
+        spacing: Theme.spacing-xs;
+        alignment: start;
+        
+        // Main sync toggle
+        sync-toggle := Rectangle {
+            width: 60px;
+            height: 24px;
+            border-radius: 12px;
+            background: root.config.enabled ? Colors.primary : Colors.surface-hover;
+            border-width: 1px;
+            border-color: root.config.enabled ? Colors.primary : Colors.border;
+            
+            states [
+                hover when sync-touch.has-hover: {
+                    background: root.config.enabled ? Colors.primary-light : Colors.surface-active;
+                }
+            ]
+            
+            sync-touch := TouchArea {
+                clicked => {
+                    root.sync-toggled(!root.config.enabled);
+                }
+            }
+            
+            HorizontalLayout {
+                padding: 2px;
+                alignment: start;
+                
+                // Toggle indicator
+                Rectangle {
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 10px;
+                    background: Colors.white;
+                    x: root.config.enabled ? parent.width - 22px : 2px;
+                    
+                    animate x {
+                        duration: 200ms;
+                        easing: ease-in-out;
+                    }
+                    
+                    Text {
+                        text: root.config.enabled ? "⚡" : "⏸";
+                        font-size: 10px;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+            
+            Text {
+                text: "Sync";
+                font-size: Theme.font-size-small;
+                color: root.config.enabled ? Colors.white : Colors.text-muted;
+                x: root.config.enabled ? 6px : 26px;
+                vertical-alignment: center;
+                
+                animate x, color {
+                    duration: 200ms;
+                }
+            }
+        }
+        
+        Rectangle { width: 1px; height: 20px; background: Colors.border; }
+        
+        // Proportional adjustment toggle
+        proportional-btn := Rectangle {
+            width: 80px;
+            height: 24px;
+            border-radius: Theme.border-radius-sm;
+            background: root.config.proportional-adjustment ? Colors.info-light : transparent;
+            border-width: 1px;
+            border-color: root.config.proportional-adjustment ? Colors.info : Colors.border;
+            
+            states [
+                hover when prop-touch.has-hover: {
+                    background: root.config.proportional-adjustment ? Colors.info : Colors.surface-hover;
+                }
+            ]
+            
+            prop-touch := TouchArea {
+                enabled: root.config.enabled;
+                clicked => {
+                    root.proportional-toggled(!root.config.proportional-adjustment);
+                }
+            }
+            
+            Text {
+                text: "Proportional";
+                font-size: Theme.font-size-small;
+                color: root.config.proportional-adjustment ? Colors.info : Colors.text-muted;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+        
+        // Smooth animation toggle
+        smooth-btn := Rectangle {
+            width: 60px;
+            height: 24px;
+            border-radius: Theme.border-radius-sm;
+            background: root.config.smooth-animation ? Colors.success-light : transparent;
+            border-width: 1px;
+            border-color: root.config.smooth-animation ? Colors.success : Colors.border;
+            
+            states [
+                hover when smooth-touch.has-hover: {
+                    background: root.config.smooth-animation ? Colors.success : Colors.surface-hover;
+                }
+            ]
+            
+            smooth-touch := TouchArea {
+                enabled: root.config.enabled;
+                clicked => {
+                    root.smooth-animation-toggled(!root.config.smooth-animation);
+                }
+            }
+            
+            Text {
+                text: "Smooth";
+                font-size: Theme.font-size-small;
+                color: root.config.smooth-animation ? Colors.success : Colors.text-muted;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+        
+        Rectangle { width: 1px; height: 20px; background: Colors.border; }
+        
+        // Sync mode selector
+        mode-selector := Rectangle {
+            width: 100px;
+            height: 24px;
+            border-radius: Theme.border-radius-sm;
+            border-width: 1px;
+            border-color: Colors.border;
+            background: Colors.background;
+            
+            property <bool> dropdown-open: false;
+            property <string> current-mode: "proportional";
+            
+            mode-touch := TouchArea {
+                enabled: root.config.enabled;
+                clicked => {
+                    mode-selector.dropdown-open = !mode-selector.dropdown-open;
+                }
+            }
+            
+            HorizontalLayout {
+                padding-left: Theme.spacing-xs;
+                padding-right: Theme.spacing-xs;
+                alignment: space-between;
+                
+                Text {
+                    text: mode-selector.current-mode == "proportional" ? "Proportional" :
+                          mode-selector.current-mode == "ratio" ? "Ratio" : "Absolute";
+                    font-size: Theme.font-size-small;
+                    color: root.config.enabled ? Colors.text-primary : Colors.text-muted;
+                    vertical-alignment: center;
+                }
+                
+                Text {
+                    text: mode-selector.dropdown-open ? "▲" : "▼";
+                    font-size: Theme.font-size-small;
+                    color: Colors.text-muted;
+                    vertical-alignment: center;
+                }
+            }
+            
+            // Dropdown menu
+            if mode-selector.dropdown-open: mode-dropdown := Rectangle {
+                y: parent.height + 2px;
+                width: parent.width;
+                height: 72px;
+                background: Colors.surface;
+                border-width: 1px;
+                border-color: Colors.border;
+                border-radius: Theme.border-radius-sm;
+                drop-shadow-blur: 8px;
+                drop-shadow-color: #00000040;
+                z: 1000;
+                
+                VerticalLayout {
+                    padding: 2px;
+                    
+                    for mode[index] in ["proportional", "ratio", "absolute"]: mode-item := TouchArea {
+                        height: 22px;
+                        
+                        clicked => {
+                            mode-selector.current-mode = mode;
+                            mode-selector.dropdown-open = false;
+                            root.sync-mode-changed(mode);
+                        }
+                        
+                        Rectangle {
+                            background: mode-item.has-hover ? Colors.surface-hover : transparent;
+                            border-radius: Theme.border-radius-sm;
+                            
+                            Text {
+                                text: mode == "proportional" ? "Proportional" :
+                                      mode == "ratio" ? "Ratio" : "Absolute";
+                                font-size: Theme.font-size-small;
+                                color: Colors.text-primary;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Rectangle { width: 1px; height: 20px; background: Colors.border; }
+        
+        // Reset button
+        reset-btn := Rectangle {
+            width: 50px;
+            height: 24px;
+            border-radius: Theme.border-radius-sm;
+            background: transparent;
+            border-width: 1px;
+            border-color: Colors.border;
+            
+            states [
+                hover when reset-touch.has-hover: {
+                    background: Colors.surface-hover;
+                    border-color: Colors.primary;
+                }
+            ]
+            
+            reset-touch := TouchArea {
+                enabled: root.config.enabled;
+                clicked => {
+                    root.reset-sync-positions();
+                }
+            }
+            
+            Text {
+                text: "Reset";
+                font-size: Theme.font-size-small;
+                color: root.config.enabled ? Colors.text-primary : Colors.text-muted;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+        
+        // Calibrate button
+        calibrate-btn := Rectangle {
+            width: 60px;
+            height: 24px;
+            border-radius: Theme.border-radius-sm;
+            background: transparent;
+            border-width: 1px;
+            border-color: Colors.border;
+            
+            states [
+                hover when cal-touch.has-hover: {
+                    background: Colors.surface-hover;
+                    border-color: Colors.info;
+                }
+            ]
+            
+            cal-touch := TouchArea {
+                enabled: root.config.enabled;
+                clicked => {
+                    root.calibrate-sync();
+                }
+            }
+            
+            Text {
+                text: "Calibrate";
+                font-size: Theme.font-size-small;
+                color: root.config.enabled ? Colors.text-primary : Colors.text-muted;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+    
+    // Status indicator
+    if root.status.is-syncing: status-indicator := Rectangle {
+        x: parent.width - 32px;
+        y: -8px;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        background: root.status.sync-quality > 0.8 ? Colors.success : 
+                   root.status.sync-quality > 0.6 ? Colors.warning : Colors.error;
+        
+        animate background {
+            duration: 300ms;
+        }
+        
+        Text {
+            text: "🔄";
+            font-size: 8px;
+            color: Colors.white;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// Synchronized scroll view wrapper
+export component SynchronizedScrollView inherits Rectangle {
+    in property <string> pane-id;
+    in property <ScrollSyncConfig> sync-config;
+    in property <ContentMetrics> content-metrics;
+    in property <bool> is-sync-source: false;
+    in-out property <ScrollPosition> scroll-position: {
+        vertical-offset: 0px,
+        horizontal-offset: 0px,
+        content-height: 1000px,
+        content-width: 800px,
+        viewport-height: 400px,
+        viewport-width: 600px,
+        scroll-ratio-vertical: 0.0,
+        scroll-ratio-horizontal: 0.0,
+    };
+    
+    // Callbacks for scroll synchronization
+    callback scroll-changed(string /* pane_id */, ScrollPosition);
+    callback sync-requested(string /* source_pane_id */, string /* target_pane_id */, ScrollPosition);
+    callback content-metrics-updated(string /* pane_id */, ContentMetrics);
+    
+    // Scroll synchronization callbacks
+    callback apply-synchronized-scroll(ScrollPosition, float /* adjustment_factor */);
+    callback scroll-sync-event(ScrollSyncEvent);
+    
+    background: Colors.editor-background;
+    
+    // Main scroll view
+    scroll-view := ScrollView {
+        viewport-width: root.scroll-position.viewport-width;
+        viewport-height: root.scroll-position.viewport-height;
+        
+        // Monitor scroll changes
+        visible-width => {
+            root.scroll-position.viewport-width = self;
+            root.update-scroll-position();
+        }
+        
+        visible-height => {
+            root.scroll-position.viewport-height = self;
+            root.update-scroll-position();
+        }
+        
+        // Content container
+        content-container := Rectangle {
+            width: root.scroll-position.content-width;
+            height: root.scroll-position.content-height;
+            
+            @children
+        }
+    }
+    
+    // Scroll synchronization indicator
+    if root.sync-config.visual-feedback: sync-indicator := ScrollSyncIndicator {
+        x: parent.width - 32px;
+        y: 8px;
+        is-active: root.sync-config.enabled;
+        sync-quality: 0.95; // Would be calculated based on actual sync quality
+        is-source: root.is-sync-source;
+        sync-mode: "proportional";
+    }
+    
+    // Private functions for scroll management
+    
+    function update-scroll-position() {
+        // Calculate scroll ratios
+        if (root.scroll-position.content-height > root.scroll-position.viewport-height) {
+            root.scroll-position.scroll-ratio-vertical = 
+                root.scroll-position.vertical-offset / 
+                (root.scroll-position.content-height - root.scroll-position.viewport-height);
+        } else {
+            root.scroll-position.scroll-ratio-vertical = 0.0;
+        }
+        
+        if (root.scroll-position.content-width > root.scroll-position.viewport-width) {
+            root.scroll-position.scroll-ratio-horizontal = 
+                root.scroll-position.horizontal-offset / 
+                (root.scroll-position.content-width - root.scroll-position.viewport-width);
+        } else {
+            root.scroll-position.scroll-ratio-horizontal = 0.0;
+        }
+        
+        // Notify about scroll change
+        if (root.sync-config.enabled) {
+            root.scroll-changed(root.pane-id, root.scroll-position);
+        }
+    }
+    
+    public function apply-sync-scroll(target-position: ScrollPosition, adjustment-factor: float) {
+        if (!root.sync-config.enabled || root.is-sync-source) {
+            return;
+        }
+        
+        // Calculate adjusted scroll position based on content differences
+        let adjusted-vertical-ratio = target-position.scroll-ratio-vertical * adjustment-factor;
+        let adjusted-horizontal-ratio = target-position.scroll-ratio-horizontal;
+        
+        // Apply bounds checking
+        if (adjusted-vertical-ratio < 0.0) { adjusted-vertical-ratio = 0.0; }
+        if (adjusted-vertical-ratio > 1.0) { adjusted-vertical-ratio = 1.0; }
+        if (adjusted-horizontal-ratio < 0.0) { adjusted-horizontal-ratio = 0.0; }
+        if (adjusted-horizontal-ratio > 1.0) { adjusted-horizontal-ratio = 1.0; }
+        
+        // Calculate absolute scroll positions
+        let new-vertical-offset = adjusted-vertical-ratio * 
+            (root.scroll-position.content-height - root.scroll-position.viewport-height);
+        let new-horizontal-offset = adjusted-horizontal-ratio * 
+            (root.scroll-position.content-width - root.scroll-position.viewport-width);
+        
+        // Apply smooth animation if enabled
+        if (root.sync-config.smooth-animation) {
+            // Animation would be handled by the backend
+            root.scroll-position.vertical-offset = new-vertical-offset;
+            root.scroll-position.horizontal-offset = new-horizontal-offset;
+        } else {
+            // Immediate scroll
+            root.scroll-position.vertical-offset = new-vertical-offset;
+            root.scroll-position.horizontal-offset = new-horizontal-offset;
+        }
+        
+        // Update scroll ratios
+        root.scroll-position.scroll-ratio-vertical = adjusted-vertical-ratio;
+        root.scroll-position.scroll-ratio-horizontal = adjusted-horizontal-ratio;
+    }
+    
+    public function set-scroll-position(vertical-offset: length, horizontal-offset: length) {
+        root.scroll-position.vertical-offset = vertical-offset;
+        root.scroll-position.horizontal-offset = horizontal-offset;
+        root.update-scroll-position();
+    }
+    
+    public function get-content-metrics() -> ContentMetrics {
+        return root.content-metrics;
+    }
+    
+    // Animation timer for smooth scrolling
+    scroll-animation-timer := Timer {
+        interval: 16ms; // 60 FPS
+        running: false;
+        
+        property <length> target-vertical: 0px;
+        property <length> target-horizontal: 0px;
+        property <length> start-vertical: 0px;
+        property <length> start-horizontal: 0px;
+        property <float> animation-progress: 0.0;
+        property <float> animation-speed: 0.1;
+        
+        triggered => {
+            if (self.animation-progress < 1.0) {
+                self.animation-progress += self.animation-speed;
+                
+                // Eased interpolation
+                let ease-progress = 1.0 - (1.0 - self.animation-progress) * (1.0 - self.animation-progress);
+                
+                root.scroll-position.vertical-offset = self.start-vertical + 
+                    (self.target-vertical - self.start-vertical) * ease-progress;
+                root.scroll-position.horizontal-offset = self.start-horizontal + 
+                    (self.target-horizontal - self.start-horizontal) * ease-progress;
+                
+                root.update-scroll-position();
+            } else {
+                self.running = false;
+                root.scroll-position.vertical-offset = self.target-vertical;
+                root.scroll-position.horizontal-offset = self.target-horizontal;
+                root.update-scroll-position();
+            }
+        }
+    }
+    
+    public function animate-to-position(vertical-offset: length, horizontal-offset: length) {
+        if (root.sync-config.smooth-animation) {
+            scroll-animation-timer.start-vertical = root.scroll-position.vertical-offset;
+            scroll-animation-timer.start-horizontal = root.scroll-position.horizontal-offset;
+            scroll-animation-timer.target-vertical = vertical-offset;
+            scroll-animation-timer.target-horizontal = horizontal-offset;
+            scroll-animation-timer.animation-progress = 0.0;
+            scroll-animation-timer.animation-speed = 0.1; // Adjustable animation speed
+            scroll-animation-timer.running = true;
+        } else {
+            root.set-scroll-position(vertical-offset, horizontal-offset);
+        }
+    }
+}
+
+// Scroll synchronization manager component
+export component ScrollSynchronizationManager inherits Rectangle {
+    in property <[string]> active-pane-ids;
+    in property <ScrollSyncConfig> config: {
+        enabled: true,
+        proportional-adjustment: true,
+        smooth-animation: true,
+        sync-threshold: 5.0,
+        animation-duration: 200ms,
+        preserve-position-on-resize: true,
+        debounce-ms: 50,
+        visual-feedback: true,
+    };
+    
+    in-out property <ScrollSyncStatus> sync-status: {
+        is-syncing: false,
+        sync-quality: 1.0,
+        active-panes: [],
+        last-sync-source: "",
+        drift-compensation: 0.0,
+        performance-score: 1.0,
+    };
+    
+    // Content metrics for each pane
+    in property <[ContentMetrics]> pane-metrics;
+    
+    // Callbacks for scroll synchronization events
+    callback scroll-sync-triggered(ScrollSyncEvent);
+    callback sync-quality-changed(float);
+    callback sync-configuration-changed(ScrollSyncConfig);
+    callback pane-scroll-changed(string /* pane_id */, ScrollPosition);
+    
+    // Configuration change callbacks
+    callback sync-enabled-changed(bool);
+    callback proportional-adjustment-changed(bool);
+    callback smooth-animation-changed(bool);
+    callback sync-mode-changed(string);
+    
+    // Management callbacks
+    callback reset-all-positions();
+    callback calibrate-synchronization();
+    callback performance-monitoring-requested();
+    
+    background: transparent;
+    
+    VerticalLayout {
+        spacing: Theme.spacing-xs;
+        
+        // Scroll synchronization controls
+        controls := ScrollSyncControls {
+            config: root.config;
+            status: root.sync-status;
+            available-panes: root.active-pane-ids;
+            
+            sync-toggled(enabled) => {
+                root.config.enabled = enabled;
+                root.sync-status.is-syncing = enabled;
+                root.sync-enabled-changed(enabled);
+                root.sync-configuration-changed(root.config);
+            }
+            
+            proportional-toggled(enabled) => {
+                root.config.proportional-adjustment = enabled;
+                root.proportional-adjustment-changed(enabled);
+                root.sync-configuration-changed(root.config);
+            }
+            
+            smooth-animation-toggled(enabled) => {
+                root.config.smooth-animation = enabled;
+                root.smooth-animation-changed(enabled);
+                root.sync-configuration-changed(root.config);
+            }
+            
+            sync-mode-changed(mode) => {
+                root.sync-mode-changed(mode);
+            }
+            
+            reset-sync-positions => {
+                root.reset-all-positions();
+            }
+            
+            calibrate-sync => {
+                root.calibrate-synchronization();
+            }
+        }
+        
+        // Sync status display
+        if root.config.visual-feedback && root.sync-status.is-syncing: status-display := Rectangle {
+            height: 24px;
+            background: Colors.surface;
+            border-radius: Theme.border-radius-sm;
+            border-width: 1px;
+            border-color: Colors.border;
+            
+            HorizontalLayout {
+                padding: Theme.spacing-xs;
+                spacing: Theme.spacing-xs;
+                alignment: space-between;
+                
+                // Active panes indicator
+                HorizontalLayout {
+                    spacing: 4px;
+                    alignment: start;
+                    
+                    Text {
+                        text: "Syncing " + root.sync-status.active-panes.length + " panes";
+                        font-size: Theme.font-size-small;
+                        color: Colors.text-secondary;
+                        vertical-alignment: center;
+                    }
+                    
+                    if root.sync-status.last-sync-source != "": Text {
+                        text: "← " + root.sync-status.last-sync-source;
+                        font-size: Theme.font-size-small;
+                        color: Colors.primary;
+                        vertical-alignment: center;
+                    }
+                }
+                
+                // Quality and performance indicators
+                HorizontalLayout {
+                    spacing: Theme.spacing-xs;
+                    alignment: end;
+                    
+                    Text {
+                        text: "Quality: " + Math.round(root.sync-status.sync-quality * 100) + "%";
+                        font-size: Theme.font-size-small;
+                        color: root.sync-status.sync-quality > 0.8 ? Colors.success :
+                               root.sync-status.sync-quality > 0.6 ? Colors.warning : Colors.error;
+                        vertical-alignment: center;
+                    }
+                    
+                    Text {
+                        text: "Performance: " + Math.round(root.sync-status.performance-score * 100) + "%";
+                        font-size: Theme.font-size-small;
+                        color: root.sync-status.performance-score > 0.8 ? Colors.success :
+                               root.sync-status.performance-score > 0.6 ? Colors.warning : Colors.error;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Scroll debounce timer to prevent excessive sync events
+    scroll-debounce-timer := Timer {
+        interval: root.config.debounce-ms * 1ms;
+        running: false;
+        
+        property <string> pending-source-pane: "";
+        property <ScrollPosition> pending-position;
+        
+        triggered => {
+            if (self.pending-source-pane != "") {
+                root.perform-scroll-sync(self.pending-source-pane, self.pending-position);
+                self.pending-source-pane = "";
+            }
+        }
+    }
+    
+    // Public functions for scroll synchronization management
+    
+    public function handle-pane-scroll(source-pane-id: string, position: ScrollPosition) {
+        if (!root.config.enabled) {
+            return;
+        }
+        
+        // Update sync status
+        root.sync-status.last-sync-source = source-pane-id;
+        root.sync-status.is-syncing = true;
+        
+        // Debounce scroll events
+        scroll-debounce-timer.pending-source-pane = source-pane-id;
+        scroll-debounce-timer.pending-position = position;
+        scroll-debounce-timer.running = true;
+        
+        // Notify about pane scroll change
+        root.pane-scroll-changed(source-pane-id, position);
+    }
+    
+    function perform-scroll-sync(source-pane-id: string, source-position: ScrollPosition) {
+        // Calculate proportional adjustments for each target pane
+        for target-pane-id in root.active-pane-ids: if target-pane-id != source-pane-id {
+            let adjustment-factor = root.calculate-adjustment-factor(source-pane-id, target-pane-id);
+            
+            // Create sync event
+            let sync-event = {
+                source-pane-id: source-pane-id,
+                target-pane-id: target-pane-id,
+                source-position: source-position,
+                target-position: {
+                    vertical-offset: source-position.vertical-offset * adjustment-factor,
+                    horizontal-offset: source-position.horizontal-offset,
+                    content-height: source-position.content-height,
+                    content-width: source-position.content-width,
+                    viewport-height: source-position.viewport-height,
+                    viewport-width: source-position.viewport-width,
+                    scroll-ratio-vertical: source-position.scroll-ratio-vertical * adjustment-factor,
+                    scroll-ratio-horizontal: source-position.scroll-ratio-horizontal,
+                },
+                adjustment-factor: adjustment-factor,
+                sync-type: root.config.proportional-adjustment ? "proportional" : "ratio",
+                timestamp: "now", // Would be actual timestamp
+            };
+            
+            // Trigger sync event
+            root.scroll-sync-triggered(sync-event);
+        }
+        
+        // Update sync quality
+        root.update-sync-quality();
+    }
+    
+    function calculate-adjustment-factor(source-pane-id: string, target-pane-id: string) -> float {
+        if (!root.config.proportional-adjustment) {
+            return 1.0;
+        }
+        
+        // Find metrics for source and target panes
+        let source-metrics: ContentMetrics = { 
+            pane-id: "", total-lines: 1, total-characters: 1, content-height: 1px, 
+            line-height: 1px, average-line-length: 1.0, language: "", text-density: 1.0 
+        };
+        let target-metrics: ContentMetrics = { 
+            pane-id: "", total-lines: 1, total-characters: 1, content-height: 1px, 
+            line-height: 1px, average-line-length: 1.0, language: "", text-density: 1.0 
+        };
+        
+        for metrics in root.pane-metrics {
+            if (metrics.pane-id == source-pane-id) {
+                source-metrics = metrics;
+            } else if (metrics.pane-id == target-pane-id) {
+                target-metrics = metrics;
+            }
+        }
+        
+        // Calculate adjustment factor based on content differences
+        if (source-metrics.total-lines > 0 && target-metrics.total-lines > 0) {
+            return target-metrics.total-lines / source-metrics.total-lines;
+        }
+        
+        return 1.0;
+    }
+    
+    function update-sync-quality() {
+        // Simple quality calculation based on recent sync performance
+        // In a real implementation, this would consider sync accuracy, timing, etc.
+        root.sync-status.sync-quality = 0.95; // Placeholder
+        root.sync-status.performance-score = 0.92; // Placeholder
+        
+        root.sync-quality-changed(root.sync-status.sync-quality);
+    }
+    
+    public function add-active-pane(pane-id: string) {
+        if (!root.sync-status.active-panes.contains(pane-id)) {
+            root.sync-status.active-panes.push(pane-id);
+        }
+    }
+    
+    public function remove-active-pane(pane-id: string) {
+        // Remove pane from active list
+        // Note: Slint doesn't have direct array removal, this would be handled in Rust
+    }
+    
+    public function reset-sync() {
+        root.sync-status.is-syncing = false;
+        root.sync-status.last-sync-source = "";
+        root.sync-status.drift-compensation = 0.0;
+        root.reset-all-positions();
+    }
+    
+    public function calibrate() {
+        // Calibration logic would analyze current content and adjust sync parameters
+        root.calibrate-synchronization();
+    }
+}

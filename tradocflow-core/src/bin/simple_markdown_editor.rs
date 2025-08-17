@@ -145,6 +145,81 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.set_status_message("Ready - Simple Markdown Editor".into());
     ui.set_status_type("info".into());
 
+    // Text editing callbacks - this is the critical missing piece!
+    let ui_handle = ui.as_weak();
+    ui.on_content_changed(move |content, language| {
+        let ui = ui_handle.unwrap();
+        println!("📝 Content changed for {}: {} chars", language, content.len());
+        // Update the document content in the UI
+        ui.set_document_content(content.clone());
+        // Mark as modified
+        ui.set_status_message(std::format!("Modified - {} characters", content.len()).into());
+        ui.set_status_type("info".into());
+    });
+
+    // Focus management callbacks - enable proper focus handling
+    let ui_handle = ui.as_weak();
+    ui.on_editor_focus_requested(move |editor_id, pane_id| {
+        let ui = ui_handle.unwrap();
+        println!("🎯 Focus requested for editor: {} in pane: {}", editor_id, pane_id);
+        ui.set_status_message(std::format!("Focus: {}", editor_id).into());
+        ui.set_status_type("info".into());
+        
+        // CRITICAL FIX: Set the proper focus properties in the UI
+        // Clear all focus states first
+        ui.set_single_editor_focused(false);
+        ui.set_left_editor_focused(false);
+        ui.set_right_editor_focused(false);
+        ui.set_pane_1_focused(false);
+        ui.set_pane_2_focused(false);
+        ui.set_pane_3_focused(false);
+        ui.set_pane_4_focused(false);
+        
+        // Set focus for the requested editor
+        match editor_id.as_str() {
+            "single-editor" => {
+                ui.set_single_editor_focused(true);
+                ui.set_active_editor_id("single-editor".into());
+                ui.set_active_pane_id("single-pane".into());
+            }
+            "left-editor" => {
+                ui.set_left_editor_focused(true);
+                ui.set_active_editor_id("left-editor".into());
+                ui.set_active_pane_id("left-pane".into());
+            }
+            "right-editor" => {
+                ui.set_right_editor_focused(true);
+                ui.set_active_editor_id("right-editor".into());
+                ui.set_active_pane_id("right-pane".into());
+            }
+            "pane-1-editor" => {
+                ui.set_pane_1_focused(true);
+                ui.set_active_editor_id("pane-1-editor".into());
+                ui.set_active_pane_id("pane-1".into());
+            }
+            "pane-2-editor" => {
+                ui.set_pane_2_focused(true);
+                ui.set_active_editor_id("pane-2-editor".into());
+                ui.set_active_pane_id("pane-2".into());
+            }
+            "pane-3-editor" => {
+                ui.set_pane_3_focused(true);
+                ui.set_active_editor_id("pane-3-editor".into());
+                ui.set_active_pane_id("pane-3".into());
+            }
+            "pane-4-editor" => {
+                ui.set_pane_4_focused(true);
+                ui.set_active_editor_id("pane-4-editor".into());
+                ui.set_active_pane_id("pane-4".into());
+            }
+            _ => {
+                println!("⚠️ Unknown editor ID: {}", editor_id);
+            }
+        }
+        
+        println!("✅ Focus set for editor: {} (active: {})", editor_id, ui.get_active_editor_id());
+    });
+
     // File operations
     let ui_handle = ui.as_weak();
     ui.on_file_new(move || {

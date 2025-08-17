@@ -1,0 +1,1217 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+
+// Interactive alignment correction tools for user feedback and manual adjustment
+// Provides intuitive interface for improving sentence alignment quality
+
+// Correction action types
+export enum CorrectionAction {
+    Merge,        // Merge two sentences
+    Split,        // Split one sentence into two
+    Reorder,      // Change sentence order
+    Align,        // Create new alignment
+    Unalign,      // Remove alignment
+    Validate,     // Mark as correct
+    Reject,       // Mark as incorrect
+}
+
+// Correction tool mode
+export enum CorrectionMode {
+    Selection,    // Select sentences for correction
+    Alignment,    // Create/modify alignments
+    Validation,   // Validate existing alignments
+    Batch,        // Batch correction operations
+}
+
+// Sentence selection state
+export struct SentenceSelection {
+    pane_id: string,
+    sentence_index: int,
+    start_position: int,
+    end_position: int,
+    content: string,
+    confidence_score: float,
+    is_selected: bool,
+    selection_time: string,
+}
+
+// Correction operation data
+export struct CorrectionOperation {
+    id: string,
+    operation_type: CorrectionAction,
+    source_selections: [SentenceSelection],
+    target_selections: [SentenceSelection],
+    confidence_score: float,
+    user_notes: string,
+    auto_suggested: bool,
+    is_reversible: bool,
+    created_at: string,
+}
+
+// User guidance configuration
+export struct UserGuidance {
+    show_tooltips: bool,
+    show_keyboard_shortcuts: bool,
+    show_step_indicators: bool,
+    enable_hints: bool,
+    auto_suggest_corrections: bool,
+    beginner_mode: bool,
+}
+
+// Correction tool configuration
+export struct CorrectionToolConfig {
+    max_selections: int,           // Maximum simultaneous selections
+    auto_save_corrections: bool,
+    enable_undo_redo: bool,
+    batch_operation_limit: int,
+    confidence_threshold: float,
+    require_validation_notes: bool,
+}
+
+// Visual feedback for corrections
+export struct CorrectionFeedback {
+    operation_success: bool,
+    confidence_improvement: float,
+    alignment_quality_change: float,
+    affected_sentence_count: int,
+    estimated_accuracy: float,
+    user_message: string,
+}
+
+// Main alignment correction tools component
+export component AlignmentCorrectionTools inherits Rectangle {
+    // Configuration properties
+    in property <CorrectionMode> correction_mode: CorrectionMode.Selection;
+    in property <CorrectionToolConfig> tool_config: {
+        max_selections: 5,
+        auto_save_corrections: true,
+        enable_undo_redo: true,
+        batch_operation_limit: 10,
+        confidence_threshold: 0.7,
+        require_validation_notes: false,
+    };
+    in property <UserGuidance> user_guidance: {
+        show_tooltips: true,
+        show_keyboard_shortcuts: true,
+        show_step_indicators: true,
+        enable_hints: true,
+        auto_suggest_corrections: true,
+        beginner_mode: false,
+    };
+    
+    // Editor context properties
+    in property <[string]> pane_ids: ["pane-1", "pane-2"];
+    in property <int> total_sentences: 0;
+    in property <float> current_alignment_quality: 0.0;
+    in property <bool> has_unsaved_changes: false;
+    
+    // State properties
+    in-out property <[SentenceSelection]> current_selections: [];
+    in-out property <[CorrectionOperation]> pending_operations: [];
+    in-out property <[CorrectionOperation]> completed_operations: [];
+    in-out property <string> user_notes: "";
+    in-out property <bool> is_active: false;
+    in-out property <CorrectionFeedback> last_feedback: {
+        operation_success: false,
+        confidence_improvement: 0.0,
+        alignment_quality_change: 0.0,
+        affected_sentence_count: 0,
+        estimated_accuracy: 0.0,
+        user_message: "",
+    };
+    
+    // Interaction callbacks
+    callback sentence_selected(string /* pane_id */, int /* sentence_index */);
+    callback sentence_deselected(string /* pane_id */, int /* sentence_index */);
+    callback correction_operation_requested(CorrectionOperation);
+    callback validation_submitted(int /* sentence_index */, bool /* is_valid */, string /* notes */);
+    callback batch_operation_started([CorrectionOperation]);
+    
+    // Tool management callbacks
+    callback mode_changed(CorrectionMode);
+    callback tool_activated();
+    callback tool_deactivated();
+    callback undo_requested();
+    callback redo_requested();
+    callback save_corrections_requested();
+    
+    // Guidance callbacks
+    callback show_help_requested(string /* topic */);
+    callback suggestion_accepted(string /* suggestion_id */);
+    callback suggestion_rejected(string /* suggestion_id */);
+    
+    background: Colors.surface;
+    border_radius: Theme.border_radius_md;
+    border_width: 1px;
+    border_color: Colors.border;
+    
+    // Show/hide animation
+    states [
+        active when root.is_active: {
+            opacity: 1.0;
+            y: 0px;
+        }
+        inactive when !root.is_active: {
+            opacity: 0.0;
+            y: 20px;
+        }
+    ]
+    
+    animate opacity, y {
+        duration: Theme.animation_normal;
+        easing: ease_out;
+    }
+    
+    VerticalLayout {
+        padding: Theme.spacing_md;
+        spacing: Theme.spacing_sm;
+        
+        // Header with mode selector and controls
+        header_container := HorizontalLayout {
+            spacing: Theme.spacing_md;
+            alignment: space_between;
+            
+            // Mode selector
+            mode_selector := HorizontalLayout {
+                spacing: Theme.spacing_xs;
+                alignment: start;
+                
+                Text {
+                    text: "Correction Mode:";
+                    font_size: Theme.font_size_small;
+                    color: Colors.text_secondary;
+                    vertical_alignment: center;
+                }
+                
+                for mode[mode_index] in [
+                    {mode: CorrectionMode.Selection, label: "Select", icon: "🎯"},
+                    {mode: CorrectionMode.Alignment, label: "Align", icon: "🔗"},
+                    {mode: CorrectionMode.Validation, label: "Validate", icon: "✓"},
+                    {mode: CorrectionMode.Batch, label: "Batch", icon: "📦"}
+                ]: mode_button := Rectangle {
+                    width: 70px;
+                    height: 32px;
+                    background: root.correction_mode == mode.mode ? Colors.primary : 
+                               (mode_button.has_hover ? Colors.surface_hover : Colors.surface);
+                    border_radius: Theme.border_radius_sm;
+                    border_width: 1px;
+                    border_color: root.correction_mode == mode.mode ? Colors.primary : Colors.border;
+                    
+                    property <bool> has_hover: false;
+                    
+                    HorizontalLayout {
+                        spacing: 4px;
+                        alignment: center;
+                        
+                        Text {
+                            text: mode.icon;
+                            font_size: Theme.font_size_small;
+                            vertical_alignment: center;
+                        }
+                        
+                        Text {
+                            text: mode.label;
+                            font_size: Theme.font_size_small;
+                            color: root.correction_mode == mode.mode ? Colors.background : Colors.text_primary;
+                            vertical_alignment: center;
+                        }
+                    }
+                    
+                    TouchArea {
+                        mouse_cursor: pointer;
+                        
+                        pointer_event(event) => {
+                            if event.kind == PointerEventKind.move {
+                                mode_button.has_hover = true;
+                            }
+                        }
+                        
+                        moved => {
+                            mode_button.has_hover = false;
+                        }
+                        
+                        clicked => {
+                            root.correction_mode = mode.mode;
+                            root.mode_changed(mode.mode);
+                        }
+                    }
+                }
+            }
+            
+            // Control buttons
+            controls_container := HorizontalLayout {
+                spacing: Theme.spacing_xs;
+                alignment: end;
+                
+                // Undo/Redo buttons
+                if root.tool_config.enable_undo_redo: undo_redo_buttons := HorizontalLayout {
+                    spacing: 2px;
+                    
+                    undo_button := Rectangle {
+                        width: 28px;
+                        height: 28px;
+                        background: undo_button.has_hover ? Colors.surface_hover : Colors.surface;
+                        border_radius: Theme.border_radius_sm;
+                        border_width: 1px;
+                        border_color: Colors.border;
+                        opacity: root.completed_operations.length > 0 ? 1.0 : 0.5;
+                        
+                        property <bool> has_hover: false;
+                        
+                        Text {
+                            text: "↶";
+                            font_size: Theme.font_size_base;
+                            color: Colors.text_primary;
+                            horizontal_alignment: center;
+                            vertical_alignment: center;
+                        }
+                        
+                        TouchArea {
+                            mouse_cursor: pointer;
+                            enabled: root.completed_operations.length > 0;
+                            
+                            pointer_event(event) => {
+                                if event.kind == PointerEventKind.move {
+                                    undo_button.has_hover = true;
+                                }
+                            }
+                            
+                            moved => {
+                                undo_button.has_hover = false;
+                            }
+                            
+                            clicked => {
+                                root.undo_requested();
+                            }
+                        }
+                    }
+                    
+                    redo_button := Rectangle {
+                        width: 28px;
+                        height: 28px;
+                        background: redo_button.has_hover ? Colors.surface_hover : Colors.surface;
+                        border_radius: Theme.border_radius_sm;
+                        border_width: 1px;
+                        border_color: Colors.border;
+                        opacity: 0.5; // Would be enabled based on redo stack
+                        
+                        property <bool> has_hover: false;
+                        
+                        Text {
+                            text: "↷";
+                            font_size: Theme.font_size_base;
+                            color: Colors.text_primary;
+                            horizontal_alignment: center;
+                            vertical_alignment: center;
+                        }
+                        
+                        TouchArea {
+                            mouse_cursor: pointer;
+                            
+                            clicked => {
+                                root.redo_requested();
+                            }
+                        }
+                    }
+                }
+                
+                // Save button
+                if root.tool_config.auto_save_corrections: save_button := Rectangle {
+                    width: 60px;
+                    height: 28px;
+                    background: save_button.has_hover ? Colors.success.darker(0.1) : Colors.success;
+                    border_radius: Theme.border_radius_sm;
+                    opacity: root.has_unsaved_changes ? 1.0 : 0.7;
+                    
+                    property <bool> has_hover: false;
+                    
+                    HorizontalLayout {
+                        spacing: 4px;
+                        alignment: center;
+                        
+                        Text {
+                            text: "💾";
+                            font_size: Theme.font_size_small;
+                            vertical_alignment: center;
+                        }
+                        
+                        Text {
+                            text: "Save";
+                            font_size: Theme.font_size_small;
+                            color: Colors.background;
+                            vertical_alignment: center;
+                        }
+                    }
+                    
+                    TouchArea {
+                        mouse_cursor: pointer;
+                        
+                        pointer_event(event) => {
+                            if event.kind == PointerEventKind.move {
+                                save_button.has_hover = true;
+                            }
+                        }
+                        
+                        moved => {
+                            save_button.has_hover = false;
+                        }
+                        
+                        clicked => {
+                            root.save_corrections_requested();
+                        }
+                    }
+                }
+                
+                // Close button
+                close_button := Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    background: close_button.has_hover ? Colors.error.lighter(0.8) : Colors.surface;
+                    border_radius: Theme.border_radius_sm;
+                    border_width: 1px;
+                    border_color: Colors.border;
+                    
+                    property <bool> has_hover: false;
+                    
+                    Text {
+                        text: "×";
+                        font_size: Theme.font_size_lg;
+                        color: close_button.has_hover ? Colors.error : Colors.text_muted;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                    }
+                    
+                    TouchArea {
+                        mouse_cursor: pointer;
+                        
+                        pointer_event(event) => {
+                            if event.kind == PointerEventKind.move {
+                                close_button.has_hover = true;
+                            }
+                        }
+                        
+                        moved => {
+                            close_button.has_hover = false;
+                        }
+                        
+                        clicked => {
+                            root.is_active = false;
+                            root.tool_deactivated();
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Current selections display
+        if root.current_selections.length > 0: selections_container := Rectangle {
+            height: 80px;
+            background: Colors.background;
+            border_radius: Theme.border_radius_sm;
+            border_width: 1px;
+            border_color: Colors.border;
+            
+            VerticalLayout {
+                padding: Theme.spacing_sm;
+                spacing: Theme.spacing_xs;
+                
+                Text {
+                    text: "Selected Sentences (" + root.current_selections.length + "/" + root.tool_config.max_selections + ")";
+                    font_size: Theme.font_size_small;
+                    font_weight: 600;
+                    color: Colors.text_primary;
+                }
+                
+                ScrollView {
+                    height: 50px;
+                    
+                    HorizontalLayout {
+                        spacing: Theme.spacing_xs;
+                        
+                        for selection[selection_index] in root.current_selections: selection_chip := Rectangle {
+                            height: 40px;
+                            width: 200px;
+                            background: Colors.primary_light;
+                            border_radius: Theme.border_radius_sm;
+                            border_width: 1px;
+                            border_color: Colors.primary;
+                            
+                            HorizontalLayout {
+                                padding: Theme.spacing_xs;
+                                spacing: Theme.spacing_xs;
+                                alignment: space_between;
+                                
+                                VerticalLayout {
+                                    spacing: 2px;
+                                    
+                                    Text {
+                                        text: selection.pane_id + " #" + selection.sentence_index;
+                                        font_size: Theme.font_size_small;
+                                        font_weight: 600;
+                                        color: Colors.primary;
+                                    }
+                                    
+                                    Text {
+                                        text: selection.content.length > 30 ? 
+                                              selection.content.substring(0, 27) + "..." : 
+                                              selection.content;
+                                        font_size: 10px;
+                                        color: Colors.text_muted;
+                                        wrap: no_wrap;
+                                        overflow: elide;
+                                    }
+                                }
+                                
+                                // Remove selection button
+                                remove_button := Rectangle {
+                                    width: 16px;
+                                    height: 16px;
+                                    background: remove_button.has_hover ? Colors.error : Colors.text_muted;
+                                    border_radius: 8px;
+                                    
+                                    property <bool> has_hover: false;
+                                    
+                                    Text {
+                                        text: "×";
+                                        font_size: 10px;
+                                        color: Colors.background;
+                                        horizontal_alignment: center;
+                                        vertical_alignment: center;
+                                    }
+                                    
+                                    TouchArea {
+                                        mouse_cursor: pointer;
+                                        
+                                        pointer_event(event) => {
+                                            if event.kind == PointerEventKind.move {
+                                                remove_button.has_hover = true;
+                                            }
+                                        }
+                                        
+                                        moved => {
+                                            remove_button.has_hover = false;
+                                        }
+                                        
+                                        clicked => {
+                                            root.sentence_deselected(selection.pane_id, selection.sentence_index);
+                                            // Remove from selections array
+                                            root.current_selections.remove(selection_index);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Mode-specific action panels
+        
+        // Selection mode panel
+        if root.correction_mode == CorrectionMode.Selection: selection_panel := Rectangle {
+            height: 100px;
+            background: Colors.background;
+            border_radius: Theme.border_radius_sm;
+            border_width: 1px;
+            border_color: Colors.border;
+            
+            VerticalLayout {
+                padding: Theme.spacing_md;
+                spacing: Theme.spacing_sm;
+                
+                Text {
+                    text: "Click sentences in editor panes to select them for correction";
+                    font_size: Theme.font_size_base;
+                    color: Colors.text_primary;
+                    horizontal_alignment: center;
+                }
+                
+                if root.user_guidance.show_keyboard_shortcuts: HorizontalLayout {
+                    spacing: Theme.spacing_md;
+                    alignment: center;
+                    
+                    for shortcut in [
+                        {key: "Ctrl+Click", action: "Multi-select"},
+                        {key: "Shift+Click", action: "Range select"},
+                        {key: "Esc", action: "Clear selection"}
+                    ]: shortcut_hint := HorizontalLayout {
+                        spacing: 4px;
+                        
+                        Rectangle {
+                            width: 60px;
+                            height: 20px;
+                            background: Colors.surface;
+                            border_radius: Theme.border_radius_sm;
+                            border_width: 1px;
+                            border_color: Colors.border;
+                            
+                            Text {
+                                text: shortcut.key;
+                                font_size: 10px;
+                                color: Colors.text_primary;
+                                horizontal_alignment: center;
+                                vertical_alignment: center;
+                            }
+                        }
+                        
+                        Text {
+                            text: shortcut.action;
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_muted;
+                            vertical_alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Alignment mode panel
+        if root.correction_mode == CorrectionMode.Alignment: alignment_panel := Rectangle {
+            height: 140px;
+            background: Colors.background;
+            border_radius: Theme.border_radius_sm;
+            border_width: 1px;
+            border_color: Colors.border;
+            
+            VerticalLayout {
+                padding: Theme.spacing_md;
+                spacing: Theme.spacing_sm;
+                
+                Text {
+                    text: "Create or modify sentence alignments";
+                    font_size: Theme.font_size_base;
+                    font_weight: 600;
+                    color: Colors.text_primary;
+                }
+                
+                // Alignment action buttons
+                HorizontalLayout {
+                    spacing: Theme.spacing_sm;
+                    alignment: center;
+                    
+                    for action[action_index] in [
+                        {action: CorrectionAction.Align, label: "Create Alignment", icon: "🔗", enabled: root.current_selections.length >= 2},
+                        {action: CorrectionAction.Unalign, label: "Remove Alignment", icon: "⛓️‍💥", enabled: root.current_selections.length >= 1},
+                        {action: CorrectionAction.Merge, label: "Merge Sentences", icon: "⤴️", enabled: root.current_selections.length >= 2},
+                        {action: CorrectionAction.Split, label: "Split Sentence", icon: "✂️", enabled: root.current_selections.length == 1}
+                    ]: action_button := Rectangle {
+                        width: 120px;
+                        height: 36px;
+                        background: action.enabled ? 
+                                   (action_button.has_hover ? Colors.primary_hover : Colors.primary) :
+                                   Colors.surface;
+                        border_radius: Theme.border_radius_sm;
+                        border_width: 1px;
+                        border_color: action.enabled ? Colors.primary : Colors.border;
+                        opacity: action.enabled ? 1.0 : 0.6;
+                        
+                        property <bool> has_hover: false;
+                        
+                        HorizontalLayout {
+                            spacing: Theme.spacing_xs;
+                            alignment: center;
+                            
+                            Text {
+                                text: action.icon;
+                                font_size: Theme.font_size_small;
+                                vertical_alignment: center;
+                            }
+                            
+                            Text {
+                                text: action.label;
+                                font_size: Theme.font_size_small;
+                                color: action.enabled ? Colors.background : Colors.text_muted;
+                                vertical_alignment: center;
+                                wrap: text_wrap;
+                                horizontal_alignment: center;
+                            }
+                        }
+                        
+                        TouchArea {
+                            mouse_cursor: pointer;
+                            enabled: action.enabled;
+                            
+                            pointer_event(event) => {
+                                if event.kind == PointerEventKind.move && action.enabled {
+                                    action_button.has_hover = true;
+                                }
+                            }
+                            
+                            moved => {
+                                action_button.has_hover = false;
+                            }
+                            
+                            clicked => {
+                                if action.enabled {
+                                    let operation = CorrectionOperation {
+                                        id: "op_" + Math.random(),
+                                        operation_type: action.action,
+                                        source_selections: root.current_selections,
+                                        target_selections: [],
+                                        confidence_score: 0.0,
+                                        user_notes: root.user_notes,
+                                        auto_suggested: false,
+                                        is_reversible: true,
+                                        created_at: "now",
+                                    };
+                                    root.correction_operation_requested(operation);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // User notes input
+                if root.tool_config.require_validation_notes || root.user_notes.length > 0: notes_container := Rectangle {
+                    height: 32px;
+                    background: Colors.surface;
+                    border_radius: Theme.border_radius_sm;
+                    border_width: 1px;
+                    border_color: Colors.border;
+                    
+                    HorizontalLayout {
+                        padding: Theme.spacing_sm;
+                        
+                        Text {
+                            text: "📝";
+                            font_size: Theme.font_size_small;
+                            vertical_alignment: center;
+                        }
+                        
+                        LineEdit {
+                            text: root.user_notes;
+                            placeholder_text: "Add notes about this correction...";
+                            font_size: Theme.font_size_small;
+                            
+                            edited(text) => {
+                                root.user_notes = text;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Validation mode panel
+        if root.correction_mode == CorrectionMode.Validation: validation_panel := Rectangle {
+            height: 120px;
+            background: Colors.background;
+            border_radius: Theme.border_radius_sm;
+            border_width: 1px;
+            border_color: Colors.border;
+            
+            VerticalLayout {
+                padding: Theme.spacing_md;
+                spacing: Theme.spacing_sm;
+                
+                Text {
+                    text: "Validate alignment accuracy";
+                    font_size: Theme.font_size_base;
+                    font_weight: 600;
+                    color: Colors.text_primary;
+                }
+                
+                if root.current_selections.length > 0: validation_controls := HorizontalLayout {
+                    spacing: Theme.spacing_md;
+                    alignment: center;
+                    
+                    // Validation buttons
+                    validate_correct := Rectangle {
+                        width: 100px;
+                        height: 36px;
+                        background: validate_correct.has_hover ? Colors.success.darker(0.1) : Colors.success;
+                        border_radius: Theme.border_radius_sm;
+                        
+                        property <bool> has_hover: false;
+                        
+                        HorizontalLayout {
+                            spacing: Theme.spacing_xs;
+                            alignment: center;
+                            
+                            Text {
+                                text: "✓";
+                                font_size: Theme.font_size_base;
+                                color: Colors.background;
+                                vertical_alignment: center;
+                            }
+                            
+                            Text {
+                                text: "Correct";
+                                font_size: Theme.font_size_small;
+                                color: Colors.background;
+                                vertical_alignment: center;
+                            }
+                        }
+                        
+                        TouchArea {
+                            mouse_cursor: pointer;
+                            
+                            pointer_event(event) => {
+                                if event.kind == PointerEventKind.move {
+                                    validate_correct.has_hover = true;
+                                }
+                            }
+                            
+                            moved => {
+                                validate_correct.has_hover = false;
+                            }
+                            
+                            clicked => {
+                                if root.current_selections.length > 0 {
+                                    root.validation_submitted(
+                                        root.current_selections[0].sentence_index,
+                                        true,
+                                        root.user_notes
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    
+                    validate_incorrect := Rectangle {
+                        width: 100px;
+                        height: 36px;
+                        background: validate_incorrect.has_hover ? Colors.error.darker(0.1) : Colors.error;
+                        border_radius: Theme.border_radius_sm;
+                        
+                        property <bool> has_hover: false;
+                        
+                        HorizontalLayout {
+                            spacing: Theme.spacing_xs;
+                            alignment: center;
+                            
+                            Text {
+                                text: "✗";
+                                font_size: Theme.font_size_base;
+                                color: Colors.background;
+                                vertical_alignment: center;
+                            }
+                            
+                            Text {
+                                text: "Incorrect";
+                                font_size: Theme.font_size_small;
+                                color: Colors.background;
+                                vertical_alignment: center;
+                            }
+                        }
+                        
+                        TouchArea {
+                            mouse_cursor: pointer;
+                            
+                            pointer_event(event) => {
+                                if event.kind == PointerEventKind.move {
+                                    validate_incorrect.has_hover = true;
+                                }
+                            }
+                            
+                            moved => {
+                                validate_incorrect.has_hover = false;
+                            }
+                            
+                            clicked => {
+                                if root.current_selections.length > 0 {
+                                    root.validation_submitted(
+                                        root.current_selections[0].sentence_index,
+                                        false,
+                                        root.user_notes
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    
+                    needs_review := Rectangle {
+                        width: 100px;
+                        height: 36px;
+                        background: needs_review.has_hover ? Colors.warning.darker(0.1) : Colors.warning;
+                        border_radius: Theme.border_radius_sm;
+                        
+                        property <bool> has_hover: false;
+                        
+                        HorizontalLayout {
+                            spacing: Theme.spacing_xs;
+                            alignment: center;
+                            
+                            Text {
+                                text: "?";
+                                font_size: Theme.font_size_base;
+                                color: Colors.background;
+                                vertical_alignment: center;
+                            }
+                            
+                            Text {
+                                text: "Needs Review";
+                                font_size: Theme.font_size_small;
+                                color: Colors.background;
+                                vertical_alignment: center;
+                            }
+                        }
+                        
+                        TouchArea {
+                            mouse_cursor: pointer;
+                            
+                            pointer_event(event) => {
+                                if event.kind == PointerEventKind.move {
+                                    needs_review.has_hover = true;
+                                }
+                            }
+                            
+                            moved => {
+                                needs_review.has_hover = false;
+                            }
+                            
+                            clicked => {
+                                // Mark for review (would trigger review workflow)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Batch mode panel
+        if root.correction_mode == CorrectionMode.Batch: batch_panel := Rectangle {
+            height: 120px;
+            background: Colors.background;
+            border_radius: Theme.border_radius_sm;
+            border_width: 1px;
+            border_color: Colors.border;
+            
+            VerticalLayout {
+                padding: Theme.spacing_md;
+                spacing: Theme.spacing_sm;
+                
+                HorizontalLayout {
+                    spacing: Theme.spacing_md;
+                    alignment: space_between;
+                    
+                    Text {
+                        text: "Batch Operations (" + root.pending_operations.length + " queued)";
+                        font_size: Theme.font_size_base;
+                        font_weight: 600;
+                        color: Colors.text_primary;
+                    }
+                    
+                    if root.pending_operations.length > 0: execute_batch := Rectangle {
+                        width: 120px;
+                        height: 32px;
+                        background: execute_batch.has_hover ? Colors.primary_hover : Colors.primary;
+                        border_radius: Theme.border_radius_sm;
+                        
+                        property <bool> has_hover: false;
+                        
+                        HorizontalLayout {
+                            spacing: Theme.spacing_xs;
+                            alignment: center;
+                            
+                            Text {
+                                text: "⚡";
+                                font_size: Theme.font_size_small;
+                                color: Colors.background;
+                                vertical_alignment: center;
+                            }
+                            
+                            Text {
+                                text: "Execute All";
+                                font_size: Theme.font_size_small;
+                                color: Colors.background;
+                                vertical_alignment: center;
+                            }
+                        }
+                        
+                        TouchArea {
+                            mouse_cursor: pointer;
+                            
+                            pointer_event(event) => {
+                                if event.kind == PointerEventKind.move {
+                                    execute_batch.has_hover = true;
+                                }
+                            }
+                            
+                            moved => {
+                                execute_batch.has_hover = false;
+                            }
+                            
+                            clicked => {
+                                root.batch_operation_started(root.pending_operations);
+                            }
+                        }
+                    }
+                }
+                
+                // Batch operation queue preview
+                if root.pending_operations.length > 0: ScrollView {
+                    height: 60px;
+                    
+                    VerticalLayout {
+                        spacing: 2px;
+                        
+                        for operation[op_index] in root.pending_operations: operation_item := Rectangle {
+                            height: 28px;
+                            background: op_index % 2 == 0 ? Colors.surface : transparent;
+                            border_radius: Theme.border_radius_sm;
+                            
+                            HorizontalLayout {
+                                padding: Theme.spacing_xs;
+                                spacing: Theme.spacing_sm;
+                                alignment: space_between;
+                                
+                                HorizontalLayout {
+                                    spacing: Theme.spacing_xs;
+                                    
+                                    Text {
+                                        text: self.get_operation_icon(operation.operation_type);
+                                        font_size: Theme.font_size_small;
+                                        vertical_alignment: center;
+                                    }
+                                    
+                                    Text {
+                                        text: self.get_operation_description(operation);
+                                        font_size: Theme.font_size_small;
+                                        color: Colors.text_primary;
+                                        vertical_alignment: center;
+                                    }
+                                }
+                                
+                                remove_op_button := Rectangle {
+                                    width: 16px;
+                                    height: 16px;
+                                    background: remove_op_button.has_hover ? Colors.error : Colors.text_muted;
+                                    border_radius: 8px;
+                                    
+                                    property <bool> has_hover: false;
+                                    
+                                    Text {
+                                        text: "×";
+                                        font_size: 10px;
+                                        color: Colors.background;
+                                        horizontal_alignment: center;
+                                        vertical_alignment: center;
+                                    }
+                                    
+                                    TouchArea {
+                                        mouse_cursor: pointer;
+                                        
+                                        pointer_event(event) => {
+                                            if event.kind == PointerEventKind.move {
+                                                remove_op_button.has_hover = true;
+                                            }
+                                        }
+                                        
+                                        moved => {
+                                            remove_op_button.has_hover = false;
+                                        }
+                                        
+                                        clicked => {
+                                            root.pending_operations.remove(op_index);
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            function get_operation_icon(action: CorrectionAction) -> string {
+                                if action == CorrectionAction.Merge {
+                                    return "⤴️";
+                                } else if action == CorrectionAction.Split {
+                                    return "✂️";
+                                } else if action == CorrectionAction.Align {
+                                    return "🔗";
+                                } else if action == CorrectionAction.Unalign {
+                                    return "⛓️‍💥";
+                                } else if action == CorrectionAction.Validate {
+                                    return "✓";
+                                } else if action == CorrectionAction.Reject {
+                                    return "✗";
+                                } else {
+                                    return "📝";
+                                }
+                            }
+                            
+                            function get_operation_description(operation: CorrectionOperation) -> string {
+                                let action_name = operation.operation_type == CorrectionAction.Merge ? "Merge" :
+                                                operation.operation_type == CorrectionAction.Split ? "Split" :
+                                                operation.operation_type == CorrectionAction.Align ? "Align" :
+                                                operation.operation_type == CorrectionAction.Unalign ? "Unalign" :
+                                                operation.operation_type == CorrectionAction.Validate ? "Validate" :
+                                                operation.operation_type == CorrectionAction.Reject ? "Reject" : "Reorder";
+                                
+                                return action_name + " " + operation.source_selections.length + " sentence(s)";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Feedback and status display
+        if root.last_feedback.user_message.length > 0: feedback_container := Rectangle {
+            height: 60px;
+            background: root.last_feedback.operation_success ? Colors.success_background : Colors.error_background;
+            border_radius: Theme.border_radius_sm;
+            border_width: 1px;
+            border_color: root.last_feedback.operation_success ? Colors.success : Colors.error;
+            
+            HorizontalLayout {
+                padding: Theme.spacing_md;
+                spacing: Theme.spacing_sm;
+                alignment: space_between;
+                
+                VerticalLayout {
+                    spacing: 4px;
+                    
+                    HorizontalLayout {
+                        spacing: Theme.spacing_xs;
+                        
+                        Text {
+                            text: root.last_feedback.operation_success ? "✅" : "❌";
+                            font_size: Theme.font_size_base;
+                            vertical_alignment: center;
+                        }
+                        
+                        Text {
+                            text: root.last_feedback.user_message;
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_primary;
+                            vertical_alignment: center;
+                            font_weight: 600;
+                        }
+                    }
+                    
+                    if root.last_feedback.confidence_improvement != 0.0: Text {
+                        text: "Confidence change: " + 
+                              (root.last_feedback.confidence_improvement > 0 ? "+" : "") +
+                              Math.round(root.last_feedback.confidence_improvement * 100) + "%";
+                        font_size: 10px;
+                        color: Colors.text_muted;
+                    }
+                }
+                
+                // Dismiss feedback button
+                dismiss_button := Rectangle {
+                    width: 20px;
+                    height: 20px;
+                    background: dismiss_button.has_hover ? Colors.surface_hover : transparent;
+                    border_radius: 10px;
+                    
+                    property <bool> has_hover: false;
+                    
+                    Text {
+                        text: "×";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                    }
+                    
+                    TouchArea {
+                        mouse_cursor: pointer;
+                        
+                        pointer_event(event) => {
+                            if event.kind == PointerEventKind.move {
+                                dismiss_button.has_hover = true;
+                            }
+                        }
+                        
+                        moved => {
+                            dismiss_button.has_hover = false;
+                        }
+                        
+                        clicked => {
+                            root.last_feedback.user_message = "";
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Help panel (if beginner mode is enabled)
+        if root.user_guidance.beginner_mode && root.user_guidance.enable_hints: help_panel := Rectangle {
+            height: 80px;
+            background: Colors.info_light;
+            border_radius: Theme.border_radius_sm;
+            border_width: 1px;
+            border_color: Colors.info;
+            
+            HorizontalLayout {
+                padding: Theme.spacing_md;
+                spacing: Theme.spacing_sm;
+                alignment: space_between;
+                
+                VerticalLayout {
+                    spacing: 4px;
+                    
+                    Text {
+                        text: "💡 Tip: " + self.get_current_mode_help();
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_primary;
+                        font_weight: 600;
+                    }
+                    
+                    Text {
+                        text: "Click the help button for detailed guidance";
+                        font_size: 10px;
+                        color: Colors.text_muted;
+                    }
+                }
+                
+                help_button := Rectangle {
+                    width: 60px;
+                    height: 24px;
+                    background: help_button.has_hover ? Colors.info.darker(0.1) : Colors.info;
+                    border_radius: Theme.border_radius_sm;
+                    
+                    property <bool> has_hover: false;
+                    
+                    Text {
+                        text: "Help";
+                        font_size: Theme.font_size_small;
+                        color: Colors.background;
+                        horizontal_alignment: center;
+                        vertical_alignment: center;
+                    }
+                    
+                    TouchArea {
+                        mouse_cursor: pointer;
+                        
+                        pointer_event(event) => {
+                            if event.kind == PointerEventKind.move {
+                                help_button.has_hover = true;
+                            }
+                        }
+                        
+                        moved => {
+                            help_button.has_hover = false;
+                        }
+                        
+                        clicked => {
+                            root.show_help_requested("correction_tools");
+                        }
+                    }
+                }
+            }
+            
+            function get_current_mode_help() -> string {
+                if root.correction_mode == CorrectionMode.Selection {
+                    return "Select sentences by clicking them in the editor panes";
+                } else if root.correction_mode == CorrectionMode.Alignment {
+                    return "Create connections between related sentences";
+                } else if root.correction_mode == CorrectionMode.Validation {
+                    return "Review and confirm alignment accuracy";
+                } else {
+                    return "Queue multiple operations for batch execution";
+                }
+            }
+        }
+    }
+    
+    // Accessibility support
+    accessible_role: AccessibleRole.group;
+    accessible_label: "Alignment correction tools in " + 
+        (root.correction_mode == CorrectionMode.Selection ? "selection" :
+         root.correction_mode == CorrectionMode.Alignment ? "alignment" :
+         root.correction_mode == CorrectionMode.Validation ? "validation" : "batch") + " mode";
+    accessible_description: "Interactive tools for correcting sentence alignment with " + 
+        root.current_selections.length + " sentences selected and " + 
+        root.pending_operations.length + " operations queued";
+}

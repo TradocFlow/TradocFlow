@@ -1,0 +1,624 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { ScrollView } from "std-widgets.slint";
+
+// Enhanced synchronized scroll container with performance optimization
+// Provides real-time scroll coordination across multiple panes
+
+// Scroll synchronization state and metrics
+export struct SyncState {
+    is_active: bool,
+    is_source: bool,
+    sync_quality: float,          // 0.0 to 1.0 quality metric
+    last_sync_time: string,
+    performance_score: float,     // Real-time performance tracking
+    drift_compensation: float,    // Accumulated drift correction
+}
+
+// Enhanced scroll position with content awareness
+export struct EnhancedScrollPosition {
+    vertical_offset: length,
+    horizontal_offset: length,
+    content_height: length,
+    content_width: length,
+    viewport_height: length,
+    viewport_width: length,
+    scroll_ratio_vertical: float,
+    scroll_ratio_horizontal: float,
+    line_number_at_top: int,     // For sentence alignment
+    character_offset_at_top: int, // For precise positioning
+    visible_line_count: int,
+}
+
+// Content metrics for proportional scrolling
+export struct ContentDimensions {
+    total_lines: int,
+    total_characters: int,
+    average_line_height: length,
+    content_density: float,       // Text density for adjustment
+    language_factor: float,       // Language-specific scaling
+    effective_height: length,     // Calculated effective scroll height
+}
+
+// Scroll synchronization event with enhanced data
+export struct ScrollSyncEvent {
+    source_pane_id: string,
+    target_pane_ids: [string],
+    source_position: EnhancedScrollPosition,
+    adjustment_factor: float,
+    sync_mode: string,            // "proportional", "ratio", "absolute", "sentence"
+    timestamp: string,
+    priority: int,                // Event priority for queue management
+}
+
+// Performance monitoring data
+export struct ScrollPerformance {
+    sync_latency_ms: float,
+    frame_rate: float,
+    memory_usage: float,
+    queue_size: int,
+    dropped_events: int,
+}
+
+// Main synchronized scroll container component
+export component SynchronizedScrollContainer inherits Rectangle {
+    // Configuration properties
+    in property <string> pane_id: "";
+    in property <bool> sync_enabled: true;
+    in property <bool> proportional_enabled: true;
+    in property <bool> smooth_animations: true;
+    in property <string> sync_mode: "proportional"; // "proportional", "ratio", "absolute", "sentence"
+    in property <duration> animation_duration: 200ms;
+    in property <float> sync_threshold: 2.0;         // Minimum pixel difference to trigger sync
+    in property <int> debounce_ms: 16;               // 60fps debouncing
+    in property <bool> performance_monitoring: true;
+    
+    // Content and layout properties
+    in property <ContentDimensions> content_dimensions;
+    in-out property <EnhancedScrollPosition> scroll_position: {
+        vertical_offset: 0px,
+        horizontal_offset: 0px,
+        content_height: 1000px,
+        content_width: 800px,
+        viewport_height: 400px,
+        viewport_width: 600px,
+        scroll_ratio_vertical: 0.0,
+        scroll_ratio_horizontal: 0.0,
+        line_number_at_top: 0,
+        character_offset_at_top: 0,
+        visible_line_count: 20,
+    };
+    
+    // State management
+    in-out property <SyncState> sync_state: {
+        is_active: false,
+        is_source: false,
+        sync_quality: 1.0,
+        last_sync_time: "",
+        performance_score: 1.0,
+        drift_compensation: 0.0,
+    };
+    
+    // Performance tracking
+    in-out property <ScrollPerformance> performance_metrics: {
+        sync_latency_ms: 0.0,
+        frame_rate: 60.0,
+        memory_usage: 0.0,
+        queue_size: 0,
+        dropped_events: 0,
+    };
+    
+    // Visual and accessibility
+    in property <bool> show_scroll_indicators: true;
+    in property <bool> show_performance_overlay: false;
+    in property <bool> accessibility_enhanced: true;
+    
+    // Animation state
+    property <bool> is_animating: false;
+    property <length> target_vertical_offset: 0px;
+    property <length> target_horizontal_offset: 0px;
+    property <float> animation_progress: 0.0;
+    property <length> start_vertical_offset: 0px;
+    property <length> start_horizontal_offset: 0px;
+    
+    // Performance optimization
+    property <bool> high_performance_mode: false;
+    property <int> frame_skip_count: 0;
+    property <int> sync_event_queue_size: 0;
+    
+    // Callbacks for scroll events
+    callback scroll_changed(string /* pane_id */, EnhancedScrollPosition);
+    callback sync_requested(ScrollSyncEvent);
+    callback sync_completed(string /* pane_id */, float /* quality_score */);
+    callback performance_alert(string /* metric */, float /* value */, string /* message */);
+    
+    // Content update callbacks
+    callback content_dimensions_changed(string /* pane_id */, ContentDimensions);
+    callback viewport_resized(string /* pane_id */, length /* width */, length /* height */);
+    
+    // Synchronization management callbacks
+    callback sync_drift_detected(string /* pane_id */, float /* drift_amount */);
+    callback sync_quality_degraded(string /* pane_id */, float /* quality */);
+    callback sync_performance_warning(ScrollPerformance);
+    
+    background: Colors.editor_background;
+    
+    // Main scroll view with enhanced monitoring
+    main_scroll := ScrollView {
+        width: parent.width;
+        height: parent.height;
+        
+        // Enhanced scroll position monitoring
+        viewport_x_changed => {
+            root.scroll_position.horizontal_offset = self.viewport_x;
+            root.update_scroll_metrics();
+            root.trigger_scroll_sync();
+        }
+        
+        viewport_y_changed => {
+            root.scroll_position.vertical_offset = self.viewport_y;
+            root.update_scroll_metrics();
+            root.trigger_scroll_sync();
+        }
+        
+        visible_width_changed => {
+            root.scroll_position.viewport_width = self.visible_width;
+            root.viewport_resized(root.pane_id, self.visible_width, self.visible_height);
+        }
+        
+        visible_height_changed => {
+            root.scroll_position.viewport_height = self.visible_height;
+            root.calculate_visible_content();
+        }
+        
+        // Content container with proper sizing
+        content_container := Rectangle {
+            width: max(root.scroll_position.content_width, parent.visible_width);
+            height: max(root.scroll_position.content_height, parent.visible_height);
+            
+            // Content area for child components
+            @children
+        }
+    }
+    
+    // Scroll synchronization indicator overlay
+    if root.show_scroll_indicators && root.sync_state.is_active: sync_indicator := Rectangle {
+        x: parent.width - 36px;
+        y: 8px;
+        width: 28px;
+        height: 28px;
+        border_radius: 14px;
+        
+        // Dynamic background based on sync quality
+        background: root.sync_state.sync_quality > 0.9 ? Colors.success :
+                   root.sync_state.sync_quality > 0.7 ? Colors.info :
+                   root.sync_state.sync_quality > 0.5 ? Colors.warning : Colors.error;
+        
+        // Enhanced visual feedback
+        border_width: root.sync_state.is_source ? 3px : 1px;
+        border_color: root.sync_state.is_source ? Colors.primary : Colors.white;
+        opacity: root.sync_enabled ? 1.0 : 0.5;
+        
+        // Pulsing animation for active source
+        states [
+            syncing when root.sync_state.is_source && root.sync_state.is_active: {
+                drop_shadow_blur: 8px;
+                drop_shadow_color: Colors.primary;
+                drop_shadow_offset_x: 0px;
+                drop_shadow_offset_y: 0px;
+            }
+        ]
+        
+        animate drop_shadow_blur, border_width {
+            duration: 300ms;
+            easing: ease_in_out;
+        }
+        
+        // Sync mode icon
+        Text {
+            text: root.sync_mode == "proportional" ? "⚖" :
+                  root.sync_mode == "ratio" ? "%" :
+                  root.sync_mode == "sentence" ? "📝" : "=";
+            font_size: 12px;
+            color: Colors.white;
+            horizontal_alignment: center;
+            vertical_alignment: center;
+        }
+        
+        // Quality indicator ring
+        quality_ring := Rectangle {
+            width: parent.width + 6px;
+            height: parent.height + 6px;
+            x: -3px;
+            y: -3px;
+            border_radius: (parent.width + 6px) / 2;
+            border_width: 2px;
+            border_color: root.sync_state.sync_quality > 0.8 ? Colors.success :
+                         root.sync_state.sync_quality > 0.6 ? Colors.warning : Colors.error;
+            background: transparent;
+            
+            // Animated border for active syncing
+            states [
+                active when root.sync_state.is_active: {
+                    border_width: 3px;
+                }
+            ]
+            
+            animate border_width, border_color {
+                duration: 250ms;
+            }
+        }
+    }
+    
+    // Performance monitoring overlay
+    if root.show_performance_overlay && root.performance_monitoring: perf_overlay := Rectangle {
+        x: 8px;
+        y: parent.height - 80px;
+        width: 180px;
+        height: 72px;
+        background: #000000C0;
+        border_radius: Theme.border_radius_sm;
+        
+        VerticalLayout {
+            padding: Theme.spacing_xs;
+            spacing: 2px;
+            
+            Text {
+                text: "Sync: " + Math.round(root.performance_metrics.sync_latency_ms) + "ms";
+                font_size: Theme.font_size_small;
+                color: root.performance_metrics.sync_latency_ms < 16 ? Colors.success : Colors.warning;
+            }
+            
+            Text {
+                text: "FPS: " + Math.round(root.performance_metrics.frame_rate);
+                font_size: Theme.font_size_small;
+                color: root.performance_metrics.frame_rate > 55 ? Colors.success : Colors.error;
+            }
+            
+            Text {
+                text: "Queue: " + root.performance_metrics.queue_size;
+                font_size: Theme.font_size_small;
+                color: root.performance_metrics.queue_size < 5 ? Colors.success : Colors.warning;
+            }
+        }
+    }
+    
+    // High-performance scroll animation timer
+    scroll_animation_timer := Timer {
+        interval: root.high_performance_mode ? 8ms : 16ms; // 120fps or 60fps
+        running: root.is_animating;
+        
+        triggered => {
+            if root.animation_progress < 1.0 {
+                // Update animation progress with performance awareness
+                let frame_delta = root.high_performance_mode ? 0.08 : 0.1;
+                root.animation_progress = min(1.0, root.animation_progress + frame_delta);
+                
+                // Advanced easing with bounce prevention
+                let eased_progress = root.calculate_easing(root.animation_progress);
+                
+                // Apply interpolated scroll position
+                root.scroll_position.vertical_offset = root.start_vertical_offset + 
+                    (root.target_vertical_offset - root.start_vertical_offset) * eased_progress;
+                root.scroll_position.horizontal_offset = root.start_horizontal_offset + 
+                    (root.target_horizontal_offset - root.start_horizontal_offset) * eased_progress;
+                
+                // Update scroll view
+                main_scroll.viewport_y = root.scroll_position.vertical_offset;
+                main_scroll.viewport_x = root.scroll_position.horizontal_offset;
+                
+                // Performance monitoring
+                root.monitor_animation_performance();
+            } else {
+                // Animation complete
+                root.complete_animation();
+            }
+        }
+    }
+    
+    // Scroll event debouncing timer
+    scroll_debounce_timer := Timer {
+        interval: root.debounce_ms * 1ms;
+        running: false;
+        
+        property <bool> pending_sync: false;
+        
+        triggered => {
+            if self.pending_sync {
+                root.execute_scroll_sync();
+                self.pending_sync = false;
+            }
+        }
+    }
+    
+    // Performance monitoring timer
+    performance_timer := Timer {
+        interval: 1000ms;
+        running: root.performance_monitoring;
+        
+        triggered => {
+            root.update_performance_metrics();
+            root.check_performance_thresholds();
+        }
+    }
+    
+    // Public functions for scroll management
+    
+    public function apply_synchronized_scroll(target_position: EnhancedScrollPosition, adjustment_factor: float) {
+        if !root.sync_enabled || root.sync_state.is_source {
+            return;
+        }
+        
+        // Mark as sync target
+        root.sync_state.is_active = true;
+        root.sync_state.is_source = false;
+        
+        // Calculate adjusted scroll position with content awareness
+        let adjusted_position = root.calculate_adjusted_position(target_position, adjustment_factor);
+        
+        // Apply position with animation or immediate scroll
+        if root.smooth_animations {
+            root.animate_to_position(adjusted_position.vertical_offset, adjusted_position.horizontal_offset);
+        } else {
+            root.set_immediate_position(adjusted_position.vertical_offset, adjusted_position.horizontal_offset);
+        }
+        
+        // Update sync quality metrics
+        root.update_sync_quality(target_position, adjusted_position);
+    }
+    
+    public function set_scroll_position(vertical: length, horizontal: length) {
+        root.scroll_position.vertical_offset = vertical;
+        root.scroll_position.horizontal_offset = horizontal;
+        
+        main_scroll.viewport_y = vertical;
+        main_scroll.viewport_x = horizontal;
+        
+        root.update_scroll_metrics();
+    }
+    
+    public function animate_to_position(vertical: length, horizontal: length) {
+        if root.is_animating {
+            // Queue the new position if already animating
+            root.target_vertical_offset = vertical;
+            root.target_horizontal_offset = horizontal;
+            return;
+        }
+        
+        // Setup animation parameters
+        root.start_vertical_offset = root.scroll_position.vertical_offset;
+        root.start_horizontal_offset = root.scroll_position.horizontal_offset;
+        root.target_vertical_offset = vertical;
+        root.target_horizontal_offset = horizontal;
+        root.animation_progress = 0.0;
+        root.is_animating = true;
+        
+        // Start animation timer
+        scroll_animation_timer.running = true;
+    }
+    
+    public function enable_sync(enabled: bool) {
+        root.sync_enabled = enabled;
+        root.sync_state.is_active = enabled;
+        
+        if !enabled {
+            root.sync_state.is_source = false;
+            root.is_animating = false;
+            scroll_animation_timer.running = false;
+        }
+    }
+    
+    public function set_sync_mode(mode: string) {
+        root.sync_mode = mode;
+        // Reset drift compensation when changing modes
+        root.sync_state.drift_compensation = 0.0;
+    }
+    
+    public function update_content_dimensions(dimensions: ContentDimensions) {
+        root.content_dimensions = dimensions;
+        root.scroll_position.content_height = dimensions.effective_height;
+        content_container.height = dimensions.effective_height;
+        
+        // Notify about dimension changes
+        root.content_dimensions_changed(root.pane_id, dimensions);
+    }
+    
+    public function calibrate_sync() {
+        // Reset all sync metrics and recalibrate
+        root.sync_state.drift_compensation = 0.0;
+        root.sync_state.sync_quality = 1.0;
+        root.sync_state.performance_score = 1.0;
+        
+        // Force content dimension recalculation
+        root.calculate_content_metrics();
+    }
+    
+    // Private helper functions
+    
+    function update_scroll_metrics() {
+        // Calculate scroll ratios with boundary checking
+        let max_vertical = max(0px, root.scroll_position.content_height - root.scroll_position.viewport_height);
+        let max_horizontal = max(0px, root.scroll_position.content_width - root.scroll_position.viewport_width);
+        
+        root.scroll_position.scroll_ratio_vertical = max_vertical > 0px ? 
+            root.scroll_position.vertical_offset / max_vertical : 0.0;
+        root.scroll_position.scroll_ratio_horizontal = max_horizontal > 0px ? 
+            root.scroll_position.horizontal_offset / max_horizontal : 0.0;
+        
+        // Calculate line-based metrics for sentence alignment
+        if root.content_dimensions.average_line_height > 0px {
+            root.scroll_position.line_number_at_top = 
+                Math.floor(root.scroll_position.vertical_offset / root.content_dimensions.average_line_height);
+            root.scroll_position.visible_line_count = 
+                Math.ceil(root.scroll_position.viewport_height / root.content_dimensions.average_line_height);
+        }
+    }
+    
+    function trigger_scroll_sync() {
+        if !root.sync_enabled {
+            return;
+        }
+        
+        // Mark as sync source
+        root.sync_state.is_source = true;
+        root.sync_state.is_active = true;
+        
+        // Debounce scroll events for performance
+        scroll_debounce_timer.pending_sync = true;
+        scroll_debounce_timer.running = true;
+    }
+    
+    function execute_scroll_sync() {
+        // Create scroll sync event
+        let sync_event: ScrollSyncEvent = {
+            source_pane_id: root.pane_id,
+            target_pane_ids: [], // Will be populated by coordinator
+            source_position: root.scroll_position,
+            adjustment_factor: 1.0, // Will be calculated by coordinator
+            sync_mode: root.sync_mode,
+            timestamp: "now", // Would be actual timestamp in implementation
+            priority: 1,
+        };
+        
+        // Trigger sync event
+        root.sync_requested(sync_event);
+        
+        // Update performance metrics
+        root.performance_metrics.queue_size += 1;
+    }
+    
+    function calculate_adjusted_position(target_position: EnhancedScrollPosition, adjustment_factor: float) -> EnhancedScrollPosition {
+        let adjusted_position = target_position;
+        
+        if root.sync_mode == "proportional" && root.proportional_enabled {
+            // Proportional adjustment based on content differences
+            adjusted_position.vertical_offset = target_position.vertical_offset * adjustment_factor;
+            adjusted_position.scroll_ratio_vertical = target_position.scroll_ratio_vertical * adjustment_factor;
+        } else if root.sync_mode == "ratio" {
+            // Direct ratio mapping
+            let max_scroll = max(0px, root.scroll_position.content_height - root.scroll_position.viewport_height);
+            adjusted_position.vertical_offset = target_position.scroll_ratio_vertical * max_scroll;
+        } else if root.sync_mode == "sentence" {
+            // Sentence-based alignment (line number mapping)
+            if root.content_dimensions.average_line_height > 0px {
+                adjusted_position.vertical_offset = 
+                    target_position.line_number_at_top * root.content_dimensions.average_line_height;
+            }
+        }
+        
+        // Apply drift compensation
+        adjusted_position.vertical_offset += root.sync_state.drift_compensation;
+        
+        // Ensure bounds
+        let max_vertical = max(0px, root.scroll_position.content_height - root.scroll_position.viewport_height);
+        adjusted_position.vertical_offset = max(0px, min(max_vertical, adjusted_position.vertical_offset));
+        
+        return adjusted_position;
+    }
+    
+    function set_immediate_position(vertical: length, horizontal: length) {
+        root.scroll_position.vertical_offset = vertical;
+        root.scroll_position.horizontal_offset = horizontal;
+        
+        main_scroll.viewport_y = vertical;
+        main_scroll.viewport_x = horizontal;
+        
+        root.update_scroll_metrics();
+    }
+    
+    function calculate_easing(progress: float) -> float {
+        // Smooth ease-out easing to prevent bouncing
+        return 1.0 - (1.0 - progress) * (1.0 - progress);
+    }
+    
+    function complete_animation() {
+        root.is_animating = false;
+        scroll_animation_timer.running = false;
+        
+        // Set final position
+        root.scroll_position.vertical_offset = root.target_vertical_offset;
+        root.scroll_position.horizontal_offset = root.target_horizontal_offset;
+        
+        main_scroll.viewport_y = root.target_vertical_offset;
+        main_scroll.viewport_x = root.target_horizontal_offset;
+        
+        root.update_scroll_metrics();
+        
+        // Mark as no longer source after animation
+        root.sync_state.is_source = false;
+        
+        // Notify completion
+        root.sync_completed(root.pane_id, root.sync_state.sync_quality);
+    }
+    
+    function update_sync_quality(target_position: EnhancedScrollPosition, adjusted_position: EnhancedScrollPosition) {
+        // Calculate sync quality based on position accuracy
+        let vertical_error = abs(target_position.vertical_offset - adjusted_position.vertical_offset);
+        let quality = max(0.0, 1.0 - (vertical_error / 100px)); // 100px tolerance
+        
+        root.sync_state.sync_quality = quality;
+        
+        if quality < 0.5 {
+            root.sync_quality_degraded(root.pane_id, quality);
+        }
+    }
+    
+    function calculate_visible_content() {
+        // Update visible line count based on viewport size
+        if root.content_dimensions.average_line_height > 0px {
+            root.scroll_position.visible_line_count = 
+                Math.ceil(root.scroll_position.viewport_height / root.content_dimensions.average_line_height);
+        }
+    }
+    
+    function monitor_animation_performance() {
+        // Track animation performance metrics
+        root.performance_metrics.frame_rate = 1000.0 / 16.0; // Simplified calculation
+        
+        // Check for dropped frames
+        if root.performance_metrics.frame_rate < 30.0 {
+            root.performance_metrics.dropped_events += 1;
+        }
+    }
+    
+    function update_performance_metrics() {
+        // Update real-time performance metrics
+        root.performance_metrics.sync_latency_ms = 
+            root.sync_state.is_active ? root.performance_metrics.sync_latency_ms : 0.0;
+        
+        // Reset counters
+        root.performance_metrics.queue_size = max(0, root.performance_metrics.queue_size - 1);
+    }
+    
+    function check_performance_thresholds() {
+        // Monitor performance thresholds and alert if needed
+        if root.performance_metrics.sync_latency_ms > 50.0 {
+            root.performance_alert("sync_latency", root.performance_metrics.sync_latency_ms, 
+                "Sync latency exceeds 50ms threshold");
+        }
+        
+        if root.performance_metrics.frame_rate < 30.0 {
+            root.performance_alert("frame_rate", root.performance_metrics.frame_rate, 
+                "Frame rate below 30fps");
+        }
+        
+        if root.performance_metrics.queue_size > 10 {
+            root.performance_alert("queue_size", root.performance_metrics.queue_size, 
+                "Sync event queue overloaded");
+        }
+    }
+    
+    function calculate_content_metrics() {
+        // Recalculate content metrics for accurate synchronization
+        // This would typically be called from the Rust backend
+        root.content_dimensions_changed(root.pane_id, root.content_dimensions);
+    }
+    
+    // Accessibility support
+    accessible_role: AccessibleRole.scrollview;
+    accessible_label: "Synchronized scroll container for pane " + root.pane_id;
+    accessible_description: "Scroll synchronization " + 
+        (root.sync_enabled ? "enabled" : "disabled") + 
+        ", mode: " + root.sync_mode + 
+        ", quality: " + Math.round(root.sync_state.sync_quality * 100) + "%";
+}

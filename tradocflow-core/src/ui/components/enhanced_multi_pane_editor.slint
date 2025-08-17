@@ -1,0 +1,1346 @@
+import { Colors } from "../styles/colors.slint";
+import { Theme } from "../styles/default.slint";
+import { ProfessionalEditor, TextOperation } from "./enhanced_text_editor.slint";
+import { PaneHeader, PaneConfig, PaneType, PaneStatus, LayoutMode, MultiPaneHeaderContainer } from "./pane_header.slint";
+import { LanguageInfo, LanguageDatabase } from "./language_selector.slint";
+import { TermHighlight } from "./terminology_panel.slint";
+import { SynchronizedScrollContainer, ScrollSyncEvent, EnhancedScrollPosition, ContentDimensions, SyncState } from "./synchronized_scroll_container.slint";
+import { ScrollCoordinator, CoordinationLayout, SyncGroup, CoordinationMetrics } from "./scroll_coordinator.slint";
+import { ScrollControls, UserSyncPreferences, SyncStatusInfo } from "./scroll_controls.slint";
+import { AlignmentConfidenceIndicator, ConfidenceIndicator, ConfidenceLevel, ConfidenceThresholds, ConfidenceVisualConfig, ConfidenceStatistics } from "./alignment_confidence_indicator.slint";
+import { AlignmentFeedbackOverlay, ProblemArea, ProblemSeverity, OverlayConfig, OverlayStyle, AlignmentConnection, ProblemFilter } from "./alignment_feedback_overlay.slint";
+import { AlignmentCorrectionTools, CorrectionAction, CorrectionMode, SentenceSelection, CorrectionOperation, UserGuidance, CorrectionToolConfig, CorrectionFeedback } from "./alignment_correction_tools.slint";
+
+// Enhanced multi-pane editor with professional headers and responsive layouts
+// Supports 2-4 simultaneous editors with intelligent layout management
+
+// Editor pane data structure
+export struct EditorPane {
+    id: string,
+    config: PaneConfig,
+    content: string,
+    cursor_position: int,
+    scroll_position: length,
+    selection_start: int,
+    selection_end: int,
+    term_highlights: [TermHighlight],
+    has_focus: bool,
+    is_dirty: bool,
+    last_save_time: string,
+    undo_stack_size: int,
+    redo_stack_size: int,
+}
+
+// Layout configuration for different screen sizes and use cases
+export struct LayoutConfig {
+    mode: LayoutMode,
+    pane_count: int,
+    primary_pane_id: string,
+    split_ratios: [float],           // Ratios for pane sizing
+    show_headers: bool,
+    compact_headers: bool,
+    synchronized_scrolling: bool,
+    synchronized_cursor: bool,
+    auto_save_interval: duration,
+    // Enhanced synchronization settings
+    sync_mode: string,               // "proportional", "ratio", "absolute", "sentence"
+    sync_sensitivity: float,         // 0.1 to 2.0 - scroll sensitivity
+    smooth_animations: bool,
+    visual_feedback: bool,
+    performance_monitoring: bool,
+    sentence_alignment: bool,        // Enable sentence-based alignment
+    drift_compensation: bool,        // Auto-correct sync drift
+}
+
+// Synchronization event for cross-pane coordination
+export struct SyncEvent {
+    event_type: string,              // "cursor", "scroll", "content", "selection"
+    source_pane_id: string,
+    target_pane_ids: [string],
+    cursor_position: int,
+    scroll_position: length,
+    selection_start: int,
+    selection_end: int,
+    content: string,
+    timestamp: string,
+}
+
+// Performance monitoring for editor responsiveness
+export struct PerformanceMetrics {
+    render_time_ms: float,
+    input_latency_ms: float,
+    sync_latency_ms: float,
+    memory_usage_mb: float,
+    active_highlights: int,
+    total_characters: int,
+}
+
+// Main multi-pane editor component
+export component EnhancedMultiPaneEditor inherits Rectangle {
+    // Configuration properties
+    in property <LayoutConfig> layout_config: {
+        mode: LayoutMode.Horizontal,
+        pane_count: 2,
+        primary_pane_id: "pane-1",
+        split_ratios: [0.5, 0.5],
+        show_headers: true,
+        compact_headers: false,
+        synchronized_scrolling: true,
+        synchronized_cursor: false,
+        auto_save_interval: 30s,
+        // Enhanced synchronization defaults
+        sync_mode: "proportional",
+        sync_sensitivity: 1.0,
+        smooth_animations: true,
+        visual_feedback: true,
+        performance_monitoring: true,
+        sentence_alignment: false,
+        drift_compensation: true,
+    };
+    
+    // Editor panes (supports 2-4 panes)
+    in-out property <[EditorPane]> panes: [
+        {
+            id: "pane-1",
+            config: {
+                id: "pane-1",
+                title: "Source Document",
+                pane_type: PaneType.Source,
+                language: LanguageDatabase.common_languages[0], // English
+                status: PaneStatus.Active,
+                word_count: 0,
+                char_count: 0,
+                progress: 0.0,
+                last_modified: "",
+                is_dirty: false,
+                show_stats: true,
+                allow_language_change: true,
+                confidence: 1.0,
+                alignment_score: 0.0,
+            },
+            content: "",
+            cursor_position: 0,
+            scroll_position: 0px,
+            selection_start: 0,
+            selection_end: 0,
+            term_highlights: [],
+            has_focus: true,
+            is_dirty: false,
+            last_save_time: "",
+            undo_stack_size: 0,
+            redo_stack_size: 0,
+        },
+        {
+            id: "pane-2",
+            config: {
+                id: "pane-2",
+                title: "Target Document",
+                pane_type: PaneType.Target,
+                language: LanguageDatabase.common_languages[1], // German
+                status: PaneStatus.Inactive,
+                word_count: 0,
+                char_count: 0,
+                progress: 0.0,
+                last_modified: "",
+                is_dirty: false,
+                show_stats: true,
+                allow_language_change: true,
+                confidence: 0.85,
+                alignment_score: 0.92,
+            },
+            content: "",
+            cursor_position: 0,
+            scroll_position: 0px,
+            selection_start: 0,
+            selection_end: 0,
+            term_highlights: [],
+            has_focus: false,
+            is_dirty: false,
+            last_save_time: "",
+            undo_stack_size: 0,
+            redo_stack_size: 0,
+        }
+    ];
+    
+    // Available languages for all panes
+    in property <[LanguageInfo]> available_languages: LanguageDatabase.common_languages;
+    
+    // Editor modes and features
+    in property <string> editor_mode: "markdown";    // "markdown" or "presentation"
+    in property <bool> live_preview: false;
+    in property <bool> terminology_highlighting: true;
+    in property <bool> translation_memory_enabled: true;
+    in property <bool> spell_check_enabled: true;
+    in property <bool> grammar_check_enabled: false;
+    
+    // Performance and optimization
+    in property <PerformanceMetrics> performance_metrics;
+    in property <bool> performance_monitoring: false;
+    in property <int> max_undo_history: 100;
+    in property <bool> lazy_rendering: true;
+    
+    // Enhanced synchronization system
+    in-out property <CoordinationMetrics> coordination_metrics: {
+        total_sync_events: 0,
+        successful_syncs: 0,
+        failed_syncs: 0,
+        average_sync_latency: 0.0,
+        sync_accuracy_score: 1.0,
+        performance_score: 1.0,
+        active_sync_groups: 1,
+        queue_overflow_count: 0,
+    };
+    
+    in-out property <UserSyncPreferences> sync_preferences: {
+        preferred_sync_mode: "proportional",
+        preferred_layout_mode: "horizontal",
+        auto_enable_sync: true,
+        sync_sensitivity: 1.0,
+        animation_speed: 1.0,
+        visual_feedback_level: "standard",
+        performance_priority: "balanced",
+    };
+    
+    in-out property <SyncStatusInfo> sync_status: {
+        is_syncing: false,
+        active_mode: "proportional",
+        sync_quality_percentage: 100,
+        performance_score: 95,
+        active_panes: [],
+        last_sync_source: "",
+        sync_conflicts: [],
+        drift_detected: false,
+    };
+    
+    // Content dimensions for each pane
+    in-out property <[ContentDimensions]> pane_content_dimensions: [];
+    
+    // Alignment confidence and correction system
+    in property <bool> enable_alignment_confidence: true;
+    in property <bool> enable_alignment_correction: true;
+    in property <bool> show_alignment_feedback: true;
+    
+    in-out property <[ConfidenceIndicator]> confidence_indicators: [];
+    in-out property <ConfidenceThresholds> confidence_thresholds: {
+        excellent_threshold: 0.9,
+        good_threshold: 0.7,
+        moderate_threshold: 0.5,
+        poor_threshold: 0.3,
+        auto_validation_threshold: 0.9,
+        review_required_threshold: 0.5,
+    };
+    in-out property <ConfidenceVisualConfig> confidence_visual_config: {
+        show_percentage: true,
+        show_method_labels: true,
+        show_validation_icons: true,
+        compact_mode: false,
+        animation_enabled: true,
+        color_blind_mode: false,
+        high_contrast_mode: false,
+    };
+    in-out property <ConfidenceStatistics> confidence_statistics: {
+        total_alignments: 0,
+        excellent_count: 0,
+        good_count: 0,
+        moderate_count: 0,
+        poor_count: 0,
+        critical_count: 0,
+        average_confidence: 0.0,
+        improvement_trend: 0.0,
+    };
+    
+    // Problem areas and alignment feedback
+    in-out property <[ProblemArea]> problem_areas: [];
+    in-out property <[AlignmentConnection]> alignment_connections: [];
+    in-out property <OverlayConfig> overlay_config: {
+        show_problem_highlights: true,
+        show_confidence_overlay: true,
+        show_alignment_lines: true,
+        show_problem_tooltips: true,
+        enable_hover_details: true,
+        auto_highlight_critical: true,
+        fade_resolved_problems: true,
+        animation_enabled: true,
+    };
+    in-out property <OverlayStyle> overlay_style: {
+        highlight_opacity: 0.3,
+        border_thickness: 2.0,
+        corner_radius: 4.0,
+        glow_effect: true,
+        high_contrast_mode: false,
+        color_blind_friendly: false,
+        animation_duration: 250ms,
+    };
+    in-out property <ProblemFilter> problem_filter: {
+        min_severity: ProblemSeverity.Info,
+        max_severity: ProblemSeverity.Critical,
+        show_resolved: false,
+        show_auto_fixable: true,
+        issue_types: [],
+        affected_panes: [],
+    };
+    
+    // Correction tools state
+    in-out property <bool> correction_tools_active: false;
+    in-out property <CorrectionMode> correction_mode: CorrectionMode.Selection;
+    in-out property <[SentenceSelection]> sentence_selections: [];
+    in-out property <[CorrectionOperation]> pending_corrections: [];
+    in-out property <CorrectionToolConfig> correction_tool_config: {
+        max_selections: 5,
+        auto_save_corrections: true,
+        enable_undo_redo: true,
+        batch_operation_limit: 10,
+        confidence_threshold: 0.7,
+        require_validation_notes: false,
+    };
+    in-out property <UserGuidance> user_guidance: {
+        show_tooltips: true,
+        show_keyboard_shortcuts: true,
+        show_step_indicators: true,
+        enable_hints: true,
+        auto_suggest_corrections: true,
+        beginner_mode: false,
+    };
+    in-out property <CorrectionFeedback> correction_feedback: {
+        operation_success: false,
+        confidence_improvement: 0.0,
+        alignment_quality_change: 0.0,
+        affected_sentence_count: 0,
+        estimated_accuracy: 0.0,
+        user_message: "",
+    };
+    
+    // Scroll coordination layout
+    property <CoordinationLayout> coordination_layout: {
+        mode: "horizontal",
+        pane_count: 2,
+        primary_pane_id: "pane-1",
+        sync_groups: [{
+            group_id: "main_group",
+            pane_ids: ["pane-1", "pane-2"],
+            sync_mode: "proportional",
+            master_pane_id: "pane-1",
+            sync_strength: 1.0,
+            enabled: true,
+        }],
+        master_slave_pairs: [],
+        global_sync_enabled: true,
+    };
+    
+    // UI state
+    property <string> active_pane_id: "pane-1";
+    property <bool> headers_visible: true;
+    property <bool> status_bar_visible: true;
+    property <length> header_height: root.layout_config.compact_headers ? 36px : 48px;
+    property <length> status_bar_height: 24px;
+    
+    // Callbacks for editor events
+    callback content_changed(string /* pane_id */, string /* content */);
+    callback language_changed(string /* pane_id */, LanguageInfo);
+    callback pane_focused(string /* pane_id */);
+    callback pane_created(string /* pane_id */, PaneType);
+    callback pane_closed(string /* pane_id */);
+    callback layout_changed(LayoutMode);
+    callback sync_event(SyncEvent);
+    
+    // Text operation callbacks
+    callback text_operation(string /* pane_id */, TextOperation);
+    callback cursor_moved(string /* pane_id */, int /* position */);
+    callback selection_changed(string /* pane_id */, int /* start */, int /* end */);
+    callback scroll_changed(string /* pane_id */, length /* position */);
+    
+    // Collaboration and synchronization callbacks
+    callback sync_settings_changed(bool /* cursor */, bool /* scroll */, bool /* content */);
+    callback auto_save_triggered(string /* pane_id */);
+    callback manual_save_requested(string /* pane_id */);
+    callback undo_redo_operation(string /* pane_id */, string /* operation */);
+    
+    // Performance monitoring callbacks
+    callback performance_threshold_exceeded(string /* metric */, float /* value */);
+    callback memory_pressure_detected(float /* usage_mb */);
+    
+    // Advanced editing callbacks
+    callback find_replace_requested(string /* pane_id */);
+    callback spell_check_suggestion(string /* pane_id */, string /* suggestion */);
+    callback translation_memory_lookup(string /* source_text */, string /* source_lang */, string /* target_lang */);
+    callback terminology_lookup(string /* term */, string /* context */);
+    
+    // Enhanced synchronization callbacks
+    callback sync_mode_changed(string /* mode */);
+    callback sync_sensitivity_changed(float /* sensitivity */);
+    callback sync_animation_speed_changed(float /* speed */);
+    callback sync_quality_alert(float /* quality */);
+    callback sync_drift_detected(string /* pane_id */, float /* drift */);
+    callback sync_performance_warning(string /* metric */, float /* value */);
+    callback manual_sync_requested();
+    callback sync_calibration_requested();
+    callback sync_reset_requested();
+    
+    // Content dimension callbacks
+    callback content_dimensions_updated(string /* pane_id */, ContentDimensions);
+    callback scroll_position_changed(string /* pane_id */, EnhancedScrollPosition);
+    
+    // Coordination callbacks
+    callback coordination_started();
+    callback coordination_stopped();
+    callback sync_group_created(string /* group_id */, [string] /* pane_ids */);
+    callback sync_group_modified(string /* group_id */, SyncGroup);
+    
+    // Alignment confidence and correction callbacks
+    callback confidence_indicator_clicked(int /* index */, ConfidenceIndicator);
+    callback confidence_indicator_hovered(int /* index */, ConfidenceIndicator);
+    callback confidence_threshold_changed(string /* threshold_type */, float /* value */);
+    callback confidence_filter_changed(ConfidenceLevel /* min_level */);
+    callback alignment_quality_updated(float /* quality_score */);
+    
+    // Problem area and feedback callbacks
+    callback problem_clicked(int /* index */, ProblemArea);
+    callback problem_hovered(int /* index */, ProblemArea);
+    callback alignment_connection_clicked(int /* index */, AlignmentConnection);
+    callback auto_fix_requested(int /* problem_index */);
+    callback manual_fix_requested(int /* problem_index */);
+    callback problem_dismissed(int /* problem_index */);
+    callback show_problem_details(ProblemArea);
+    
+    // Correction tool callbacks
+    callback sentence_selected_for_correction(string /* pane_id */, int /* sentence_index */);
+    callback sentence_deselected_for_correction(string /* pane_id */, int /* sentence_index */);
+    callback correction_operation_requested(CorrectionOperation);
+    callback validation_submitted(int /* sentence_index */, bool /* is_valid */, string /* notes */);
+    callback batch_correction_started([CorrectionOperation]);
+    callback correction_mode_changed(CorrectionMode);
+    callback correction_tools_activated();
+    callback correction_tools_deactivated();
+    callback correction_undo_requested();
+    callback correction_redo_requested();
+    callback save_corrections_requested();
+    callback show_correction_help_requested(string /* topic */);
+    callback correction_suggestion_accepted(string /* suggestion_id */);
+    callback correction_suggestion_rejected(string /* suggestion_id */);
+    
+    // Alignment synchronization callbacks
+    callback sentence_boundary_sync_requested(string /* source_pane_id */, int /* cursor_position */);
+    callback alignment_confidence_calculation_requested();
+    callback alignment_problem_detection_requested();
+    callback alignment_statistics_updated();
+    
+    background: Colors.editor_background;
+    
+    VerticalLayout {
+        spacing: 0px;
+        
+        // Scroll coordination system (invisible coordination layer)
+        scroll_coordinator := ScrollCoordinator {
+            height: 0px; // Invisible coordination layer
+            layout_config: root.coordination_layout;
+            intelligent_routing: true;
+            adaptive_sync_strength: true;
+            global_sync_threshold: root.layout_config.sync_sensitivity * 5.0;
+            performance_optimization: root.layout_config.performance_monitoring;
+            enable_analytics: true;
+            performance_monitoring: root.layout_config.performance_monitoring;
+            coordination_metrics: root.coordination_metrics;
+            
+            // Coordination event handlers
+            pane_registered(pane_id, registration) => {
+                debug("Pane registered: " + pane_id);
+            }
+            
+            sync_event_processed(sync_event, success) => {
+                if success {
+                    root.coordination_metrics.successful_syncs += 1;
+                } else {
+                    root.coordination_metrics.failed_syncs += 1;
+                }
+            }
+            
+            coordination_metrics_updated(metrics) => {
+                root.coordination_metrics = metrics;
+                
+                // Update sync status for UI
+                root.sync_status.sync_quality_percentage = Math.round(metrics.sync_accuracy_score * 100);
+                root.sync_status.performance_score = Math.round(metrics.performance_score * 100);
+            }
+            
+            performance_threshold_exceeded(metric, value) => {
+                root.sync_performance_warning(metric, value);
+            }
+            
+            coordination_started => {
+                root.sync_status.is_syncing = true;
+                root.coordination_started();
+            }
+            
+            coordination_stopped => {
+                root.sync_status.is_syncing = false;
+                root.coordination_stopped();
+            }
+        }
+        
+        // Scroll controls (collapsible)
+        if root.layout_config.synchronized_scrolling: sync_controls := ScrollControls {
+            height: 80px;
+            controls_config: {
+                show_advanced_options: false,
+                compact_mode: root.layout_config.compact_headers,
+                show_performance_metrics: root.layout_config.performance_monitoring,
+                show_visual_feedback: root.layout_config.visual_feedback,
+                enable_keyboard_shortcuts: true,
+                auto_hide_inactive: false,
+            };
+            user_preferences: root.sync_preferences;
+            sync_status: root.sync_status;
+            coordination_metrics: root.coordination_metrics;
+            available_panes: root.panes.map(pane => pane.id);
+            
+            // Control event handlers
+            sync_enabled_changed(enabled) => {
+                root.coordination_layout.global_sync_enabled = enabled;
+                root.sync_status.is_syncing = enabled;
+                root.sync_settings_changed(false, enabled, enabled);
+                
+                if enabled {
+                    scroll_coordinator.set_global_sync_enabled(true);
+                } else {
+                    scroll_coordinator.set_global_sync_enabled(false);
+                }
+            }
+            
+            sync_mode_changed(mode) => {
+                root.layout_config.sync_mode = mode;
+                root.sync_preferences.preferred_sync_mode = mode;
+                root.sync_status.active_mode = mode;
+                root.sync_mode_changed(mode);
+                
+                // Update coordination layout
+                for group[index] in root.coordination_layout.sync_groups {
+                    root.coordination_layout.sync_groups[index].sync_mode = mode;
+                }
+            }
+            
+            layout_mode_changed(mode) => {
+                if mode == "horizontal" {
+                    root.layout_changed(LayoutMode.Horizontal);
+                } else if mode == "vertical" {
+                    root.layout_changed(LayoutMode.Vertical);
+                } else if mode == "grid_2x2" {
+                    root.layout_changed(LayoutMode.Grid2x2);
+                }
+                root.sync_preferences.preferred_layout_mode = mode;
+            }
+            
+            sensitivity_changed(sensitivity) => {
+                root.layout_config.sync_sensitivity = sensitivity;
+                root.sync_preferences.sync_sensitivity = sensitivity;
+                root.sync_sensitivity_changed(sensitivity);
+            }
+            
+            animation_speed_changed(speed) => {
+                root.sync_preferences.animation_speed = speed;
+                root.sync_animation_speed_changed(speed);
+            }
+            
+            manual_sync_triggered => {
+                scroll_coordinator.force_sync_all_to_primary();
+                root.manual_sync_requested();
+            }
+            
+            reset_all_positions => {
+                scroll_coordinator.calibrate_all_panes();
+                root.sync_reset_requested();
+            }
+            
+            calibrate_synchronization => {
+                scroll_coordinator.calibrate_all_panes();
+                root.sync_calibration_requested();
+            }
+            
+            performance_mode_changed(mode) => {
+                root.sync_preferences.performance_priority = mode;
+            }
+        }
+        
+        // Multi-pane header container
+        if root.layout_config.show_headers: header_container := MultiPaneHeaderContainer {
+            height: root.header_height;
+            pane_configs: root.panes.map(pane => pane.config);
+            layout_mode: root.layout_config.mode;
+            available_languages: root.available_languages;
+            show_quick_switcher: root.panes.length == 2;
+            synchronized_scrolling: root.layout_config.synchronized_scrolling;
+            
+            language_changed(pane_id, lang) => {
+                root.language_changed(pane_id, lang);
+                
+                // Update pane configuration
+                for pane[index] in root.panes: if pane.id == pane_id {
+                    root.panes[index].config.language = lang;
+                    break;
+                }
+            }
+            
+            pane_focused(pane_id) => {
+                root.pane_focused(pane_id);
+                root.active_pane_id = pane_id;
+                
+                // Update focus states
+                for pane[index] in root.panes {
+                    root.panes[index].has_focus = pane.id == pane_id;
+                    root.panes[index].config.status = pane.id == pane_id ? 
+                        PaneStatus.Active : PaneStatus.Inactive;
+                }
+            }
+            
+            pane_action(pane_id, action) => {
+                if action == "close" {
+                    root.pane_closed(pane_id);
+                } else if action == "toggle_size" {
+                    // Toggle between normal and maximized states
+                } else if action == "options" {
+                    // Open pane-specific options
+                }
+            }
+            
+            layout_changed(new_mode) => {
+                root.layout_changed(new_mode);
+            }
+            
+            sync_toggled(enabled) => {
+                root.sync_settings_changed(
+                    root.layout_config.synchronized_cursor,
+                    enabled,
+                    enabled
+                );
+            }
+            
+            quick_language_swap => {
+                if root.panes.length >= 2 {
+                    let temp_lang = root.panes[0].config.language;
+                    root.panes[0].config.language = root.panes[1].config.language;
+                    root.panes[1].config.language = temp_lang;
+                    
+                    root.language_changed(root.panes[0].id, root.panes[0].config.language);
+                    root.language_changed(root.panes[1].id, root.panes[1].config.language);
+                }
+            }
+        }
+        
+        // Alignment confidence indicator (shows above editor panes)
+        if root.enable_alignment_confidence && root.layout_config.sentence_alignment: confidence_indicator := AlignmentConfidenceIndicator {
+            height: 140px;
+            confidence_indicators: root.confidence_indicators;
+            thresholds: root.confidence_thresholds;
+            visual_config: root.confidence_visual_config;
+            display_mode: "bar";
+            show_statistics: true;
+            show_legend: true;
+            statistics: root.confidence_statistics;
+            
+            indicator_clicked(index, indicator) => {
+                root.confidence_indicator_clicked(index, indicator);
+                
+                // Highlight corresponding sentence in editor
+                for pane_id in root.panes.map(p => p.id) {
+                    root.highlight_sentence_requested(pane_id, indicator.sentence_index);
+                }
+            }
+            
+            indicator_hovered(index, indicator) => {
+                root.confidence_indicator_hovered(index, indicator);
+            }
+            
+            threshold_changed(threshold_type, value) => {
+                root.confidence_threshold_changed(threshold_type, value);
+                
+                // Update threshold and recalculate confidence
+                if threshold_type == "excellent" {
+                    root.confidence_thresholds.excellent_threshold = value;
+                } else if threshold_type == "good" {
+                    root.confidence_thresholds.good_threshold = value;
+                } else if threshold_type == "moderate" {
+                    root.confidence_thresholds.moderate_threshold = value;
+                } else if threshold_type == "poor" {
+                    root.confidence_thresholds.poor_threshold = value;
+                }
+                
+                root.alignment_confidence_calculation_requested();
+            }
+            
+            confidence_filter_changed(min_level) => {
+                root.confidence_filter_changed(min_level);
+            }
+            
+            show_details_requested(index) => {
+                if index < root.confidence_indicators.length {
+                    let indicator = root.confidence_indicators[index];
+                    root.sentence_selected_for_correction("", indicator.sentence_index);
+                    root.correction_tools_active = true;
+                }
+            }
+            
+            improvement_suggestions_requested(index) => {
+                if index < root.confidence_indicators.length {
+                    let indicator = root.confidence_indicators[index];
+                    root.manual_fix_requested(index);
+                }
+            }
+            
+            manual_correction_requested(index) => {
+                root.correction_tools_active = true;
+                root.correction_mode = CorrectionMode.Alignment;
+            }
+        }
+        
+        // Alignment correction tools (floating panel)
+        if root.enable_alignment_correction && root.correction_tools_active: correction_tools := AlignmentCorrectionTools {
+            width: 400px;
+            height: 300px;
+            x: parent.width - 420px;
+            y: root.enable_alignment_confidence && root.layout_config.sentence_alignment ? 160px : 20px;
+            z: 100; // Float above editor
+            
+            correction_mode: root.correction_mode;
+            tool_config: root.correction_tool_config;
+            user_guidance: root.user_guidance;
+            pane_ids: root.panes.map(p => p.id);
+            total_sentences: root.confidence_indicators.length;
+            current_alignment_quality: root.confidence_statistics.average_confidence;
+            has_unsaved_changes: root.pending_corrections.length > 0;
+            is_active: root.correction_tools_active;
+            current_selections: root.sentence_selections;
+            pending_operations: root.pending_corrections;
+            last_feedback: root.correction_feedback;
+            
+            sentence_selected(pane_id, sentence_index) => {
+                root.sentence_selected_for_correction(pane_id, sentence_index);
+                
+                // Add to selections if not already present
+                let already_selected = root.sentence_selections.any(|s| s.pane_id == pane_id && s.sentence_index == sentence_index);
+                if !already_selected && root.sentence_selections.length < root.correction_tool_config.max_selections {
+                    root.sentence_selections.push({
+                        pane_id: pane_id,
+                        sentence_index: sentence_index,
+                        start_position: 0, // Would be calculated from backend
+                        end_position: 0,   // Would be calculated from backend
+                        content: "",       // Would be retrieved from backend
+                        confidence_score: 0.0,
+                        is_selected: true,
+                        selection_time: "now",
+                    });
+                }
+            }
+            
+            sentence_deselected(pane_id, sentence_index) => {
+                root.sentence_deselected_for_correction(pane_id, sentence_index);
+                
+                // Remove from selections
+                root.sentence_selections = root.sentence_selections.filter(|s| !(s.pane_id == pane_id && s.sentence_index == sentence_index));
+            }
+            
+            correction_operation_requested(operation) => {
+                root.correction_operation_requested(operation);
+                root.pending_corrections.push(operation);
+            }
+            
+            validation_submitted(sentence_index, is_valid, notes) => {
+                root.validation_submitted(sentence_index, is_valid, notes);
+            }
+            
+            batch_operation_started(operations) => {
+                root.batch_correction_started(operations);
+                root.pending_corrections = [];
+            }
+            
+            mode_changed(mode) => {
+                root.correction_mode = mode;
+                root.correction_mode_changed(mode);
+            }
+            
+            tool_activated => {
+                root.correction_tools_activated();
+            }
+            
+            tool_deactivated => {
+                root.correction_tools_active = false;
+                root.correction_tools_deactivated();
+                root.sentence_selections = [];
+            }
+            
+            undo_requested => {
+                root.correction_undo_requested();
+            }
+            
+            redo_requested => {
+                root.correction_redo_requested();
+            }
+            
+            save_corrections_requested => {
+                root.save_corrections_requested();
+            }
+            
+            show_help_requested(topic) => {
+                root.show_correction_help_requested(topic);
+            }
+            
+            suggestion_accepted(suggestion_id) => {
+                root.correction_suggestion_accepted(suggestion_id);
+            }
+            
+            suggestion_rejected(suggestion_id) => {
+                root.correction_suggestion_rejected(suggestion_id);
+            }
+        }
+        
+        // Main editor area with responsive layout
+        editor_area := Rectangle {
+            height: parent.height - 
+                   (root.layout_config.show_headers ? root.header_height : 0px) - 
+                   (root.layout_config.synchronized_scrolling ? 80px : 0px) -  // Sync controls height
+                   (root.enable_alignment_confidence && root.layout_config.sentence_alignment ? 140px : 0px) - // Confidence indicator height
+                   (root.status_bar_visible ? root.status_bar_height : 0px);
+            
+            // Horizontal layout (side-by-side)
+            if root.layout_config.mode == LayoutMode.Horizontal: HorizontalLayout {
+                spacing: 2px;
+                
+                for pane[index] in root.panes: pane_container := SynchronizedScrollContainer {
+                    width: parent.width * (root.layout_config.split_ratios.length > index ? 
+                          root.layout_config.split_ratios[index] : 
+                          1.0 / root.panes.length);
+                    
+                    // Synchronized scroll container configuration
+                    pane_id: pane.id;
+                    sync_enabled: root.layout_config.synchronized_scrolling;
+                    proportional_enabled: root.layout_config.sync_mode == "proportional";
+                    smooth_animations: root.layout_config.smooth_animations;
+                    sync_mode: root.layout_config.sync_mode;
+                    animation_duration: 200ms;
+                    sync_threshold: root.layout_config.sync_sensitivity;
+                    performance_monitoring: root.layout_config.performance_monitoring;
+                    show_scroll_indicators: root.layout_config.visual_feedback;
+                    accessibility_enhanced: true;
+                    
+                    // Content dimensions (would be calculated by backend)
+                    content_dimensions: {
+                        total_lines: pane.content.split("\n").length,
+                        total_characters: pane.content.length,
+                        average_line_height: 16px, // Would be calculated based on font
+                        content_density: pane.content.length > 0 ? pane.content.length / max(1, pane.content.split("\n").length) : 0.0,
+                        language_factor: 1.0, // Language-specific adjustment
+                        effective_height: pane.content.split("\n").length * 16px,
+                    };
+                    
+                    // Scroll event handlers
+                    scroll_changed(pane_id, position) => {
+                        root.scroll_position_changed(pane_id, position);
+                        
+                        // Update pane scroll position
+                        root.panes[index].scroll_position = position.vertical_offset;
+                        
+                        // Create sync event and send to coordinator
+                        let sync_event: ScrollSyncEvent = {
+                            source_pane_id: pane_id,
+                            target_pane_ids: [],
+                            source_position: position,
+                            adjustment_factor: 1.0,
+                            sync_mode: root.layout_config.sync_mode,
+                            timestamp: "now",
+                            priority: 1,
+                        };
+                        
+                        scroll_coordinator.handle_scroll_event(sync_event);
+                    }
+                    
+                    sync_completed(pane_id, quality) => {
+                        // Update sync quality metrics
+                        if quality < 0.7 {
+                            root.sync_quality_alert(quality);
+                        }
+                    }
+                    
+                    content_dimensions_changed(pane_id, dimensions) => {
+                        root.content_dimensions_updated(pane_id, dimensions);
+                        
+                        // Update stored dimensions
+                        if root.pane_content_dimensions.length <= index {
+                            root.pane_content_dimensions.push(dimensions);
+                        } else {
+                            root.pane_content_dimensions[index] = dimensions;
+                        }
+                    }
+                    
+                    performance_alert(metric, value, message) => {
+                        root.sync_performance_warning(metric, value);
+                    }
+                    
+                    sync_drift_detected(pane_id, drift) => {
+                        root.sync_drift_detected(pane_id, drift);
+                        root.sync_status.drift_detected = abs(drift) > 10.0;
+                    }
+                    
+                    // Professional editor as child content
+                    ProfessionalEditor {
+                        content: pane.content;
+                        mode: root.editor_mode;
+                        language: pane.config.language.code;
+                        read_only: pane.config.status == PaneStatus.ReadOnly;
+                        term_highlights: pane.term_highlights;
+                        highlighting_enabled: root.terminology_highlighting;
+                        editor_id: pane.id;
+                        pane_id: pane.id;
+                        has_focus: pane.has_focus;
+                        show_focus_indicator: true;
+                        
+                        content_changed(text) => {
+                            root.content_changed(pane.id, text);
+                            
+                            // Update pane data
+                            root.panes[index].content = text;
+                            root.panes[index].is_dirty = true;
+                            root.panes[index].config.is_dirty = true;
+                            
+                            // Update word and character counts
+                            let words = text.split(" ").length;
+                            let chars = text.length;
+                            root.panes[index].config.word_count = words;
+                            root.panes[index].config.char_count = chars;
+                            
+                            // Trigger auto-save timer
+                            if root.layout_config.auto_save_interval > 0s {
+                                // Auto-save logic would be implemented in Rust backend
+                            }
+                        }
+                        
+                        language_changed(lang) => {
+                            // Language changes are handled by the header
+                        }
+                        
+                        focus_requested => {
+                            root.pane_focused(pane.id);
+                        }
+                        
+                        focus_granted => {
+                            root.panes[index].has_focus = true;
+                            root.panes[index].config.status = PaneStatus.Active;
+                        }
+                        
+                        focus_lost => {
+                            root.panes[index].has_focus = false;
+                            root.panes[index].config.status = PaneStatus.Inactive;
+                        }
+                        
+                        text_operation(op) => {
+                            root.text_operation(pane.id, op);
+                        }
+                        
+                        term_highlight_clicked(highlight) => {
+                            root.terminology_lookup(highlight.term, highlight.context);
+                        }
+                        
+                        // Formatting callbacks
+                        format_bold => { 
+                            root.text_operation(pane.id, {
+                                operation_type: "format",
+                                content: "",
+                                start_pos: pane.selection_start,
+                                end_pos: pane.selection_end,
+                                format_type: "bold"
+                            });
+                        }
+                        
+                        format_italic => { 
+                            root.text_operation(pane.id, {
+                                operation_type: "format",
+                                content: "",
+                                start_pos: pane.selection_start,
+                                end_pos: pane.selection_end,
+                                format_type: "italic"
+                            });
+                        }
+                        
+                        // Additional formatting callbacks would follow the same pattern
+                        
+                        undo => {
+                            root.undo_redo_operation(pane.id, "undo");
+                        }
+                        
+                        redo => {
+                            root.undo_redo_operation(pane.id, "redo");
+                        }
+                    }
+                    
+                    // Register pane with scroll coordinator on initialization
+                    init => {
+                        scroll_coordinator.register_pane(
+                            pane.id, 
+                            self, 
+                            {
+                                total_lines: pane.content.split("\n").length,
+                                total_characters: pane.content.length,
+                                average_line_height: 16px,
+                                content_density: pane.content.length > 0 ? pane.content.length / max(1, pane.content.split("\n").length) : 0.0,
+                                language_factor: 1.0,
+                                effective_height: pane.content.split("\n").length * 16px,
+                            }
+                        );
+                        
+                        // Update sync status
+                        root.sync_status.active_panes.push(pane.id);
+                    }
+                }
+                
+                // Pane separator (for resizing)
+                if index < root.panes.length - 1: pane_separator := Rectangle {
+                        width: 2px;
+                        background: Colors.border;
+                        
+                        states [
+                            hover when separator_touch.has_hover: {
+                                background: Colors.primary;
+                                width: 4px;
+                            }
+                        ]
+                        
+                        separator_touch := TouchArea {
+                            mouse_cursor: col_resize;
+                            
+                            // Resizing logic would be implemented here
+                        }
+                    }
+                }
+            }
+            
+            // Vertical layout (top-bottom)
+            if root.layout_config.mode == LayoutMode.Vertical: VerticalLayout {
+                spacing: 2px;
+                
+                for pane[index] in root.panes: Rectangle {
+                    height: parent.height * (root.layout_config.split_ratios.length > index ? 
+                           root.layout_config.split_ratios[index] : 
+                           1.0 / root.panes.length);
+                    
+                    ProfessionalEditor {
+                        // Same properties and callbacks as horizontal layout
+                        content: pane.content;
+                        mode: root.editor_mode;
+                        language: pane.config.language.code;
+                        read_only: pane.config.status == PaneStatus.ReadOnly;
+                        term_highlights: pane.term_highlights;
+                        highlighting_enabled: root.terminology_highlighting;
+                        editor_id: pane.id;
+                        pane_id: pane.id;
+                        has_focus: pane.has_focus;
+                        show_focus_indicator: true;
+                        
+                        // Same callbacks as horizontal layout...
+                        content_changed(text) => {
+                            root.content_changed(pane.id, text);
+                            root.panes[index].content = text;
+                            root.panes[index].is_dirty = true;
+                            root.panes[index].config.is_dirty = true;
+                            
+                            let words = text.split(" ").length;
+                            let chars = text.length;
+                            root.panes[index].config.word_count = words;
+                            root.panes[index].config.char_count = chars;
+                        }
+                        
+                        focus_requested => { root.pane_focused(pane.id); }
+                        text_operation(op) => { root.text_operation(pane.id, op); }
+                        undo => { root.undo_redo_operation(pane.id, "undo"); }
+                        redo => { root.undo_redo_operation(pane.id, "redo"); }
+                    }
+                }
+            }
+            
+            // Grid 2x2 layout
+            if root.layout_config.mode == LayoutMode.Grid2x2: GridLayout {
+                spacing: 2px;
+                
+                for pane[index] in root.panes: ProfessionalEditor {
+                    content: pane.content;
+                    mode: root.editor_mode;
+                    language: pane.config.language.code;
+                    read_only: pane.config.status == PaneStatus.ReadOnly;
+                    term_highlights: pane.term_highlights;
+                    highlighting_enabled: root.terminology_highlighting;
+                    editor_id: pane.id;
+                    pane_id: pane.id;
+                    has_focus: pane.has_focus;
+                    show_focus_indicator: true;
+                    
+                    // Same callbacks as other layouts...
+                    content_changed(text) => {
+                        root.content_changed(pane.id, text);
+                        root.panes[index].content = text;
+                        root.panes[index].is_dirty = true;
+                        root.panes[index].config.is_dirty = true;
+                        
+                        let words = text.split(" ").length;
+                        let chars = text.length;
+                        root.panes[index].config.word_count = words;
+                        root.panes[index].config.char_count = chars;
+                    }
+                    
+                    focus_requested => { root.pane_focused(pane.id); }
+                    text_operation(op) => { root.text_operation(pane.id, op); }
+                    undo => { root.undo_redo_operation(pane.id, "undo"); }
+                    redo => { root.undo_redo_operation(pane.id, "redo"); }
+                }
+            }
+            
+            // Alignment feedback overlay (floats above editor content)
+            if root.show_alignment_feedback && root.layout_config.sentence_alignment: feedback_overlay := AlignmentFeedbackOverlay {
+                width: parent.width;
+                height: parent.height;
+                z: 10; // Float above editor content
+                
+                problem_areas: root.problem_areas;
+                alignment_connections: root.alignment_connections;
+                overlay_config: root.overlay_config;
+                overlay_style: root.overlay_style;
+                problem_filter: root.problem_filter;
+                
+                editor_pane_count: root.panes.length;
+                editor_pane_ids: root.panes.map(p => p.id);
+                pane_width: parent.width / root.panes.length;
+                content_height: parent.height;
+                layout_mode: root.layout_config.mode == LayoutMode.Horizontal ? "horizontal" : "vertical";
+                active_pane_id: root.active_pane_id;
+                
+                problem_clicked(index, problem) => {
+                    root.problem_clicked(index, problem);
+                    
+                    // Auto-activate correction tools for problematic alignments
+                    if problem.auto_fixable {
+                        root.correction_tools_active = true;
+                        root.correction_mode = CorrectionMode.Alignment;
+                    }
+                }
+                
+                problem_hovered(index, problem) => {
+                    root.problem_hovered(index, problem);
+                }
+                
+                connection_clicked(index, connection) => {
+                    root.alignment_connection_clicked(index, connection);
+                    
+                    // Show connection details in correction tools
+                    root.correction_tools_active = true;
+                    root.correction_mode = CorrectionMode.Validation;
+                }
+                
+                auto_fix_requested(problem_index) => {
+                    root.auto_fix_requested(problem_index);
+                }
+                
+                manual_fix_requested(problem_index) => {
+                    root.manual_fix_requested(problem_index);
+                    root.correction_tools_active = true;
+                    root.correction_mode = CorrectionMode.Alignment;
+                }
+                
+                problem_dismissed(problem_index) => {
+                    root.problem_dismissed(problem_index);
+                    
+                    // Remove from problem areas
+                    if problem_index < root.problem_areas.length {
+                        root.problem_areas.remove(problem_index);
+                    }
+                }
+                
+                highlight_sentence_requested(pane_id, sentence_index) => {
+                    root.highlight_sentence_requested(pane_id, sentence_index);
+                }
+                
+                show_problem_details(problem) => {
+                    root.show_problem_details(problem);
+                }
+                
+                show_suggestion_popup(suggestion, x, y) => {
+                    // Show suggestion popup at coordinates
+                    root.correction_feedback.user_message = suggestion;
+                }
+            }
+        }
+        
+        // Enhanced status bar with comprehensive information
+        if root.status_bar_visible: status_bar := Rectangle {
+            height: root.status_bar_height;
+            background: Colors.surface;
+            border_width: 1px;
+            border_color: Colors.border;
+            
+            HorizontalLayout {
+                padding: Theme.spacing_xs;
+                spacing: Theme.spacing_sm;
+                alignment: space_between;
+                
+                // Left section: Layout and sync status
+                HorizontalLayout {
+                    spacing: Theme.spacing_xs;
+                    alignment: start;
+                    
+                    // Layout mode indicator
+                    Text {
+                        text: "Layout: " + (
+                            root.layout_config.mode == LayoutMode.Horizontal ? "Horizontal" :
+                            root.layout_config.mode == LayoutMode.Vertical ? "Vertical" :
+                            root.layout_config.mode == LayoutMode.Grid2x2 ? "Grid 2x2" :
+                            "Single"
+                        );
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_muted;
+                        vertical_alignment: center;
+                    }
+                    
+                    Rectangle { width: 1px; height: 12px; background: Colors.border; }
+                    
+                    // Active pane indicator
+                    HorizontalLayout {
+                        spacing: 4px;
+                        alignment: start;
+                        
+                        Text {
+                            text: "Active:";
+                            font_size: Theme.font_size_small;
+                            color: Colors.text_muted;
+                            vertical_alignment: center;
+                        }
+                        
+                        Text {
+                            text: root.active_pane_id;
+                            font_size: Theme.font_size_small;
+                            color: Colors.primary;
+                            font_weight: 600;
+                            vertical_alignment: center;
+                        }
+                    }
+                    
+                    Rectangle { width: 1px; height: 12px; background: Colors.border; }
+                    
+                    // Sync status
+                    if root.layout_config.synchronized_scrolling || root.layout_config.synchronized_cursor: HorizontalLayout {
+                        spacing: 4px;
+                        alignment: start;
+                        
+                        Text {
+                            text: "🔄";
+                            font_size: Theme.font_size_small;
+                            vertical_alignment: center;
+                        }
+                        
+                        Text {
+                            text: "Sync: " + 
+                                (root.layout_config.synchronized_scrolling ? "Scroll " : "") +
+                                (root.layout_config.synchronized_cursor ? "Cursor" : "");
+                            font_size: Theme.font_size_small;
+                            color: Colors.success;
+                            vertical_alignment: center;
+                        }
+                    }
+                }
+                
+                // Center section: Performance metrics (if enabled)
+                if root.performance_monitoring: HorizontalLayout {
+                    spacing: Theme.spacing_xs;
+                    alignment: center;
+                    
+                    Text {
+                        text: "⚡ " + Math.round(root.performance_metrics.render_time_ms) + "ms";
+                        font_size: Theme.font_size_small;
+                        color: root.performance_metrics.render_time_ms > 16.0 ? Colors.warning : Colors.success;
+                        vertical_alignment: center;
+                    }
+                    
+                    Text {
+                        text: "💾 " + Math.round(root.performance_metrics.memory_usage_mb) + "MB";
+                        font_size: Theme.font_size_small;
+                        color: root.performance_metrics.memory_usage_mb > 500.0 ? Colors.error : Colors.text_muted;
+                        vertical_alignment: center;
+                    }
+                }
+                
+                // Right section: Total stats and features
+                HorizontalLayout {
+                    spacing: Theme.spacing_xs;
+                    alignment: end;
+                    
+                    // Feature indicators
+                    if root.terminology_highlighting: Text {
+                        text: "📖 Terms";
+                        font_size: Theme.font_size_small;
+                        color: Colors.info;
+                        vertical_alignment: center;
+                    }
+                    
+                    if root.translation_memory_enabled: Text {
+                        text: "🧠 TM";
+                        font_size: Theme.font_size_small;
+                        color: Colors.info;
+                        vertical_alignment: center;
+                    }
+                    
+                    if root.spell_check_enabled: Text {
+                        text: "✓ Spell";
+                        font_size: Theme.font_size_small;
+                        color: Colors.success;
+                        vertical_alignment: center;
+                    }
+                    
+                    Rectangle { width: 1px; height: 12px; background: Colors.border; }
+                    
+                    // Total statistics
+                    Text {
+                        text: "Total: " + 
+                              root.panes.map(p => p.config.word_count).reduce(|a, b| a + b, 0) + " words, " +
+                              root.panes.map(p => p.config.char_count).reduce(|a, b| a + b, 0) + " chars";
+                        font_size: Theme.font_size_small;
+                        color: Colors.text_secondary;
+                        vertical_alignment: center;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Auto-save timer (would be implemented in Rust backend)
+    auto_save_timer := Timer {
+        interval: root.layout_config.auto_save_interval;
+        running: root.layout_config.auto_save_interval > 0s;
+        
+        triggered => {
+            // Trigger auto-save for dirty panes
+            for pane in root.panes: if pane.is_dirty {
+                root.auto_save_triggered(pane.id);
+            }
+        }
+    }
+    
+    // Performance monitoring timer
+    if root.performance_monitoring: performance_timer := Timer {
+        interval: 1000ms; // Check every second
+        running: true;
+        
+        triggered => {
+            // Check performance thresholds
+            if root.performance_metrics.render_time_ms > 50.0 {
+                root.performance_threshold_exceeded("render_time", root.performance_metrics.render_time_ms);
+            }
+            
+            if root.performance_metrics.memory_usage_mb > 1000.0 {
+                root.memory_pressure_detected(root.performance_metrics.memory_usage_mb);
+            }
+        }
+    }
+    
+    // Accessibility support
+    accessible_role: AccessibleRole.group;
+    accessible_label: "Multi-pane text editor with " + root.panes.length + " panes";
+    accessible_description: "Current layout: " + 
+        (root.layout_config.mode == LayoutMode.Horizontal ? "side-by-side" :
+         root.layout_config.mode == LayoutMode.Vertical ? "top-bottom" :
+         "grid") + 
+        ". Active pane: " + root.active_pane_id + 
+        ". Synchronization: " + (root.layout_config.synchronized_scrolling ? "enabled" : "disabled");
+}

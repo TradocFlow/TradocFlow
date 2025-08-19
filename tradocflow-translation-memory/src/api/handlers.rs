@@ -8,16 +8,16 @@ use axum::{
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::{
+use super::{
     auth::{
         initialize_default_users, find_user_by_username, store_user, username_exists,
         generate_token, User, RegisterRequest, LoginRequest, AuthResponse, Claims
     },
     models::*,
-    AppState,
+    middleware_auth::AppState,
 };
-use tradocflow_translation_memory::{
-    models::{TranslationUnit, TranslationUnitBuilder},
+use crate::{
+    models::TranslationUnitBuilder,
     services::translation_memory::LanguagePair,
 };
 
@@ -93,7 +93,7 @@ pub async fn login_user(
 /// Create a new translation unit
 pub async fn create_translation_unit(
     State(state): State<AppState>,
-    Extension(claims): Extension<Claims>,
+    Extension(_claims): Extension<Claims>,
     Json(request): Json<CreateTranslationUnitRequest>,
 ) -> Result<Json<ApiResponse<TranslationUnitResponse>>, ApiError> {
     // Validate input

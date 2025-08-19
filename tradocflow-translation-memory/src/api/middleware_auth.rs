@@ -2,11 +2,19 @@
 
 use axum::{
     extract::{Request, State},
-    http::{header, StatusCode},
+    http::header,
     middleware::Next,
     response::Response,
 };
-use crate::{auth::verify_token, AppState, ApiError};
+use super::auth::verify_token;
+use super::models::ApiError;
+
+/// Application state shared across all handlers
+#[derive(Clone)]
+pub struct AppState {
+    pub translation_memory: std::sync::Arc<crate::TradocFlowTranslationMemory>,
+    pub jwt_secret: String,
+}
 
 /// Authentication middleware that validates JWT tokens
 pub async fn auth_middleware(

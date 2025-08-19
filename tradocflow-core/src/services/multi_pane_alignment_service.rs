@@ -62,7 +62,7 @@ pub struct TextPane {
     pub content: String,
     pub cursor_position: usize,
     pub selection_range: Option<(usize, usize)>,
-    #[serde(skip)]
+    #[serde(skip, default = "Instant::now")]
     pub last_modified: Instant,
     pub is_source: bool,
     pub structure_analysis: Option<StructureAnalysisResult>,
@@ -74,7 +74,7 @@ pub struct SyncEvent {
     pub event_id: Uuid,
     pub source_pane_id: Uuid,
     pub event_type: SyncEventType,
-    #[serde(skip)]
+    #[serde(skip, default = "Instant::now")]
     pub timestamp: Instant,
     pub affected_panes: Vec<Uuid>,
 }
@@ -95,7 +95,7 @@ pub enum SyncEventType {
 pub struct SyncState {
     pub synchronized_positions: HashMap<Uuid, usize>, // pane_id -> cursor position
     pub synchronized_selections: HashMap<Uuid, (usize, usize)>, // pane_id -> selection range
-    #[serde(skip)]
+    #[serde(skip, default = "Instant::now")]
     pub last_sync_time: Instant,
     pub sync_quality: f64,
     pub pending_syncs: Vec<SyncEvent>,

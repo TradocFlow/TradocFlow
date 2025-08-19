@@ -24,22 +24,8 @@ use tower_http::{
 };
 use tradocflow_translation_memory::TradocFlowTranslationMemory;
 
-mod auth;
-mod handlers;
-mod middleware_auth;
-mod models;
-
-use auth::*;
-use handlers::*;
-use middleware_auth::*;
-use models::*;
-
-/// Application state shared across all handlers
-#[derive(Clone)]
-pub struct AppState {
-    pub translation_memory: Arc<TradocFlowTranslationMemory>,
-    pub jwt_secret: String,
-}
+use tradocflow_translation_memory::api::*;
+use tradocflow_translation_memory::api::handlers::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {

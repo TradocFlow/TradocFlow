@@ -13,9 +13,9 @@ pub struct AlignmentCacheEntry {
     pub alignments: Vec<SentenceAlignment>,
     pub quality_indicator: AlignmentQualityIndicator,
     pub statistics: AlignmentStatistics,
-    #[serde(skip)]
+    #[serde(skip, default = "Instant::now")]
     pub created_at: Instant,
-    #[serde(skip)]
+    #[serde(skip, default = "Instant::now")]
     pub last_accessed: Instant,
     pub access_count: u32,
     pub cache_version: u8,
@@ -80,7 +80,7 @@ pub struct PerformanceMetrics {
     pub execution_time_ms: f64,
     pub cache_hit: bool,
     pub data_size_bytes: usize,
-    #[serde(skip)]
+    #[serde(skip, default = "Instant::now")]
     pub timestamp: Instant,
 }
 
@@ -295,7 +295,7 @@ impl AlignmentCacheService {
     }
 
     /// Optimize cache for better performance
-    pub async fn optimize_cache(&self) -> Result<()> {
+    pub async fn optimize_cache(&mut self) -> Result<()> {
         let start_time = Instant::now();
 
         // Analyze access patterns
@@ -622,7 +622,7 @@ impl AlignmentCacheService {
             .collect()
     }
 
-    async fn adjust_eviction_strategy(&self, access_patterns: &HashMap<String, f64>) {
+    async fn adjust_eviction_strategy(&mut self, access_patterns: &HashMap<String, f64>) {
         let average_hit_rate = if access_patterns.is_empty() {
             0.5
         } else {
@@ -664,11 +664,13 @@ impl AlignmentCacheService {
     }
 
     async fn schedule_maintenance_if_needed(&self) {
-        let stats = self.statistics.read().unwrap();
+        let (memory_usage_percentage, hit_rate) = {
+            let stats = self.statistics.read().unwrap();
+            (stats.memory_usage_percentage, stats.hit_rate)
+        };
         
         // Schedule cleanup if cache is getting full
-        if stats.memory_usage_percentage > 70.0 {
-            drop(stats);
+        if memory_usage_percentage > 70.0 {
             self.schedule_maintenance_task(CacheMaintenanceTask {
                 task_type: MaintenanceTaskType::Cleanup,
                 priority: 2,
@@ -678,8 +680,7 @@ impl AlignmentCacheService {
         }
         
         // Schedule optimization if hit rate is low
-        if stats.hit_rate < 50.0 {
-            drop(stats);
+        if hit_rate < 50.0 {
             self.schedule_maintenance_task(CacheMaintenanceTask {
                 task_type: MaintenanceTaskType::Optimization,
                 priority: 3,

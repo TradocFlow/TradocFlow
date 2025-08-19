@@ -61,7 +61,7 @@ tokio-test = "0.4"
 
 [features]
 # Default features - temporarily minimal due to version conflicts
-default = ["terminology-csv", "duckdb-storage", "parquet-export"]
+default = ["terminology-csv", "duckdb-storage", "parquet-export", "api"]
 
 # Storage backends - disabled temporarily due to dependency conflicts
 duckdb-storage = []  # Will be re-enabled when DuckDB dependencies are added
@@ -72,5 +72,8 @@ parquet-export = []  # Will be re-enabled when Parquet dependencies are added
 # CSV terminology import/export
 terminology-csv = ["csv"]
 
+# REST API server components
+api = []
+
 # Full feature set
-full = ["duckdb-storage", "parquet-export", "terminology-csv"]
+full = ["duckdb-storage", "parquet-export", "terminology-csv", "api"]

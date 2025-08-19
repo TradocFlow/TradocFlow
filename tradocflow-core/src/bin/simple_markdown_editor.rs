@@ -98,7 +98,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let ui = MainWindow::new()?;
     
     // Initialize document processing service
-    let document_processor = match ThreadSafeDocumentProcessor::new() {
+    let _document_processor = match ThreadSafeDocumentProcessor::new() {
         Ok(processor) => Some(processor),
         Err(e) => {
             eprintln!("⚠️  Warning: Document processing service failed to initialize: {}", e);
@@ -111,7 +111,7 @@ fn main() -> Result<(), slint::PlatformError> {
     // Enhanced PDF export will be implemented after resolving genpdf dependencies
     
     // Panel state management  
-    let panel_states = Rc::new(RefCell::new(vec![
+    let _panel_states = Rc::new(RefCell::new(vec![
         PanelState {
             file_path: String::new(),
             content: "# Welcome to Simple Markdown Editor\n\nStart editing your markdown here...".to_string(),
@@ -250,14 +250,119 @@ fn main() -> Result<(), slint::PlatformError> {
         // Save logic would go here
     });
 
+    // Text formatting callbacks - implement markdown formatting functionality
+    let ui_handle = ui.as_weak();
+    ui.on_format_bold(move || {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = format_text_bold(&current_content);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message("Applied bold formatting".into());
+        ui.set_status_type("success".into());
+        println!("🔤 Bold formatting applied");
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_format_italic(move || {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = format_text_italic(&current_content);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message("Applied italic formatting".into());
+        ui.set_status_type("success".into());
+        println!("🔤 Italic formatting applied");
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_format_heading(move |level| {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = format_text_heading(&current_content, level);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message(std::format!("Applied H{} heading", level).into());
+        ui.set_status_type("success".into());
+        println!("🔤 H{} heading applied", level);
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_format_code(move || {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = format_text_code(&current_content);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message("Applied code formatting".into());
+        ui.set_status_type("success".into());
+        println!("🔤 Code formatting applied");
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_insert_bullet_list(move || {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = insert_bullet_list(&current_content);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message("Inserted bullet list".into());
+        ui.set_status_type("success".into());
+        println!("🔤 Bullet list inserted");
+    });
+
     // Run the application
     ui.run()
+}
+
+// Markdown formatting functions
+fn format_text_bold(content: &str) -> String {
+    // Simple implementation: append bold text if there's none, otherwise add bold sample
+    if content.trim().is_empty() {
+        "**Bold text**".to_string()
+    } else {
+        std::format!("{}\n\n**Bold text**", content)
+    }
+}
+
+fn format_text_italic(content: &str) -> String {
+    // Simple implementation: append italic text if there's none, otherwise add italic sample
+    if content.trim().is_empty() {
+        "*Italic text*".to_string()
+    } else {
+        std::format!("{}\n\n*Italic text*", content)
+    }
+}
+
+fn format_text_heading(content: &str, level: i32) -> String {
+    let heading_prefix = "#".repeat(level as usize);
+    let heading_text = std::format!("{} Heading {}", heading_prefix, level);
+    
+    if content.trim().is_empty() {
+        heading_text
+    } else {
+        std::format!("{}\n\n{}", content, heading_text)
+    }
+}
+
+fn format_text_code(content: &str) -> String {
+    // Simple implementation: append code block if there's none, otherwise add code sample
+    if content.trim().is_empty() {
+        "`inline code`".to_string()
+    } else {
+        std::format!("{}\n\n`inline code`", content)
+    }
+}
+
+fn insert_bullet_list(content: &str) -> String {
+    let bullet_list = "- Item 1\n- Item 2\n- Item 3";
+    
+    if content.trim().is_empty() {
+        bullet_list.to_string()
+    } else {
+        std::format!("{}\n\n{}", content, bullet_list)
+    }
 }
 
 // Basic PDF export function using genpdf and pulldown-cmark (fallback)
 fn export_markdown_to_pdf_basic(markdown_content: &str, output_path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
     use genpdf::{Document, Element, style::Style};
-    use pulldown_cmark::{Parser, Event, Tag, HeadingLevel, CodeBlockKind};
+    use pulldown_cmark::{Parser, Event, Tag, HeadingLevel};
     
     let mut doc = Document::new(genpdf::fonts::from_files("fonts", "LiberationSans", None)?);
     doc.set_title("Exported Markdown Document");
@@ -266,7 +371,7 @@ fn export_markdown_to_pdf_basic(markdown_content: &str, output_path: &std::path:
     let mut current_text = String::new();
     let mut in_heading = false;
     let mut heading_level = 1;
-    let mut in_code_block = false;
+    let _in_code_block = false;
     
     for event in parser {
         match event {
@@ -298,8 +403,8 @@ fn export_markdown_to_pdf_basic(markdown_content: &str, output_path: &std::path:
             Event::Start(Tag::Paragraph) => {
                 // Start of paragraph  
             },
-            Event::End(_) if !in_heading && !in_code_block => {
-                if !current_text.is_empty() && !in_heading && !in_code_block {
+            Event::End(_) if !in_heading => {
+                if !current_text.is_empty() && !in_heading {
                     doc.push(genpdf::elements::Paragraph::new(&current_text));
                     current_text.clear();
                     doc.push(genpdf::elements::Break::new(0.3));

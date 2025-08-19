@@ -6,8 +6,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tradocflow_translation_memory::models::{Language, TranslationUnit};
-use uuid::Uuid;
+use crate::models::{Language, TranslationUnit};
 
 /// Standard API response wrapper
 #[derive(Debug, Serialize)]

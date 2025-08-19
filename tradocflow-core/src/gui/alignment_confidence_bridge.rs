@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use std::rc::Rc;
-use slint::{ComponentHandle, Model, VecModel, Weak};
+use slint::{Weak};
 use crate::services::sentence_alignment_service::{
     SentenceAlignmentService, 
     AlignmentConfig, 
@@ -14,6 +13,9 @@ use crate::services::sentence_alignment_service::{
 };
 use crate::Result;
 
+// Include Slint generated modules to access MainWindow
+slint::include_modules!();
+
 /// Bridge between Slint UI and Rust sentence alignment service
 /// Provides real-time confidence scoring and visual feedback
 pub struct AlignmentConfidenceBridge {
@@ -21,7 +23,7 @@ pub struct AlignmentConfidenceBridge {
     current_alignments: Arc<RwLock<Vec<SentenceAlignment>>>,
     confidence_cache: Arc<RwLock<HashMap<String, f64>>>,
     problem_areas_cache: Arc<RwLock<Vec<ServiceProblemArea>>>,
-    ui_handle: Option<Weak<slint::ComponentHandle<crate::ui::MainWindow>>>,
+    ui_handle: Option<Weak<MainWindow>>,
 }
 
 impl AlignmentConfidenceBridge {
@@ -40,7 +42,7 @@ impl AlignmentConfidenceBridge {
     }
     
     /// Set the UI handle for updates
-    pub fn set_ui_handle(&mut self, handle: Weak<slint::ComponentHandle<crate::ui::MainWindow>>) {
+    pub fn set_ui_handle(&mut self, handle: Weak<MainWindow>) {
         self.ui_handle = Some(handle);
     }
     
@@ -88,8 +90,8 @@ impl AlignmentConfidenceBridge {
     /// Handle confidence threshold changes from UI
     pub async fn handle_threshold_change(
         &self,
-        threshold_type: &str,
-        new_value: f64,
+        _threshold_type: &str,
+        _new_value: f64,
     ) -> Result<()> {
         // Update service configuration
         // Note: Would need to modify SentenceAlignmentService to support dynamic config updates

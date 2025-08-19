@@ -10,6 +10,9 @@ pub mod services;
 pub mod storage;
 pub mod utils;
 
+#[cfg(feature = "api")]
+pub mod api;
+
 // Re-export key types for easier access
 pub use error::{TranslationMemoryError, Result};
 pub use models::{

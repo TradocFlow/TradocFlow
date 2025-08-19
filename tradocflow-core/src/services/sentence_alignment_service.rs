@@ -135,7 +135,7 @@ pub struct SentenceAlignment {
     pub alignment_confidence: f64,
     pub alignment_method: AlignmentMethod,
     pub validation_status: ValidationStatus,
-    #[serde(skip)]
+    #[serde(skip, default = "Instant::now")]
     pub created_at: Instant,
     #[serde(skip)]
     pub last_validated: Option<Instant>,
@@ -245,7 +245,7 @@ pub struct AlignmentCorrection {
     pub original_alignment: SentenceAlignment,
     pub corrected_alignment: SentenceAlignment,
     pub correction_reason: String,
-    #[serde(skip)]
+    #[serde(skip, default = "Instant::now")]
     pub timestamp: Instant,
 }
 
@@ -296,8 +296,9 @@ impl SentenceAlignmentService {
         let start_time = Instant::now();
         
         let profiles = self.language_profiles.read().unwrap();
+        let default_profile = LanguageProfile::english();
         let profile = profiles.get(language)
-            .unwrap_or(&LanguageProfile::english());
+            .unwrap_or(&default_profile);
 
         let mut boundaries = Vec::new();
         let mut current_start = 0;
@@ -402,7 +403,7 @@ impl SentenceAlignmentService {
             }
         }
 
-        let mut alignments = Vec::new();
+        let mut alignments: Vec<SentenceAlignment> = Vec::new();
 
         // Position-based alignment
         let position_alignments = self.create_position_based_alignments(
@@ -603,8 +604,10 @@ impl SentenceAlignmentService {
         target_language: &str,
     ) -> Result<Vec<SentenceAlignment>> {
         let profiles = self.language_profiles.read().unwrap();
-        let source_profile = profiles.get(source_language).unwrap_or(&LanguageProfile::english());
-        let target_profile = profiles.get(target_language).unwrap_or(&LanguageProfile::english());
+        let default_source_profile = LanguageProfile::english();
+        let default_target_profile = LanguageProfile::english();
+        let source_profile = profiles.get(source_language).unwrap_or(&default_source_profile);
+        let target_profile = profiles.get(target_language).unwrap_or(&default_target_profile);
 
         let expected_ratio = target_profile.average_sentence_length / source_profile.average_sentence_length;
         let max_deviation = self.config.max_length_ratio_deviation;
@@ -897,8 +900,10 @@ impl SentenceAlignmentService {
         
         // Length ratio similarity
         let profiles = self.language_profiles.read().unwrap();
-        let source_profile = profiles.get(source_language).unwrap_or(&LanguageProfile::english());
-        let target_profile = profiles.get(target_language).unwrap_or(&LanguageProfile::english());
+        let default_source_profile = LanguageProfile::english();
+        let default_target_profile = LanguageProfile::english();
+        let source_profile = profiles.get(source_language).unwrap_or(&default_source_profile);
+        let target_profile = profiles.get(target_language).unwrap_or(&default_target_profile);
         
         let expected_ratio = target_profile.average_sentence_length / source_profile.average_sentence_length;
         let actual_ratio = target_sentence.text.len() as f64 / source_sentence.text.len().max(1) as f64;

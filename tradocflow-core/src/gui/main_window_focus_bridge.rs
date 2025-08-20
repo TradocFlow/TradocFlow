@@ -1,6 +1,4 @@
 use crate::gui::focus_management_bridge::FocusManagementUIBridge;
-use crate::services::focus_management_service::FocusUpdateResult;
-use slint::{ComponentHandle, SharedString};
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use anyhow::Result;

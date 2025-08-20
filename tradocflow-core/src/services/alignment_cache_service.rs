@@ -1,7 +1,6 @@
 use std::collections::{HashMap, BTreeMap};
 use std::sync::{Arc, RwLock};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use tokio::time::{Duration, Instant};
 use crate::Result;
 use crate::services::sentence_alignment_service::{SentenceAlignment, AlignmentStatistics, AlignmentQualityIndicator};

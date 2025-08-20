@@ -7,12 +7,10 @@ use crate::Result;
 use crate::services::{
     sentence_alignment_service::{
         SentenceAlignmentService, SentenceAlignment, AlignmentConfig, 
-        AlignmentQualityIndicator, AlignmentStatistics, SentenceBoundary,
-        AlignmentCorrection
+        AlignmentQualityIndicator, AlignmentStatistics
     },
     text_structure_analyzer::{
-        TextStructureAnalyzer, StructureAnalysisConfig, StructureAnalysisResult,
-        TextStructure, TextStructureType
+        TextStructureAnalyzer, StructureAnalysisConfig, StructureAnalysisResult
     },
     alignment_cache_service::{
         AlignmentCacheService, AlignmentCacheConfig
@@ -543,7 +541,7 @@ impl MultiPaneAlignmentService {
 
     /// Perform quality monitoring and generate recommendations
     pub async fn perform_quality_monitoring(&self) -> Result<QualityMonitoringResult> {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
 
         // Get current quality indicators
         let quality_indicators = self.get_real_time_quality_indicators().await?;
@@ -687,7 +685,7 @@ impl MultiPaneAlignmentService {
         );
 
         // Check cache first
-        if let Some((cached_alignments, quality, stats)) = 
+        if let Some((cached_alignments, _quality, _stats)) = 
             self.cache_service.get_alignments(&cache_key).await? {
             
             // Store in local cache
@@ -958,12 +956,12 @@ impl MultiPaneAlignmentService {
             panes_guard.clone()
         };
 
-        for (pane_id, pane) in &panes {
+        for (pane_id, _pane) in &panes {
             let mut quality_sum = 0.0;
             let mut quality_count = 0;
 
             // Calculate quality based on alignments with other panes
-            for (other_pane_id, other_pane) in &panes {
+            for (other_pane_id, _other_pane) in &panes {
                 if pane_id != other_pane_id {
                     if let Ok(alignments) = self.get_alignments_between_panes(*pane_id, *other_pane_id).await {
                         if !alignments.is_empty() {

@@ -52,6 +52,7 @@ pub struct LanguageDocumentMap {
 
 /// Service for importing Word documents and converting them to markdown chapters
 pub struct DocumentImportService {
+    #[allow(dead_code)]
     translation_memory: TranslationMemoryAdapter,
     chunk_processor: ChunkProcessor,
 }

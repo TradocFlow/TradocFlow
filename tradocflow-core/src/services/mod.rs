@@ -152,6 +152,7 @@ pub struct LanguageInconsistency {
 
 /// Placeholder for terminology highlighting service
 pub struct TerminologyHighlightingService {
+    #[allow(dead_code)]
     terminology_service: std::sync::Arc<TerminologyServiceAdapter>,
 }
 

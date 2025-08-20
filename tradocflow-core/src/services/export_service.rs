@@ -425,9 +425,8 @@ impl ExportService {
 
     pub async fn cleanup_old_exports(&self, older_than_days: u64) -> Result<usize> {
         let cutoff_date = Utc::now() - chrono::Duration::days(older_than_days as i64);
-        let mut cleaned_count = 0;
 
-        {
+        let cleaned_count = {
             let mut queue = self.job_queue.lock().unwrap();
             let initial_len = queue.len();
             
@@ -446,8 +445,8 @@ impl ExportService {
                 true
             });
 
-            cleaned_count = initial_len - queue.len();
-        }
+            initial_len - queue.len()
+        };
 
         Ok(cleaned_count)
     }

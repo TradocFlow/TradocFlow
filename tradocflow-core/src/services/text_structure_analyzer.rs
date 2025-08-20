@@ -1,9 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use regex::Regex;
 use uuid::Uuid;
 use crate::Result;
-use crate::services::sentence_alignment_service::{LanguageProfile, SentenceBoundary};
 
 /// Different types of text structures that can be analyzed
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1010,7 +1009,7 @@ impl TextStructureAnalyzer {
     fn classify_character_context(&self, ch: char) -> CharacterContext {
         match ch {
             '.' | ',' | ';' | ':' | '!' | '?' => CharacterContext::Punctuation,
-            '"' | '\'' | '`' | '"' | '"' | '\'' | '\'' => CharacterContext::Quote,
+            '"' | '\'' | '`' => CharacterContext::Quote,
             '•' | '◦' | '▪' | '▫' | '‣' => CharacterContext::Bullet,
             '+' | '-' | '=' | '*' | '/' | '^' | '±' | '∞' => CharacterContext::Mathematical,
             '$' | '€' | '£' | '¥' | '¢' => CharacterContext::Currency,

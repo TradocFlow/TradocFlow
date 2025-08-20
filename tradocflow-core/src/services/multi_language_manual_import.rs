@@ -163,11 +163,10 @@ impl MultiLanguageManualImportService {
     ) -> Result<FolderScanResult, TradocumentError> {
         let mut language_files: HashMap<SupportedLanguage, Vec<PathBuf>> = HashMap::new();
         let mut unmatched_files = Vec::new();
-        let mut total_files_found = 0;
 
         // Collect all Word document files
         let files = self.collect_document_files(folder_path, config)?;
-        total_files_found = files.len();
+        let total_files_found = files.len();
 
         // Process each file for language detection
         for file_path in files {

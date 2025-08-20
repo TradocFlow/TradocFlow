@@ -1,17 +1,14 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use regex::{Regex, RegexBuilder};
+use regex::Regex;
 use pulldown_cmark::{
-    Parser, Event, Tag, TagEnd, HeadingLevel, CodeBlockKind, 
-    LinkType, CowStr, Options, html
+    Parser, Event, Tag, TagEnd, HeadingLevel, CodeBlockKind, Options
 };
-use pulldown_cmark_to_cmark::{cmark, cmark_with_options};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 use super::markdown_text_processor::{
-    TextPosition, TextSelection, MarkdownFormat, TextProcessorError
+    MarkdownFormat, TextProcessorError
 };
 
 /// Markdown AST node representing document structure
@@ -257,14 +254,14 @@ impl MarkdownProcessor {
     }
 
     /// Build AST from parser events
-    fn build_ast(&self, parser: Parser, source: &str) -> Result<MarkdownNode, MarkdownProcessorError> {
+    fn build_ast(&self, parser: Parser, _source: &str) -> Result<MarkdownNode, MarkdownProcessorError> {
         let mut stack: Vec<MarkdownNode> = Vec::new();
         let mut root_children = Vec::new();
-        let mut current_position = 0;
+        let mut _current_position = 0;
 
         for (event, range) in parser.into_offset_iter() {
             let text_range = TextRange::new(range.start, range.end);
-            current_position = range.end;
+            _current_position = range.end;
 
             match event {
                 Event::Start(tag) => {

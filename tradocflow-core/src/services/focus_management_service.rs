@@ -1,9 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use anyhow::Result;
-use slint::{SharedString, ModelRc, VecModel};
 
 /// Focus state for individual editor instances
 #[derive(Debug, Clone, PartialEq)]
@@ -439,7 +438,7 @@ impl FocusManagementService {
     }
     
     /// Reorder editors based on layout configuration
-    fn reorder_editors_for_layout(&mut self, layout: &str, pane_count: usize) {
+    fn reorder_editors_for_layout(&mut self, layout: &str, _pane_count: usize) {
         match layout {
             "single" => {
                 // Keep first editor only in tab order

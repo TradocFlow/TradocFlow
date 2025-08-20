@@ -1,15 +1,15 @@
 use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, RwLock as TokioRwLock, Mutex as TokioMutex};
-use tokio::time::{interval, sleep};
+use tokio::time::sleep;
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Digest};
 
-use super::markdown_text_processor::{TextPosition, TextSelection, MarkdownTextProcessor, TextProcessorError};
-use super::markdown_processor::{MarkdownProcessor, MarkdownNode, TextRange, ValidationError, ProcessingStatistics};
+use super::markdown_text_processor::{MarkdownTextProcessor, TextProcessorError};
+use super::markdown_processor::{MarkdownProcessor, TextRange, ValidationError, ProcessingStatistics};
 
 /// Document modification event
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -398,7 +398,7 @@ impl DocumentStateManager {
 
     /// Insert text at position
     pub async fn insert_text(&self, position: usize, text: &str) -> Result<(), DocumentStateError> {
-        let old_content = self.get_content().await;
+        let _old_content = self.get_content().await;
         
         {
             let mut processor = self.text_processor.write().await;
@@ -430,7 +430,7 @@ impl DocumentStateManager {
 
     /// Delete text range
     pub async fn delete_range(&self, start: usize, end: usize) -> Result<String, DocumentStateError> {
-        let old_content = self.get_content().await;
+        let _old_content = self.get_content().await;
         
         let deleted_text = {
             let mut processor = self.text_processor.write().await;

@@ -148,6 +148,7 @@ pub struct TranslationMemoryService {
     // Thread-safe cache with lock-free concurrent access
     cache: Arc<TranslationCache>,
     project_id: Uuid,
+    #[allow(dead_code)]
     project_path: PathBuf,
     // Configuration
     max_search_results: usize,

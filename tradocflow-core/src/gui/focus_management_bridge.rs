@@ -1,9 +1,7 @@
 use crate::services::focus_management_service::{
     FocusManagementBridge as FocusBridge, 
-    FocusUpdateResult, 
-    EditorFocusState
+    FocusUpdateResult
 };
-use slint::{ComponentHandle, SharedString, VecModel, ModelRc};
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use anyhow::Result;
@@ -313,8 +311,8 @@ impl Default for FocusManagementUIBridge {
 
 /// Convenience functions for Slint integration
 pub mod slint_helpers {
-    use super::*;
-    use slint::{SharedString, Weak, ComponentHandle};
+    
+    use slint::SharedString;
     
     /// Create shared string from editor ID
     pub fn editor_id_to_shared_string(editor_id: &str) -> SharedString {

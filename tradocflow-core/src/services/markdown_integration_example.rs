@@ -7,9 +7,8 @@ use uuid::Uuid;
 use tokio::sync::mpsc;
 
 use super::{
-    MarkdownTextProcessor, MarkdownProcessor, DocumentStateManager,
-    TextPosition, TextSelection, MarkdownFormat, AutoSaveConfig,
-    DocumentChange, ValidationError, MarkdownProcessingConfig,
+    MarkdownTextProcessor, MarkdownProcessor, DocumentStateManager, MarkdownFormat, AutoSaveConfig,
+    DocumentChange, ValidationError,
 };
 use super::markdown_processor::ProcessingStatistics as MarkdownProcessingStatistics;
 use super::document_processing::ProcessingStatistics;
@@ -335,12 +334,12 @@ impl AdvancedMarkdownProcessor {
     pub async fn apply_smart_formatting(&mut self, format: MarkdownFormat) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Collect cursor data to avoid borrowing conflicts
         let cursors_data: Vec<_> = self.text_processor.get_cursors().to_vec();
-        let content = self.text_processor.get_content().clone();
+        let _content = self.text_processor.get_content();
         
         for cursor in cursors_data {
             if let Some(selection) = &cursor.selection {
                 let range = super::TextRange::new(selection.start.offset, selection.end.offset);
-                let current_content = self.text_processor.get_content().clone();
+                let current_content = self.text_processor.get_content();
                 
                 // Apply formatting with conflict resolution
                 let result = self.markdown_processor

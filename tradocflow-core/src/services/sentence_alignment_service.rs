@@ -293,7 +293,7 @@ impl SentenceAlignmentService {
         text: &str,
         language: &str,
     ) -> Result<Vec<SentenceBoundary>> {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
         
         let profiles = self.language_profiles.read().unwrap();
         let default_profile = LanguageProfile::english();
@@ -403,7 +403,7 @@ impl SentenceAlignmentService {
             }
         }
 
-        let mut alignments: Vec<SentenceAlignment> = Vec::new();
+        let _alignments: Vec<SentenceAlignment> = Vec::new();
 
         // Position-based alignment
         let position_alignments = self.create_position_based_alignments(
@@ -644,7 +644,7 @@ impl SentenceAlignmentService {
         &self,
         alignments: Vec<SentenceAlignment>
     ) -> Result<Vec<SentenceAlignment>> {
-        let mut ml_model = self.ml_model.write().unwrap();
+        let ml_model = self.ml_model.write().unwrap();
         let mut corrected_alignments = Vec::new();
 
         for mut alignment in alignments {
@@ -721,12 +721,10 @@ impl SentenceAlignmentService {
         let user_validation_rate = validated_count / total_alignments;
 
         // Calculate overall quality
-        let overall_quality = (
-            position_consistency * 0.3 +
+        let overall_quality = position_consistency * 0.3 +
             length_ratio_consistency * 0.25 +
             structural_coherence * 0.25 +
-            user_validation_rate * 0.2
-        );
+            user_validation_rate * 0.2;
 
         // Identify problem areas
         let problem_areas = self.identify_problem_areas(alignments);
@@ -1068,7 +1066,7 @@ impl SentenceAlignmentService {
     fn identify_problem_areas(&self, alignments: &[SentenceAlignment]) -> Vec<ProblemArea> {
         let mut problem_areas = Vec::new();
 
-        for (i, alignment) in alignments.iter().enumerate() {
+        for (_i, alignment) in alignments.iter().enumerate() {
             let mut issues = Vec::new();
 
             // Check for length mismatches

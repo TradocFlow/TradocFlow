@@ -92,6 +92,7 @@ pub struct TranslationMemoryIntegrationService {
 
 /// Pending translation for auto-creation
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct PendingTranslation {
     source_text: String,
     target_text: String,

@@ -35,6 +35,7 @@ pub enum ParquetFileType {
 #[derive(Debug)]
 struct ParquetFileStructure {
     project_files: HashMap<Uuid, Vec<ParquetFileMetadata>>,
+    #[allow(dead_code)]
     active_writers: HashMap<String, DateTime<Utc>>,
     compression_stats: HashMap<ParquetFileType, CompressionStats>,
 }
@@ -360,6 +361,7 @@ impl ParquetManager {
         Ok(project_dir.join("terms.parquet"))
     }
     
+    #[allow(dead_code)]
     async fn get_chunks_file_path(&self, project_id: Uuid) -> Result<PathBuf> {
         let project_dir = self.base_path.join(format!("project_{}", project_id)).join("chunks");
         Ok(project_dir.join("chunks.parquet"))

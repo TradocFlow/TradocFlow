@@ -66,7 +66,7 @@ fn main() {
     println!("\n🎯 Inline Editing Demo");
     println!("Simulating element editing...");
     
-    let mut current_content = sample_markdown.to_string();
+    let current_content = sample_markdown.to_string();
     
     // Simulate editing the first heading
     let lines: Vec<&str> = current_content.lines().collect();

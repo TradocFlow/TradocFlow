@@ -26,7 +26,9 @@ pub struct ConnectionPool {
 /// Mock connection for DuckDB operations (placeholder until DuckDB integration is complete)
 #[derive(Debug, Clone)]
 pub struct MockConnection {
+    #[allow(dead_code)]
     id: Uuid,
+    #[allow(dead_code)]
     created_at: DateTime<Utc>,
 }
 
@@ -66,6 +68,7 @@ impl ConnectionPool {
         }
     }
     
+    #[allow(dead_code)]
     fn return_connection(&mut self, connection: MockConnection) {
         if self.connections.len() < self.max_connections {
             self.connections.push(connection);
@@ -489,6 +492,7 @@ impl DuckDBManager {
         pool.get_connection()
     }
     
+    #[allow(dead_code)]
     async fn return_connection(&self, connection: MockConnection) {
         let mut pool = self.connection_pool.write().await;
         pool.return_connection(connection);

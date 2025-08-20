@@ -1,16 +1,9 @@
 use slint::*;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::path::PathBuf;
-use std::fs;
-use std::sync::Arc;
-use std::time::Duration;
-use std::thread;
 
 // Import document processing services
-use tradocflow_core::services::{
-    ThreadSafeDocumentProcessor, DocumentProcessingConfig, ImportProgressInfo, ImportStage
-};
+use tradocflow_core::services::ThreadSafeDocumentProcessor;
 
 // Import the generated Slint components
 use tradocflow_core::MainWindow;
@@ -306,56 +299,356 @@ fn main() -> Result<(), slint::PlatformError> {
         println!("🔤 Bullet list inserted");
     });
 
+    // Additional formatting callbacks - these will need to be connected to the UI
+    let ui_handle = ui.as_weak();
+    ui.on_format_strikethrough(move || {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = format_text_strikethrough(&current_content);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message("Applied strikethrough formatting".into());
+        ui.set_status_type("success".into());
+        println!("🔤 Strikethrough formatting applied");
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_format_underline(move || {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = format_text_underline(&current_content);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message("Applied underline formatting".into());
+        ui.set_status_type("success".into());
+        println!("🔤 Underline formatting applied");
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_format_quote(move || {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = format_text_quote(&current_content);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message("Inserted blockquote".into());
+        ui.set_status_type("success".into());
+        println!("🔤 Blockquote inserted");
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_insert_numbered_list(move || {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = insert_numbered_list(&current_content);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message("Inserted numbered list".into());
+        ui.set_status_type("success".into());
+        println!("🔤 Numbered list inserted");
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_insert_checklist(move || {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = insert_checklist(&current_content);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message("Inserted checklist".into());
+        ui.set_status_type("success".into());
+        println!("🔤 Checklist inserted");
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_insert_link(move || {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = insert_link(&current_content);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message("Inserted link".into());
+        ui.set_status_type("success".into());
+        println!("🔤 Link inserted");
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_insert_image(move || {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = insert_image(&current_content);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message("Inserted image".into());
+        ui.set_status_type("success".into());
+        println!("🔤 Image inserted");
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_insert_table(move || {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = insert_table(&current_content);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message("Inserted table".into());
+        ui.set_status_type("success".into());
+        println!("🔤 Table inserted");
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_insert_code_block(move || {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = insert_code_block(&current_content);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message("Inserted code block".into());
+        ui.set_status_type("success".into());
+        println!("🔤 Code block inserted");
+    });
+
+    let ui_handle = ui.as_weak();
+    ui.on_insert_horizontal_rule(move || {
+        let ui = ui_handle.unwrap();
+        let current_content = ui.get_document_content().to_string();
+        let formatted_content = insert_horizontal_rule(&current_content);
+        ui.set_document_content(formatted_content.into());
+        ui.set_status_message("Inserted horizontal rule".into());
+        ui.set_status_type("success".into());
+        println!("🔤 Horizontal rule inserted");
+    });
+
     // Run the application
     ui.run()
 }
 
-// Markdown formatting functions
+// Legacy formatting functions (kept for compatibility)
+// Note: These are replaced by the enhanced formatting engine above
+// but kept here in case they're needed for fallback scenarios
+
 fn format_text_bold(content: &str) -> String {
-    // Simple implementation: append bold text if there's none, otherwise add bold sample
     if content.trim().is_empty() {
         "**Bold text**".to_string()
     } else {
-        std::format!("{}\n\n**Bold text**", content)
+        // Check if content already ends with formatting, add appropriate spacing
+        let separator = if content.ends_with('\n') || content.ends_with("  \n") { 
+            "" 
+        } else { 
+            "\n\n" 
+        };
+        std::format!("{}{}**Bold text**", content, separator)
     }
 }
 
 fn format_text_italic(content: &str) -> String {
-    // Simple implementation: append italic text if there's none, otherwise add italic sample
     if content.trim().is_empty() {
         "*Italic text*".to_string()
     } else {
-        std::format!("{}\n\n*Italic text*", content)
+        let separator = if content.ends_with('\n') || content.ends_with("  \n") { 
+            "" 
+        } else { 
+            "\n\n" 
+        };
+        std::format!("{}{}*Italic text*", content, separator)
     }
 }
 
 fn format_text_heading(content: &str, level: i32) -> String {
-    let heading_prefix = "#".repeat(level as usize);
-    let heading_text = std::format!("{} Heading {}", heading_prefix, level);
+    let heading_prefix = "#".repeat(level.clamp(1, 6) as usize);
+    let heading_text = std::format!("{} Heading Level {}", heading_prefix, level);
     
     if content.trim().is_empty() {
         heading_text
     } else {
-        std::format!("{}\n\n{}", content, heading_text)
+        // Smart heading insertion - if content ends with a line, convert that line
+        let lines: Vec<&str> = content.lines().collect();
+        if let Some(last_line) = lines.last() {
+            if last_line.trim().is_empty() {
+                // Empty last line, add heading after it
+                std::format!("{}\n{}", content, heading_text)
+            } else if last_line.starts_with('#') {
+                // Last line is already a heading, replace it
+                let mut new_lines = lines;
+                new_lines.pop(); // Remove last line
+                let base_content = new_lines.join("\n");
+                if base_content.is_empty() {
+                    heading_text
+                } else {
+                    std::format!("{}\n{}", base_content, heading_text)
+                }
+            } else {
+                // Add heading after current content
+                let separator = if content.ends_with('\n') { "" } else { "\n\n" };
+                std::format!("{}{}{}",content, separator, heading_text)
+            }
+        } else {
+            heading_text
+        }
     }
 }
 
 fn format_text_code(content: &str) -> String {
-    // Simple implementation: append code block if there's none, otherwise add code sample
     if content.trim().is_empty() {
         "`inline code`".to_string()
     } else {
-        std::format!("{}\n\n`inline code`", content)
+        let separator = if content.ends_with('\n') || content.ends_with("  \n") { 
+            "" 
+        } else { 
+            "\n\n" 
+        };
+        std::format!("{}{}```\ncode block\n```", content, separator)
     }
 }
 
 fn insert_bullet_list(content: &str) -> String {
-    let bullet_list = "- Item 1\n- Item 2\n- Item 3";
+    let bullet_list = "- First item\n- Second item\n- Third item";
     
     if content.trim().is_empty() {
         bullet_list.to_string()
     } else {
-        std::format!("{}\n\n{}", content, bullet_list)
+        let separator = if content.ends_with('\n') || content.ends_with("  \n") { 
+            "" 
+        } else { 
+            "\n\n" 
+        };
+        std::format!("{}{}{}", content, separator, bullet_list)
+    }
+}
+
+// Additional formatting functions for enhanced functionality
+fn format_text_strikethrough(content: &str) -> String {
+    if content.trim().is_empty() {
+        "~~Strikethrough text~~".to_string()
+    } else {
+        let separator = if content.ends_with('\n') || content.ends_with("  \n") { 
+            "" 
+        } else { 
+            "\n\n" 
+        };
+        std::format!("{}{}~~Strikethrough text~~", content, separator)
+    }
+}
+
+fn format_text_underline(content: &str) -> String {
+    if content.trim().is_empty() {
+        "<u>Underlined text</u>".to_string()
+    } else {
+        let separator = if content.ends_with('\n') || content.ends_with("  \n") { 
+            "" 
+        } else { 
+            "\n\n" 
+        };
+        std::format!("{}{}<u>Underlined text</u>", content, separator)
+    }
+}
+
+fn format_text_quote(content: &str) -> String {
+    if content.trim().is_empty() {
+        "> This is a blockquote".to_string()
+    } else {
+        let separator = if content.ends_with('\n') || content.ends_with("  \n") { 
+            "" 
+        } else { 
+            "\n\n" 
+        };
+        std::format!("{}{}> This is a blockquote", content, separator)
+    }
+}
+
+fn insert_numbered_list(content: &str) -> String {
+    let numbered_list = "1. First item\n2. Second item\n3. Third item";
+    
+    if content.trim().is_empty() {
+        numbered_list.to_string()
+    } else {
+        let separator = if content.ends_with('\n') || content.ends_with("  \n") { 
+            "" 
+        } else { 
+            "\n\n" 
+        };
+        std::format!("{}{}{}", content, separator, numbered_list)
+    }
+}
+
+fn insert_checklist(content: &str) -> String {
+    let checklist = "- [ ] Task 1\n- [ ] Task 2\n- [x] Completed task";
+    
+    if content.trim().is_empty() {
+        checklist.to_string()
+    } else {
+        let separator = if content.ends_with('\n') || content.ends_with("  \n") { 
+            "" 
+        } else { 
+            "\n\n" 
+        };
+        std::format!("{}{}{}", content, separator, checklist)
+    }
+}
+
+fn insert_link(content: &str) -> String {
+    let link = "[Link text](https://example.com)";
+    
+    if content.trim().is_empty() {
+        link.to_string()
+    } else {
+        let separator = if content.ends_with('\n') || content.ends_with("  \n") { 
+            "" 
+        } else { 
+            "\n\n" 
+        };
+        std::format!("{}{}{}", content, separator, link)
+    }
+}
+
+fn insert_image(content: &str) -> String {
+    let image = "![Alt text](image.jpg)";
+    
+    if content.trim().is_empty() {
+        image.to_string()
+    } else {
+        let separator = if content.ends_with('\n') || content.ends_with("  \n") { 
+            "" 
+        } else { 
+            "\n\n" 
+        };
+        std::format!("{}{}{}", content, separator, image)
+    }
+}
+
+fn insert_table(content: &str) -> String {
+    let table = "| Column 1 | Column 2 | Column 3 |\n|----------|----------|----------|\n| Cell 1   | Cell 2   | Cell 3   |\n| Cell 4   | Cell 5   | Cell 6   |";
+    
+    if content.trim().is_empty() {
+        table.to_string()
+    } else {
+        let separator = if content.ends_with('\n') || content.ends_with("  \n") { 
+            "" 
+        } else { 
+            "\n\n" 
+        };
+        std::format!("{}{}{}", content, separator, table)
+    }
+}
+
+fn insert_code_block(content: &str) -> String {
+    let code_block = "```rust\nfn main() {\n    println!(\"Hello, world!\");\n}\n```";
+    
+    if content.trim().is_empty() {
+        code_block.to_string()
+    } else {
+        let separator = if content.ends_with('\n') || content.ends_with("  \n") { 
+            "" 
+        } else { 
+            "\n\n" 
+        };
+        std::format!("{}{}{}", content, separator, code_block)
+    }
+}
+
+fn insert_horizontal_rule(content: &str) -> String {
+    let rule = "---";
+    
+    if content.trim().is_empty() {
+        rule.to_string()
+    } else {
+        let separator = if content.ends_with('\n') || content.ends_with("  \n") { 
+            "" 
+        } else { 
+            "\n\n" 
+        };
+        std::format!("{}{}{}", content, separator, rule)
     }
 }
 

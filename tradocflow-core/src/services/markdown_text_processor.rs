@@ -1,9 +1,9 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::ops::Range;
-use regex::{Regex, RegexBuilder};
+use regex::RegexBuilder;
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
-use tokio::time::{Duration, Instant};
+use tokio::time::Instant;
 
 /// Position in text representing cursor or selection
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -6,8 +6,7 @@ use tokio::time::Instant;
 use crate::Result;
 use crate::services::{
     multi_pane_alignment_service::{
-        MultiPaneAlignmentService, MultiPaneAlignmentConfig, TextPane,
-        SyncEvent, SyncState, QualityMonitoringResult, PerformanceMetrics as AlignmentPerformanceMetrics
+        MultiPaneAlignmentService, MultiPaneAlignmentConfig, TextPane, SyncState, QualityMonitoringResult, PerformanceMetrics as AlignmentPerformanceMetrics
     },
     sentence_alignment_service::{
         AlignmentStatistics, AlignmentQualityIndicator, SentenceAlignment
@@ -402,7 +401,7 @@ impl AlignmentApiService {
                     sync_quality: sync_state.sync_quality,
                 })
             },
-            Err(e) => {
+            Err(_e) => {
                 self.increment_error_counter();
                 Ok(SyncCursorResponse {
                     success: false,
@@ -634,7 +633,7 @@ impl AlignmentApiService {
         }
     }
 
-    async fn get_pane_quality_score(&self, pane_id: Uuid) -> Option<f64> {
+    async fn get_pane_quality_score(&self, _pane_id: Uuid) -> Option<f64> {
         // In a real implementation, this would calculate the quality score for a specific pane
         // For now, return a default score
         Some(0.8)

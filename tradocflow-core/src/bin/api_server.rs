@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use axum::{
-    extract::{Path, Query, State},
-    http::{StatusCode, header},
+    extract::{Path, State},
+    http::StatusCode,
     response::Json,
     routing::{get, post, put, delete},
     Router,
@@ -30,7 +30,6 @@ use tradocflow_core::{
     models::{
         member::MemberRole,
         kanban::{CreateKanbanCardRequest, UpdateKanbanCardRequest, MoveCardRequest},
-        document::DocumentStatus,
     }
 };
 
@@ -275,7 +274,7 @@ async fn create_document(
 
 async fn get_document(
     State(_state): State<ApiState>,
-    Path(id): Path<Uuid>,
+    Path(_id): Path<Uuid>,
 ) -> Result<Json<Document>, StatusCode> {
     // Sample document response - in real implementation would query database
     let document = Document {
@@ -296,7 +295,7 @@ async fn get_document(
 
 async fn update_document(
     State(_state): State<ApiState>,
-    Path(id): Path<Uuid>,
+    Path(_id): Path<Uuid>,
     Json(request): Json<CreateDocumentRequest>,
 ) -> Result<Json<Document>, StatusCode> {
     let document = Document {
@@ -635,7 +634,7 @@ async fn project_events_stream(
     use axum::http::HeaderValue;
     use std::time::Duration;
     use tokio::time::interval;
-    use futures::stream::StreamExt;
+    
 
     // Create a simple SSE response with manual headers
     let headers = [

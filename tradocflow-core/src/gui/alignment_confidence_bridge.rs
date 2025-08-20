@@ -265,7 +265,7 @@ impl AlignmentConfidenceBridge {
     fn convert_to_confidence_statistics(
         &self,
         alignments: &[SentenceAlignment],
-        quality_indicators: &AlignmentQualityIndicator,
+        _quality_indicators: &AlignmentQualityIndicator,
     ) -> slint::SharedString {
         let total = alignments.len();
         let excellent_count = alignments.iter().filter(|a| a.alignment_confidence >= 0.9).count();
@@ -288,13 +288,13 @@ impl AlignmentConfidenceBridge {
     
     fn update_ui_confidence_data(
         &self,
-        confidence_indicators: Vec<slint::SharedString>,
-        problem_areas: Vec<slint::SharedString>,
-        alignment_connections: Vec<slint::SharedString>,
-        statistics: slint::SharedString,
+        _confidence_indicators: Vec<slint::SharedString>,
+        _problem_areas: Vec<slint::SharedString>,
+        _alignment_connections: Vec<slint::SharedString>,
+        _statistics: slint::SharedString,
     ) {
         if let Some(ui_handle) = &self.ui_handle {
-            if let Some(ui) = ui_handle.upgrade() {
+            if let Some(_ui) = ui_handle.upgrade() {
                 // Update the UI with new data
                 // This would use the Slint component's methods to update the data
                 // Note: Actual implementation would depend on how the UI properties are exposed
@@ -304,11 +304,11 @@ impl AlignmentConfidenceBridge {
     
     fn update_ui_confidence_indicators(
         &self,
-        confidence_indicators: Vec<slint::SharedString>,
-        statistics: slint::SharedString,
+        _confidence_indicators: Vec<slint::SharedString>,
+        _statistics: slint::SharedString,
     ) {
         if let Some(ui_handle) = &self.ui_handle {
-            if let Some(ui) = ui_handle.upgrade() {
+            if let Some(_ui) = ui_handle.upgrade() {
                 // Update only confidence indicators and statistics
             }
         }
@@ -377,14 +377,14 @@ impl AlignmentConfidenceBridge {
     
     // Auto-fix implementation methods
     
-    async fn fix_length_mismatch(&self, problem: &ServiceProblemArea) -> Result<()> {
+    async fn fix_length_mismatch(&self, _problem: &ServiceProblemArea) -> Result<()> {
         // Implement length mismatch auto-fix logic
         // This might involve adjusting alignment algorithm parameters
         // or re-running alignment with different settings
         Ok(())
     }
     
-    async fn fix_boundary_detection(&self, problem: &ServiceProblemArea) -> Result<()> {
+    async fn fix_boundary_detection(&self, _problem: &ServiceProblemArea) -> Result<()> {
         // Implement boundary detection auto-fix logic
         // This might involve adjusting sentence boundary detection parameters
         Ok(())
@@ -394,35 +394,35 @@ impl AlignmentConfidenceBridge {
     
     async fn create_manual_alignment(
         &self,
-        source_selections: Vec<(String, usize)>,
-        target_selections: Vec<(String, usize)>,
-        user_notes: &str,
+        _source_selections: Vec<(String, usize)>,
+        _target_selections: Vec<(String, usize)>,
+        _user_notes: &str,
     ) -> Result<bool> {
         // Implement manual alignment creation
         // This would create new alignments based on user selections
         Ok(true)
     }
     
-    async fn remove_alignment(&self, selections: Vec<(String, usize)>) -> Result<bool> {
+    async fn remove_alignment(&self, _selections: Vec<(String, usize)>) -> Result<bool> {
         // Implement alignment removal
         Ok(true)
     }
     
-    async fn merge_sentences(&self, selections: Vec<(String, usize)>, user_notes: &str) -> Result<bool> {
+    async fn merge_sentences(&self, _selections: Vec<(String, usize)>, _user_notes: &str) -> Result<bool> {
         // Implement sentence merging
         Ok(true)
     }
     
-    async fn split_sentence(&self, selections: Vec<(String, usize)>, user_notes: &str) -> Result<bool> {
+    async fn split_sentence(&self, _selections: Vec<(String, usize)>, _user_notes: &str) -> Result<bool> {
         // Implement sentence splitting
         Ok(true)
     }
     
     async fn validate_alignment(
         &self,
-        selections: Vec<(String, usize)>,
-        is_valid: bool,
-        user_notes: &str,
+        _selections: Vec<(String, usize)>,
+        _is_valid: bool,
+        _user_notes: &str,
     ) -> Result<bool> {
         // Implement alignment validation
         // This would update the validation status and potentially learn from the feedback

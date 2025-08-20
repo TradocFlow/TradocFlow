@@ -57,6 +57,7 @@ pub enum ChunkLinkType {
 #[derive(Clone)]
 pub struct TranslationMemoryAdapter {
     translation_memory: Arc<TradocFlowTranslationMemory>,
+    #[allow(dead_code)]
     project_path: PathBuf,
 }
 
